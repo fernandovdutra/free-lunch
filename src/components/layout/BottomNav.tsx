@@ -18,7 +18,7 @@ export function BottomNav({ className }: BottomNavProps) {
   return (
     <nav
       className={cn(
-        'fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-safe',
+        'pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card',
         className
       )}
     >

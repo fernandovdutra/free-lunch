@@ -6,6 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Free Lunch is a personal finance management app for the Netherlands market. It connects to ABN AMRO via Enable Banking API, auto-categorizes transactions, and provides spending insights. Built with React 19, Firebase, and Tailwind CSS.
 
+## Key Documentation
+
+- **PRD.md** - Full product requirements document with user stories, feature specs, data models, API specs, and implementation phases
+- **.claude/reference/free-lunch-design-system.md** - Comprehensive design system (colors, typography, components, accessibility)
+
 ## Commands
 
 ```bash

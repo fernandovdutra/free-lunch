@@ -30,9 +30,7 @@ export function Header() {
 
           {/* User menu */}
           <div className="flex items-center gap-2">
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              {user?.email}
-            </span>
+            <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
             <Button variant="ghost" size="icon" onClick={() => void logout()}>
               <LogOut className="h-4 w-4" />
               <span className="sr-only">Sign out</span>

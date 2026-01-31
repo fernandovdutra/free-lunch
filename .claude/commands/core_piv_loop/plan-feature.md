@@ -1,5 +1,5 @@
 ---
-description: "Create comprehensive feature plan with deep codebase analysis and research"
+description: 'Create comprehensive feature plan with deep codebase analysis and research'
 ---
 
 # Plan a new task
@@ -304,6 +304,38 @@ Design unit tests with fixtures and assertions following existing testing approa
 
 <Scope and requirements based on project standards>
 
+### End-to-End (E2E) Tests
+
+**CRITICAL: E2E tests are REQUIRED for all user-facing features.**
+
+<Define E2E test scenarios that verify the feature works correctly in a real browser>
+
+**E2E Testing Requirements:**
+- Test user flows from start to finish
+- Verify UI components render correctly
+- Test form submissions and data persistence
+- Verify navigation and routing
+- Test error states and edge cases
+- Use data-testid attributes for reliable element selection
+
+**E2E Test Structure:**
+```typescript
+// Example E2E test pattern
+test.describe('Feature Name', () => {
+  test.beforeEach(async ({ page }) => {
+    // Setup: login, navigate to feature
+  });
+
+  test('should complete main user flow', async ({ page }) => {
+    // Test the happy path
+  });
+
+  test('should handle error states', async ({ page }) => {
+    // Test error handling
+  });
+});
+```
+
 ### Edge Cases
 
 <List specific edge cases that must be tested for this feature>
@@ -328,11 +360,34 @@ Execute every command to ensure zero regressions and 100% feature correctness.
 
 <Project-specific integration test commands>
 
-### Level 4: Manual Validation
+### Level 4: E2E Tests
+
+**REQUIRED: Run E2E tests in a real browser to verify user-facing functionality**
+
+```bash
+# Start Firebase emulators (REQUIRED for authenticated tests)
+npm run firebase:emulators &
+sleep 10  # Wait for emulators to start
+
+# Run E2E tests (dev server starts automatically via Playwright config)
+npm run e2e
+
+# Or run in headed mode for debugging
+npm run e2e:headed
+```
+
+**E2E Test Coverage Requirements:**
+- All new user flows must have E2E tests
+- Tests must pass with Firebase emulators running
+- Tests must be deterministic (no flaky tests)
+- Use `{ exact: true }` for ambiguous text matchers
+- Don't rely on `networkidle` with real-time databases
+
+### Level 5: Manual Validation
 
 <Feature-specific manual testing steps - API calls, UI testing, etc.>
 
-### Level 5: Additional Validation (Optional)
+### Level 6: Additional Validation (Optional)
 
 <MCP servers or additional CLI tools if available>
 
