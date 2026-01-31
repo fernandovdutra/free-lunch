@@ -1,89 +1,113 @@
+import { useState } from 'react';
+import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
+import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Wallet, Receipt } from 'lucide-react';
-import { formatAmount } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { useCategories } from '@/hooks/useCategories';
+import {
+  SummaryCards,
+  SpendingByCategoryChart,
+  SpendingOverTimeChart,
+  RecentTransactions,
+} from '@/components/dashboard';
 
-// Placeholder data - will be replaced with real data from Firebase
-const summaryData = {
-  totalIncome: 3250.0,
-  totalExpenses: 1847.32,
-  netBalance: 1402.68,
-  pendingReimbursements: 155.5,
-};
+type DatePreset = 'thisMonth' | 'lastMonth' | 'thisYear';
 
 export function Dashboard() {
+  const now = new Date();
+  const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
+
+  // Calculate date range based on preset
+  const dateRange = getDateRange(datePreset, now);
+
+  const { data: categories = [] } = useCategories();
+  const { data: dashboardData, isLoading, error } = useDashboardData(dateRange);
+
+  if (error) {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
+          <h3 className="mt-4 text-lg font-semibold">Failed to load dashboard</h3>
+          <p className="text-muted-foreground">Please try refreshing the page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const periodLabel = getPeriodLabel(datePreset, dateRange);
+
+  // Count pending reimbursements
+  const pendingCount =
+    dashboardData?.recentTransactions.filter((t) => t.reimbursement?.status === 'pending').length ??
+    0;
+
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Your financial overview for January 2026</p>
+      {/* Page header with date selector */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">Your financial overview for {periodLabel}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={datePreset === 'thisMonth' ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setDatePreset('thisMonth');
+            }}
+          >
+            This Month
+          </Button>
+          <Button
+            variant={datePreset === 'lastMonth' ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setDatePreset('lastMonth');
+            }}
+          >
+            Last Month
+          </Button>
+          <Button
+            variant={datePreset === 'thisYear' ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setDatePreset('thisYear');
+            }}
+          >
+            This Year
+          </Button>
+        </div>
       </div>
 
       {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Income</CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums text-emerald-500">
-              {formatAmount(summaryData.totalIncome)}
-            </div>
-            <p className="text-xs text-muted-foreground">+12% from last month</p>
-          </CardContent>
-        </Card>
+      <SummaryCards
+        summary={
+          dashboardData?.summary ?? {
+            totalIncome: 0,
+            totalExpenses: 0,
+            netBalance: 0,
+            pendingReimbursements: 0,
+            transactionCount: 0,
+          }
+        }
+        isLoading={isLoading}
+        pendingCount={pendingCount}
+      />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums text-red-500">
-              {formatAmount(-summaryData.totalExpenses)}
-            </div>
-            <p className="text-xs text-muted-foreground">-5% from last month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
-            <Wallet className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums">
-              {formatAmount(summaryData.netBalance)}
-            </div>
-            <p className="text-xs text-muted-foreground">This month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Reimbursements</CardTitle>
-            <Receipt className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums text-amber-500">
-              {formatAmount(summaryData.pendingReimbursements)}
-            </div>
-            <p className="text-xs text-muted-foreground">3 expenses</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts section - placeholder */}
+      {/* Charts section */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Spending by Category</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-              Chart placeholder - Donut chart will go here
-            </div>
+            <SpendingByCategoryChart
+              data={dashboardData?.categorySpending ?? []}
+              isLoading={isLoading}
+            />
           </CardContent>
         </Card>
 
@@ -92,24 +116,51 @@ export function Dashboard() {
             <CardTitle>Spending Over Time</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-              Chart placeholder - Bar chart will go here
-            </div>
+            <SpendingOverTimeChart data={dashboardData?.timeline ?? []} isLoading={isLoading} />
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent transactions - placeholder */}
+      {/* Recent transactions */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Transactions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex h-[200px] items-center justify-center text-muted-foreground">
-            Recent transactions list will go here
-          </div>
+          <RecentTransactions
+            transactions={dashboardData?.recentTransactions ?? []}
+            categories={categories}
+            isLoading={isLoading}
+          />
         </CardContent>
       </Card>
     </div>
   );
+}
+
+function getDateRange(preset: DatePreset, now: Date) {
+  switch (preset) {
+    case 'thisMonth':
+      return { startDate: startOfMonth(now), endDate: endOfMonth(now) };
+    case 'lastMonth': {
+      const lastMonth = subMonths(now, 1);
+      return { startDate: startOfMonth(lastMonth), endDate: endOfMonth(lastMonth) };
+    }
+    case 'thisYear':
+      return {
+        startDate: new Date(now.getFullYear(), 0, 1),
+        endDate: new Date(now.getFullYear(), 11, 31),
+      };
+  }
+}
+
+function getPeriodLabel(preset: DatePreset, dateRange: { startDate: Date; endDate: Date }) {
+  switch (preset) {
+    case 'thisMonth':
+      return format(dateRange.startDate, 'MMMM yyyy');
+    case 'lastMonth':
+      return format(dateRange.startDate, 'MMMM yyyy');
+    case 'thisYear':
+      return format(dateRange.startDate, 'yyyy');
+  }
 }
