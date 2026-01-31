@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Background & Foreground */
+    --color-background: 210 20% 98%;
+    --color-foreground: 221 39% 11%;
+
+    /* Card */
+    --color-card: 0 0% 100%;
+    --color-card-foreground: 221 39% 11%;
+
+    /* Popover */
+    --color-popover: 0 0% 100%;
+    --color-popover-foreground: 221 39% 11%;
+
+    /* Primary (Emerald) */
+    --color-primary: 160 84% 39%;
+    --color-primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --color-secondary: 220 14% 96%;
+    --color-secondary-foreground: 221 39% 11%;
+
+    /* Muted */
+    --color-muted: 220 14% 96%;
+    --color-muted-foreground: 220 9% 46%;
+
+    /* Accent */
+    --color-accent: 220 14% 96%;
+    --color-accent-foreground: 221 39% 11%;
+
+    /* Destructive (Red) */
+    --color-destructive: 0 84% 60%;
+    --color-destructive-foreground: 0 0% 100%;
+
+    /* Border & Input */
+    --color-border: 220 13% 91%;
+    --color-input: 220 13% 91%;
+    --color-ring: 160 84% 39%;
+
+    /* Radius */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Background & Foreground */
+    --color-background: 220 14% 10%;
+    --color-foreground: 210 20% 98%;
+
+    /* Card */
+    --color-card: 220 14% 14%;
+    --color-card-foreground: 210 20% 98%;
+
+    /* Popover */
+    --color-popover: 220 14% 14%;
+    --color-popover-foreground: 210 20% 98%;
+
+    /* Primary (Emerald - same in dark) */
+    --color-primary: 160 84% 39%;
+    --color-primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --color-secondary: 220 14% 18%;
+    --color-secondary-foreground: 210 20% 98%;
+
+    /* Muted */
+    --color-muted: 220 14% 18%;
+    --color-muted-foreground: 215 14% 60%;
+
+    /* Accent */
+    --color-accent: 220 14% 18%;
+    --color-accent-foreground: 210 20% 98%;
+
+    /* Destructive */
+    --color-destructive: 0 72% 55%;
+    --color-destructive-foreground: 0 0% 100%;
+
+    /* Border & Input */
+    --color-border: 220 14% 20%;
+    --color-input: 220 14% 20%;
+    --color-ring: 160 72% 45%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+  }
+}
+
+@layer utilities {
+  /* Tabular numbers for financial data */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer components {
+  /* Button press effect */
+  .btn-press:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
