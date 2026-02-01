@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, AlertTriangle } from 'lucide-react';
-import { startOfMonth, endOfMonth } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +14,7 @@ import { TransactionList } from '@/components/transactions/TransactionList';
 import { TransactionFilters } from '@/components/transactions/TransactionFilters';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { ApplyToSimilarDialog } from '@/components/transactions/ApplyToSimilarDialog';
+import { CounterpartyDialog } from '@/components/transactions/CounterpartyDialog';
 import { MarkReimbursableDialog, ClearReimbursementDialog } from '@/components/reimbursements';
 import { useCategories } from '@/hooks/useCategories';
 import {
@@ -33,14 +33,24 @@ import {
   useClearReimbursement,
 } from '@/hooks/useReimbursements';
 import { useCreateRule } from '@/hooks/useRules';
+import { useMonth } from '@/contexts/MonthContext';
 import type { Transaction, TransactionFormData } from '@/types';
 
 export function Transactions() {
-  const now = new Date();
+  const { dateRange: monthDateRange } = useMonth();
   const [filters, setFilters] = useState<Filters>({
-    startDate: startOfMonth(now),
-    endDate: endOfMonth(now),
+    startDate: monthDateRange.startDate,
+    endDate: monthDateRange.endDate,
   });
+
+  // Sync filters when global month changes
+  useEffect(() => {
+    setFilters((prev) => ({
+      ...prev,
+      startDate: monthDateRange.startDate,
+      endDate: monthDateRange.endDate,
+    }));
+  }, [monthDateRange.startDate, monthDateRange.endDate]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteTransaction, setDeleteTransaction] = useState<Transaction | null>(null);
@@ -48,6 +58,10 @@ export function Transactions() {
     useState<Transaction | null>(null);
   const [clearReimbursementTransaction, setClearReimbursementTransaction] =
     useState<Transaction | null>(null);
+
+  // Counterparty dialog state
+  const [selectedCounterparty, setSelectedCounterparty] = useState<string | null>(null);
+  const [isCounterpartyDialogOpen, setIsCounterpartyDialogOpen] = useState(false);
 
   // Rule creation state
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
@@ -163,6 +177,11 @@ export function Transactions() {
     setClearReimbursementTransaction(transaction);
   };
 
+  const handleCounterpartyClick = (counterparty: string) => {
+    setSelectedCounterparty(counterparty);
+    setIsCounterpartyDialogOpen(true);
+  };
+
   const handleMarkReimbursableSubmit = async (data: {
     type: 'work' | 'personal';
     note?: string | undefined;
@@ -227,6 +246,7 @@ export function Transactions() {
             onDelete={handleDelete}
             onMarkReimbursable={handleMarkReimbursable}
             onClearReimbursement={handleClearReimbursement}
+            onCounterpartyClick={handleCounterpartyClick}
           />
         </CardContent>
       </Card>
@@ -337,6 +357,13 @@ export function Transactions() {
         pendingReimbursements={pendingReimbursements}
         onSubmit={handleClearReimbursementSubmit}
         isSubmitting={clearReimbursementMutation.isPending}
+      />
+
+      {/* Counterparty Analytics Dialog */}
+      <CounterpartyDialog
+        open={isCounterpartyDialogOpen}
+        onOpenChange={setIsCounterpartyDialogOpen}
+        counterparty={selectedCounterparty}
       />
     </div>
   );

@@ -11,6 +11,7 @@ interface TransactionListProps {
   onDelete: (transaction: Transaction) => void;
   onMarkReimbursable?: ((transaction: Transaction) => void) | undefined;
   onClearReimbursement?: ((transaction: Transaction) => void) | undefined;
+  onCounterpartyClick?: ((counterparty: string) => void) | undefined;
 }
 
 export function TransactionList({
@@ -22,6 +23,7 @@ export function TransactionList({
   onDelete,
   onMarkReimbursable,
   onClearReimbursement,
+  onCounterpartyClick,
 }: TransactionListProps) {
   if (isLoading) {
     return (
@@ -78,6 +80,7 @@ export function TransactionList({
           onDelete={onDelete}
           onMarkReimbursable={onMarkReimbursable}
           onClearReimbursement={onClearReimbursement}
+          onCounterpartyClick={onCounterpartyClick}
         />
       ))}
     </div>

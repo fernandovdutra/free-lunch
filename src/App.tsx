@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { MonthProvider } from '@/contexts/MonthContext';
 
 // Pages
 import { Dashboard } from '@/pages/Dashboard';
@@ -10,6 +11,7 @@ import { Categories } from '@/pages/Categories';
 import { Budgets } from '@/pages/Budgets';
 import { Reimbursements } from '@/pages/Reimbursements';
 import { Settings } from '@/pages/Settings';
+import { CounterpartyDetail } from '@/pages/CounterpartyDetail';
 import { Login } from '@/pages/auth/Login';
 import { Register } from '@/pages/auth/Register';
 
@@ -31,29 +33,32 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+          <MonthProvider>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
 
-            {/* Protected routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Dashboard />} />
-              <Route path="transactions" element={<Transactions />} />
-              <Route path="categories" element={<Categories />} />
-              <Route path="budgets" element={<Budgets />} />
-              <Route path="reimbursements" element={<Reimbursements />} />
-              <Route path="settings" element={<Settings />} />
-            </Route>
-          </Routes>
-          <Toaster />
+              {/* Protected routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Dashboard />} />
+                <Route path="transactions" element={<Transactions />} />
+                <Route path="categories" element={<Categories />} />
+                <Route path="budgets" element={<Budgets />} />
+                <Route path="reimbursements" element={<Reimbursements />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="counterparty/:counterparty" element={<CounterpartyDetail />} />
+              </Route>
+            </Routes>
+            <Toaster />
+          </MonthProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

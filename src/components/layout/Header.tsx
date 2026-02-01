@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useSyncAllConnections, useBankConnections } from '@/hooks/useBankConnection';
 import { useToast } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
+import { MonthSelector } from './MonthSelector';
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -63,8 +64,15 @@ export function Header() {
           className="h-9 lg:hidden"
         />
 
-        {/* Spacer for desktop */}
-        <div className="hidden lg:block" />
+        {/* Month selector (mobile - compact) */}
+        <div className="flex items-center lg:hidden">
+          <MonthSelector className="scale-90" />
+        </div>
+
+        {/* Month selector (desktop) */}
+        <div className="hidden lg:flex lg:flex-1 lg:justify-center">
+          <MonthSelector />
+        </div>
 
         {/* Right side actions */}
         <div className="flex items-center gap-2">

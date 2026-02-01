@@ -24,7 +24,7 @@ import {
 import type { Category, CategoryFormData } from '@/types';
 import { CHART_COLORS } from '@/lib/colors';
 
-const DEFAULT_COLOR = CHART_COLORS[0] ?? '#10B981';
+const DEFAULT_COLOR = CHART_COLORS[0] ?? '#2D5A4A';
 
 const categorySchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),

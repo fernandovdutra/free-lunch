@@ -1,10 +1,9 @@
-import { useState } from 'react';
-import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
+import { format } from 'date-fns';
 import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useCategories } from '@/hooks/useCategories';
+import { useMonth } from '@/contexts/MonthContext';
 import {
   SummaryCards,
   SpendingByCategoryChart,
@@ -13,14 +12,8 @@ import {
   BudgetOverview,
 } from '@/components/dashboard';
 
-type DatePreset = 'thisMonth' | 'lastMonth' | 'thisYear';
-
 export function Dashboard() {
-  const now = new Date();
-  const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
-
-  // Calculate date range based on preset
-  const dateRange = getDateRange(datePreset, now);
+  const { dateRange, selectedMonth } = useMonth();
 
   const { data: categories = [] } = useCategories();
   const { data: dashboardData, isLoading, error } = useDashboardData(dateRange);
@@ -37,7 +30,7 @@ export function Dashboard() {
     );
   }
 
-  const periodLabel = getPeriodLabel(datePreset, dateRange);
+  const periodLabel = format(selectedMonth, 'MMMM yyyy');
 
   // Count pending reimbursements
   const pendingCount =
@@ -46,41 +39,10 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Page header with date selector */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Your financial overview for {periodLabel}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant={datePreset === 'thisMonth' ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => {
-              setDatePreset('thisMonth');
-            }}
-          >
-            This Month
-          </Button>
-          <Button
-            variant={datePreset === 'lastMonth' ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => {
-              setDatePreset('lastMonth');
-            }}
-          >
-            Last Month
-          </Button>
-          <Button
-            variant={datePreset === 'thisYear' ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => {
-              setDatePreset('thisYear');
-            }}
-          >
-            This Year
-          </Button>
-        </div>
+      {/* Page header */}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">Your financial overview for {periodLabel}</p>
       </div>
 
       {/* Summary cards */}
@@ -140,31 +102,4 @@ export function Dashboard() {
       </Card>
     </div>
   );
-}
-
-function getDateRange(preset: DatePreset, now: Date) {
-  switch (preset) {
-    case 'thisMonth':
-      return { startDate: startOfMonth(now), endDate: endOfMonth(now) };
-    case 'lastMonth': {
-      const lastMonth = subMonths(now, 1);
-      return { startDate: startOfMonth(lastMonth), endDate: endOfMonth(lastMonth) };
-    }
-    case 'thisYear':
-      return {
-        startDate: new Date(now.getFullYear(), 0, 1),
-        endDate: new Date(now.getFullYear(), 11, 31),
-      };
-  }
-}
-
-function getPeriodLabel(preset: DatePreset, dateRange: { startDate: Date; endDate: Date }) {
-  switch (preset) {
-    case 'thisMonth':
-      return format(dateRange.startDate, 'MMMM yyyy');
-    case 'lastMonth':
-      return format(dateRange.startDate, 'MMMM yyyy');
-    case 'thisYear':
-      return format(dateRange.startDate, 'yyyy');
-  }
 }
