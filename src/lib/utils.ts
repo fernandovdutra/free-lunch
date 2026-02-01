@@ -30,7 +30,10 @@ export function formatAmount(amount: number, options?: { showSign?: boolean }): 
 /**
  * Format date for display
  */
-export function formatDate(date: Date, format: 'short' | 'long' | 'relative' = 'short'): string {
+export function formatDate(
+  date: Date,
+  format: 'short' | 'long' | 'relative' | 'withTime' | 'timeOnly' = 'short'
+): string {
   if (format === 'relative') {
     const now = new Date();
     const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
@@ -40,10 +43,18 @@ export function formatDate(date: Date, format: 'short' | 'long' | 'relative' = '
     if (diffInDays < 7) return `${diffInDays} days ago`;
   }
 
-  const options: Intl.DateTimeFormatOptions =
-    format === 'long'
-      ? { year: 'numeric', month: 'long', day: 'numeric' }
-      : { month: 'short', day: 'numeric' };
+  if (format === 'timeOnly') {
+    return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(date);
+  }
+
+  let options: Intl.DateTimeFormatOptions;
+  if (format === 'long') {
+    options = { year: 'numeric', month: 'long', day: 'numeric' };
+  } else if (format === 'withTime') {
+    options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  } else {
+    options = { month: 'short', day: 'numeric' };
+  }
 
   return new Intl.DateTimeFormat('en-GB', options).format(date);
 }

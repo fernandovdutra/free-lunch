@@ -27,13 +27,15 @@ import { generateId } from '@/lib/utils';
 interface TransactionDocument {
   externalId?: string | null;
   date: Timestamp | string;
+  bookingDate?: Timestamp | string | null;
+  transactionDate?: Timestamp | string | null;
   description: string;
   amount: number;
   currency?: 'EUR';
   counterparty?: string | null;
   categoryId?: string | null;
   categoryConfidence?: number;
-  categorySource?: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned';
+  categorySource?: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned' | 'none';
   isSplit?: boolean;
   splits?: TransactionSplit[] | null;
   reimbursement?: ReimbursementInfo | null;
@@ -59,6 +61,13 @@ export const transactionKeys = {
     ['transactions', userId, filters] as const,
 };
 
+// Helper to convert Firestore timestamp to Date
+function toDate(value: Timestamp | string | null | undefined): Date | null {
+  if (!value) return null;
+  if (value instanceof Timestamp) return value.toDate();
+  return new Date(value);
+}
+
 // Transform Firestore data to Transaction type
 function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
   const data = docSnap.data() as TransactionDocument;
@@ -66,6 +75,8 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
     id: docSnap.id,
     externalId: data.externalId ?? null,
     date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date),
+    bookingDate: toDate(data.bookingDate),
+    transactionDate: toDate(data.transactionDate),
     description: typeof data.description === 'string' ? data.description : 'Bank transaction',
     amount: data.amount,
     currency: data.currency ?? 'EUR',

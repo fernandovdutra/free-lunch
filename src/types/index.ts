@@ -61,6 +61,10 @@ export interface Transaction {
   id: string;
   externalId: string | null;
   date: Date;
+  /** Official bank booking date */
+  bookingDate?: Date | null;
+  /** Actual transaction date/time extracted from remittance info */
+  transactionDate?: Date | null;
   description: string;
   amount: number;
   currency: 'EUR';
@@ -69,7 +73,7 @@ export interface Transaction {
   // Categorization
   categoryId: string | null;
   categoryConfidence: number;
-  categorySource: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned';
+  categorySource: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned' | 'none';
 
   // Splitting
   isSplit: boolean;

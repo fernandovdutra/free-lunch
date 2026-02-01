@@ -59,6 +59,8 @@ export interface EnableBankingTransaction {
     amount: string;
     currency: string;
   };
+  /** CRDT = credit (money in), DBIT = debit (money out) - PRIMARY field for direction */
+  credit_debit_indicator?: 'CRDT' | 'DBIT';
   creditor?: {
     name?: string;
   };
@@ -76,7 +78,9 @@ export interface EnableBankingTransaction {
   transaction_date?: string;
   remittance_information_unstructured?: string;
   remittance_information_unstructured_array?: string[];
-  bank_transaction_code?: string;
+  /** Remittance information as array (alternative field name) */
+  remittance_information?: string[];
+  bank_transaction_code?: string | { description?: string; code?: string; sub_code?: string | null };
   status: 'booked' | 'pending';
 }
 

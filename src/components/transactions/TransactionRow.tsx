@@ -1,4 +1,4 @@
-import { MoreHorizontal, Pencil, Trash2, Split, Receipt, Banknote } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Split, Receipt, Banknote, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
 import { CategoryPicker } from './CategoryPicker';
@@ -42,11 +42,24 @@ export function TransactionRow({
     setIsPickingCategory(false);
   };
 
+  // Determine if we should show booking date separately
+  const showBookingDate = transaction.bookingDate && transaction.transactionDate &&
+    transaction.bookingDate.toDateString() !== transaction.transactionDate.toDateString();
+
   return (
     <div className="group flex items-center gap-4 border-b border-border px-4 py-3 transition-colors hover:bg-muted/50">
       {/* Date */}
-      <div className="w-20 flex-shrink-0 text-sm text-muted-foreground">
-        {formatDate(transaction.date)}
+      <div className="w-28 flex-shrink-0">
+        <div className="text-sm text-muted-foreground">
+          {transaction.transactionDate
+            ? formatDate(transaction.transactionDate, 'withTime')
+            : formatDate(transaction.date)}
+        </div>
+        {showBookingDate && (
+          <div className="text-xs text-muted-foreground/60">
+            Booked: {formatDate(transaction.bookingDate!, 'short')}
+          </div>
+        )}
       </div>
 
       {/* Description */}
@@ -77,9 +90,11 @@ export function TransactionRow({
             </span>
           )}
         </div>
-        {transaction.counterparty && typeof transaction.counterparty === 'string' && (
-          <p className="truncate text-sm text-muted-foreground">{transaction.counterparty}</p>
-        )}
+      </div>
+
+      {/* Counterparty */}
+      <div className="w-32 flex-shrink-0 truncate text-sm text-muted-foreground">
+        {transaction.counterparty || '—'}
       </div>
 
       {/* Category */}
@@ -123,12 +138,17 @@ export function TransactionRow({
       {/* Amount */}
       <div
         className={cn(
-          'w-24 flex-shrink-0 text-right font-medium tabular-nums',
+          'flex w-24 flex-shrink-0 items-center justify-end gap-1 font-medium tabular-nums',
           isPendingReimbursement
             ? getAmountColor(transaction.amount, true)
             : getAmountColor(transaction.amount)
         )}
       >
+        {isIncome ? (
+          <ArrowUpRight className="h-3 w-3" />
+        ) : isExpense ? (
+          <ArrowDownRight className="h-3 w-3" />
+        ) : null}
         {formatAmount(transaction.amount)}
       </div>
 

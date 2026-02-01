@@ -172,4 +172,63 @@ test.describe('Transactions Page', () => {
     // Check for the transaction count text (e.g. "3 transactions")
     await expect(page.getByText(/\d+ transactions?/i)).toBeVisible();
   });
+
+  test('should display counterparty column header', async ({ page }) => {
+    await page.waitForTimeout(2000);
+    // Check for the Counterparty column header in the transaction list
+    const counterpartyHeader = page.getByText('Counterparty', { exact: true });
+    await expect(counterpartyHeader).toBeVisible();
+  });
+
+  test('should display transaction list column headers', async ({ page }) => {
+    await page.waitForTimeout(2000);
+    // Verify all expected column headers are visible
+    await expect(page.getByText('Date', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Description', { exact: true })).toBeVisible();
+    await expect(page.getByText('Counterparty', { exact: true })).toBeVisible();
+    await expect(page.getByText('Category', { exact: true })).toBeVisible();
+    await expect(page.getByText('Amount', { exact: true })).toBeVisible();
+  });
+
+  test('should display direction arrows for expense transactions', async ({ page }) => {
+    const uniqueDescription = `Direction Test Expense ${Date.now()}`;
+
+    // Create an expense transaction
+    await page.getByRole('button', { name: /add transaction/i }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    await page.getByLabel(/description/i).fill(uniqueDescription);
+    await page.getByLabel(/amount/i).fill('-75.00');
+    await page
+      .getByRole('button', { name: /add transaction/i })
+      .last()
+      .click();
+
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(page.getByText(uniqueDescription)).toBeVisible({ timeout: 10000 });
+
+    // Verify the transaction shows with negative amount and proper formatting
+    await expect(page.getByText(/-.*€.*75/)).toBeVisible();
+  });
+
+  test('should display direction arrows for income transactions', async ({ page }) => {
+    const uniqueDescription = `Direction Test Income ${Date.now()}`;
+
+    // Create an income transaction (positive amount)
+    await page.getByRole('button', { name: /add transaction/i }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    await page.getByLabel(/description/i).fill(uniqueDescription);
+    await page.getByLabel(/amount/i).fill('150.00');
+    await page
+      .getByRole('button', { name: /add transaction/i })
+      .last()
+      .click();
+
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(page.getByText(uniqueDescription)).toBeVisible({ timeout: 10000 });
+
+    // Verify the transaction shows with positive amount and proper formatting
+    await expect(page.getByText(/\+.*€.*150/)).toBeVisible();
+  });
 });

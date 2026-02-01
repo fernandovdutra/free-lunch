@@ -75,19 +75,28 @@ export class Categorizer {
     this.categorySlugMap.clear();
 
     for (const cat of this.categories) {
-      // Simple name match (lowercase)
+      // 1. Map by category ID directly
+      this.categorySlugMap.set(cat.id, cat.id);
+
+      // 2. Simple name match (lowercase, alphanumeric only)
       const simpleName = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
       this.categorySlugMap.set(simpleName, cat.id);
 
-      // If has parent, also create hierarchical slug
+      // 3. Name with spaces replaced by dots
+      const dottedName = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '.');
+      this.categorySlugMap.set(dottedName, cat.id);
+
+      // 4. If has parent, create hierarchical slugs
       if (cat.parentId) {
         const parent = this.categories.find((c) => c.id === cat.parentId);
         if (parent) {
-          const hierarchicalSlug = `${parent.name.toLowerCase()}.${cat.name.toLowerCase()}`.replace(
-            /[^a-z.]/g,
-            ''
-          );
-          this.categorySlugMap.set(hierarchicalSlug, cat.id);
+          // Format: parent.child (e.g., "food.groceries")
+          const parentSimple = parent.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const childSimple = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          this.categorySlugMap.set(`${parentSimple}.${childSimple}`, cat.id);
+
+          // Also map just the child name for partial matches
+          this.categorySlugMap.set(childSimple, cat.id);
         }
       }
     }
