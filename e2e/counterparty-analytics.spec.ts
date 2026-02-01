@@ -33,29 +33,31 @@ test.describe('Month Navigation', () => {
   });
 
   test('should display month selector in header', async ({ page }) => {
-    // Month and year selectors should be visible
-    await expect(page.locator('button[aria-label="Previous month"]')).toBeVisible();
-    await expect(page.locator('button[aria-label="Next month"]')).toBeVisible();
+    // Month and year selectors should be visible (use :visible filter for desktop)
+    await page.waitForTimeout(1000);
+    // Use filter for visible buttons since there's one for mobile and one for desktop
+    await expect(page.locator('button[aria-label="Previous month"]:visible')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button[aria-label="Next month"]:visible')).toBeVisible({ timeout: 10000 });
   });
 
   test('should navigate to previous month', async ({ page }) => {
-    const prevButton = page.locator('button[aria-label="Previous month"]');
+    const prevButton = page.locator('button[aria-label="Previous month"]:visible');
     await prevButton.click();
 
     // Today button should appear when not on current month
-    await expect(page.getByRole('button', { name: /today/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /today/i })).toBeVisible({ timeout: 5000 });
   });
 
   test('should return to current month with Today button', async ({ page }) => {
     // Go to previous month first
-    await page.locator('button[aria-label="Previous month"]').click();
-    await expect(page.getByRole('button', { name: /today/i })).toBeVisible();
+    await page.locator('button[aria-label="Previous month"]:visible').click();
+    await expect(page.getByRole('button', { name: /today/i })).toBeVisible({ timeout: 5000 });
 
     // Click Today
     await page.getByRole('button', { name: /today/i }).click();
 
     // Today button should disappear
-    await expect(page.getByRole('button', { name: /today/i })).not.toBeVisible();
+    await expect(page.getByRole('button', { name: /today/i })).not.toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -79,36 +81,41 @@ test.describe('Counterparty Analytics', () => {
 
   test('should show counterparty dialog when clicking counterparty', async ({ page }) => {
     // Wait for transactions to load
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000);
 
-    // Find a clickable counterparty (might be empty if no transactions)
-    const counterpartyButton = page.locator('button').filter({ hasText: /albert|jumbo|ns/i }).first();
+    // Find the counterparty column buttons within the transaction list
+    // These are buttons inside the w-32 counterparty column
+    const counterpartyButtons = page.locator('div.w-32 button');
+    const firstCounterparty = counterpartyButtons.first();
 
-    // Skip if no counterparties found
-    if (!(await counterpartyButton.isVisible())) {
-      test.skip();
+    // Check if there are any counterparty buttons visible
+    const buttonCount = await counterpartyButtons.count();
+    if (buttonCount === 0 || !(await firstCounterparty.isVisible())) {
+      test.skip(true, 'No transactions with counterparties found');
       return;
     }
 
-    await counterpartyButton.click();
+    await firstCounterparty.click();
 
     // Dialog should appear
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
     await expect(page.getByText(/spending summary/i)).toBeVisible();
   });
 
   test('should navigate to counterparty detail page from dialog', async ({ page }) => {
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000);
 
-    const counterpartyButton = page.locator('button').filter({ hasText: /albert|jumbo|ns/i }).first();
+    const counterpartyButtons = page.locator('div.w-32 button');
+    const firstCounterparty = counterpartyButtons.first();
 
-    if (!(await counterpartyButton.isVisible())) {
-      test.skip();
+    const buttonCount = await counterpartyButtons.count();
+    if (buttonCount === 0 || !(await firstCounterparty.isVisible())) {
+      test.skip(true, 'No transactions with counterparties found');
       return;
     }
 
-    await counterpartyButton.click();
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await firstCounterparty.click();
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
 
     // Click view full history
     await page.getByRole('button', { name: /view full history/i }).click();

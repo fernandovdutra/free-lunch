@@ -53,17 +53,19 @@ test.describe('Dashboard Page', () => {
     await expect(page.getByText(/pending reimbursements/i)).toBeVisible();
   });
 
-  test('should display date range buttons', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /this month/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /last month/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /this year/i })).toBeVisible();
+  test('should display month selector in header', async ({ page }) => {
+    // The month selector is now in the header with prev/next buttons
+    // Use :visible selector since there are mobile and desktop versions
+    await expect(page.locator('button[aria-label="Previous month"]:visible')).toBeVisible();
+    await expect(page.locator('button[aria-label="Next month"]:visible')).toBeVisible();
   });
 
-  test('should toggle date range on button click', async ({ page }) => {
-    const lastMonthBtn = page.getByRole('button', { name: /last month/i });
-    await lastMonthBtn.click();
-    // Verify the button becomes active (secondary variant)
-    await expect(lastMonthBtn).toHaveClass(/secondary/);
+  test('should navigate months with header selector', async ({ page }) => {
+    const prevButton = page.locator('button[aria-label="Previous month"]:visible');
+    await prevButton.click();
+
+    // Today button should appear when not on current month
+    await expect(page.getByRole('button', { name: /today/i })).toBeVisible();
   });
 
   test('should display spending by category section', async ({ page }) => {
@@ -91,17 +93,19 @@ test.describe('Dashboard Page', () => {
     await expect(page).toHaveURL('/transactions');
   });
 
-  test('should show "This Month" button as active by default', async ({ page }) => {
-    const thisMonthBtn = page.getByRole('button', { name: /this month/i });
-    await expect(thisMonthBtn).toHaveClass(/secondary/);
+  test('should not show Today button on current month by default', async ({ page }) => {
+    // Today button should only appear when not on current month
+    await expect(page.getByRole('button', { name: /today/i })).not.toBeVisible();
   });
 
-  test('should update period label when changing date range', async ({ page }) => {
-    // Click last month
-    await page.getByRole('button', { name: /last month/i }).click();
+  test('should return to current month with Today button', async ({ page }) => {
+    // Navigate to previous month
+    await page.locator('button[aria-label="Previous month"]:visible').click();
+    await expect(page.getByRole('button', { name: /today/i })).toBeVisible();
 
-    // The period label should change (we can't predict exact month but it should update)
-    await expect(page.getByText(/your financial overview/i)).toBeVisible();
+    // Click Today to return
+    await page.getByRole('button', { name: /today/i }).click();
+    await expect(page.getByRole('button', { name: /today/i })).not.toBeVisible();
   });
 
   test('should display all four summary cards with correct structure', async ({ page }) => {
