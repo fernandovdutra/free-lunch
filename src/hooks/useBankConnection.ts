@@ -75,6 +75,45 @@ export function useSyncTransactions() {
 }
 
 /**
+ * Sync all bank connections at once.
+ * Used by the header sync button.
+ */
+export function useSyncAllConnections() {
+  const queryClient = useQueryClient();
+  const { data: connections = [] } = useBankConnections();
+
+  return useMutation({
+    mutationFn: async () => {
+      const activeConnections = connections.filter((c) => c.status === 'active');
+
+      if (activeConnections.length === 0) {
+        return { synced: 0, total: 0, errors: [] as Error[] };
+      }
+
+      const results = await Promise.allSettled(
+        activeConnections.map((connection) => syncTransactions({ connectionId: connection.id }))
+      );
+
+      const successCount = results.filter((r) => r.status === 'fulfilled').length;
+      const errors = results
+        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+        .map((r) => r.reason as Error);
+
+      return {
+        synced: successCount,
+        total: activeConnections.length,
+        errors,
+      };
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['bankConnections'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+/**
  * Reset all transaction data to allow re-syncing with auto-categorization.
  * This deletes all transactions and raw bank transactions, and resets
  * the lastSync date on bank connections.

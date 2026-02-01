@@ -14,6 +14,7 @@ export default tseslint.config(
       'e2e/**',
       'playwright.config.ts',
       'functions/**',
+      'scripts/**',
     ],
   },
   {

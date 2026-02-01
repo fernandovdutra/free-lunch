@@ -14,7 +14,7 @@ import {
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { TransactionFilters } from '@/components/transactions/TransactionFilters';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
-import { CreateRuleDialog } from '@/components/transactions/CreateRuleDialog';
+import { ApplyToSimilarDialog } from '@/components/transactions/ApplyToSimilarDialog';
 import { MarkReimbursableDialog, ClearReimbursementDialog } from '@/components/reimbursements';
 import { useCategories } from '@/hooks/useCategories';
 import {
@@ -23,6 +23,8 @@ import {
   useUpdateTransaction,
   useUpdateTransactionCategory,
   useDeleteTransaction,
+  useBulkUpdateCategory,
+  useCountMatchingTransactions,
   type TransactionFilters as Filters,
 } from '@/hooks/useTransactions';
 import {
@@ -66,6 +68,10 @@ export function Transactions() {
   const markReimbursableMutation = useMarkAsReimbursable();
   const clearReimbursementMutation = useClearReimbursement();
   const createRuleMutation = useCreateRule();
+  const bulkUpdateMutation = useBulkUpdateCategory();
+  const { data: matchingCount = 0 } = useCountMatchingTransactions(
+    pendingCategoryChange?.transaction.counterparty ?? null
+  );
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -80,27 +86,49 @@ export function Transactions() {
     const transaction = transactions.find((t) => t.id === transactionId);
     await updateCategoryMutation.mutateAsync({ id: transactionId, categoryId });
 
-    // Only offer to create rule if:
+    // Only offer to apply to similar if:
     // 1. A category was selected (not uncategorized)
-    // 2. The transaction was auto-categorized or uncategorized before
+    // 2. The transaction has a counterparty (so we can match)
+    // 3. The transaction was auto-categorized or uncategorized before
     if (
       categoryId &&
       transaction &&
-      (transaction.categorySource === 'auto' || !transaction.categoryId)
+      transaction.counterparty &&
+      (transaction.categorySource !== 'manual' || !transaction.categoryId)
     ) {
       setPendingCategoryChange({ transactionId, newCategoryId: categoryId, transaction });
       setRuleDialogOpen(true);
     }
   };
 
-  const handleCreateRule = async (pattern: string, matchType: 'contains' | 'exact') => {
-    if (pendingCategoryChange) {
-      await createRuleMutation.mutateAsync({
-        pattern,
-        matchType,
-        categoryId: pendingCategoryChange.newCategoryId,
-        isLearned: true,
-      });
+  const handleApplyToSimilar = async (options: {
+    applyToSimilar: boolean;
+    createRule: boolean;
+    pattern: string;
+    matchType: 'contains' | 'exact';
+  }) => {
+    if (!pendingCategoryChange) return;
+
+    try {
+      // Apply to similar transactions if requested
+      if (options.applyToSimilar && pendingCategoryChange.transaction.counterparty) {
+        await bulkUpdateMutation.mutateAsync({
+          counterparty: pendingCategoryChange.transaction.counterparty,
+          categoryId: pendingCategoryChange.newCategoryId,
+          excludeTransactionId: pendingCategoryChange.transactionId,
+        });
+      }
+
+      // Create rule if requested
+      if (options.createRule && options.pattern) {
+        await createRuleMutation.mutateAsync({
+          pattern: options.pattern,
+          matchType: options.matchType,
+          categoryId: pendingCategoryChange.newCategoryId,
+          isLearned: true,
+        });
+      }
+    } finally {
       setRuleDialogOpen(false);
       setPendingCategoryChange(null);
     }
@@ -239,8 +267,8 @@ export function Transactions() {
         isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
 
-      {/* Create Rule Dialog */}
-      <CreateRuleDialog
+      {/* Apply to Similar Dialog */}
+      <ApplyToSimilarDialog
         open={ruleDialogOpen}
         onOpenChange={(open) => {
           setRuleDialogOpen(open);
@@ -249,8 +277,9 @@ export function Transactions() {
         transaction={pendingCategoryChange?.transaction ?? null}
         newCategoryId={pendingCategoryChange?.newCategoryId ?? ''}
         categories={categories}
-        onCreateRule={(pattern, matchType) => void handleCreateRule(pattern, matchType)}
-        isCreating={createRuleMutation.isPending}
+        matchingCount={matchingCount - 1} // Subtract 1 because we already updated the original
+        onApply={(options) => void handleApplyToSimilar(options)}
+        isApplying={bulkUpdateMutation.isPending || createRuleMutation.isPending}
       />
 
       {/* Delete Confirmation Dialog */}

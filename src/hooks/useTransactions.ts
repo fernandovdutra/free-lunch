@@ -11,6 +11,7 @@ import {
   serverTimestamp,
   Timestamp,
   where,
+  writeBatch,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -319,5 +320,95 @@ export function useDeleteTransaction() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
+  });
+}
+
+/**
+ * Bulk update category for multiple transactions by counterparty match.
+ * Used when user wants to apply a category change to all similar transactions.
+ */
+export function useBulkUpdateCategory() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      counterparty,
+      categoryId,
+      excludeTransactionId,
+    }: {
+      counterparty: string;
+      categoryId: string;
+      excludeTransactionId?: string;
+    }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      if (!counterparty) throw new Error('Counterparty is required');
+
+      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      const q = query(transactionsRef, where('counterparty', '==', counterparty));
+      const snapshot = await getDocs(q);
+
+      // Filter out the already-updated transaction and manually categorized ones
+      const docsToUpdate = snapshot.docs.filter((docSnap) => {
+        if (excludeTransactionId && docSnap.id === excludeTransactionId) return false;
+        const data = docSnap.data();
+        // Don't overwrite manually categorized transactions
+        if (data.categorySource === 'manual') return false;
+        return true;
+      });
+
+      // Update in batches of 500 (Firestore limit)
+      let updatedCount = 0;
+      for (let i = 0; i < docsToUpdate.length; i += 500) {
+        const batch = writeBatch(db);
+        const chunk = docsToUpdate.slice(i, i + 500);
+
+        chunk.forEach((docSnap) => {
+          batch.update(docSnap.ref, {
+            categoryId,
+            categorySource: 'manual',
+            categoryConfidence: 1,
+            updatedAt: serverTimestamp(),
+          });
+        });
+
+        await batch.commit();
+        updatedCount += chunk.length;
+      }
+
+      return { updatedCount };
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+/**
+ * Count transactions matching a counterparty (excluding already manually categorized).
+ */
+export function useCountMatchingTransactions(counterparty: string | null) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['matchingTransactionsCount', user?.id, counterparty],
+    queryFn: async () => {
+      if (!user?.id || !counterparty) return 0;
+
+      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      const q = query(transactionsRef, where('counterparty', '==', counterparty));
+      const snapshot = await getDocs(q);
+
+      // Count only non-manually categorized transactions
+      const count = snapshot.docs.filter((docSnap) => {
+        const data = docSnap.data();
+        return data.categorySource !== 'manual';
+      }).length;
+
+      return count;
+    },
+    enabled: !!user?.id && !!counterparty,
+    staleTime: 0, // Always refetch to get accurate count
   });
 }
