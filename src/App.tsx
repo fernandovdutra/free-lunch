@@ -7,6 +7,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { Dashboard } from '@/pages/Dashboard';
 import { Transactions } from '@/pages/Transactions';
 import { Categories } from '@/pages/Categories';
+import { Budgets } from '@/pages/Budgets';
 import { Reimbursements } from '@/pages/Reimbursements';
 import { Settings } from '@/pages/Settings';
 import { Login } from '@/pages/auth/Login';
@@ -47,6 +48,7 @@ export function App() {
               <Route index element={<Dashboard />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="categories" element={<Categories />} />
+              <Route path="budgets" element={<Budgets />} />
               <Route path="reimbursements" element={<Reimbursements />} />
               <Route path="settings" element={<Settings />} />
             </Route>

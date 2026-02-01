@@ -119,6 +119,41 @@ export interface CategorizationRule {
 }
 
 // ============================================================================
+// Budget Types
+// ============================================================================
+
+export interface Budget {
+  id: string;
+  name: string;
+  categoryId: string;
+  /** Monthly spending limit in EUR */
+  monthlyLimit: number;
+  /** Percentage threshold for warning (default 80) */
+  alertThreshold: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BudgetFormData {
+  name: string;
+  categoryId: string;
+  monthlyLimit: number;
+  alertThreshold: number;
+}
+
+export interface BudgetProgress {
+  budget: Budget;
+  categoryName: string;
+  categoryIcon: string;
+  categoryColor: string;
+  spent: number;
+  remaining: number;
+  percentage: number;
+  status: 'safe' | 'warning' | 'exceeded';
+}
+
+// ============================================================================
 // Dashboard & Analytics Types
 // ============================================================================
 

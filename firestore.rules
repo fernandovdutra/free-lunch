@@ -37,6 +37,11 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Budgets subcollection
+      match /budgets/{budgetId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // Raw bank transactions subcollection (for debugging/audit)
       match /rawBankTransactions/{rawId} {
         allow read: if isOwner(userId);

@@ -10,6 +10,7 @@ import {
   SpendingByCategoryChart,
   SpendingOverTimeChart,
   RecentTransactions,
+  BudgetOverview,
 } from '@/components/dashboard';
 
 type DatePreset = 'thisMonth' | 'lastMonth' | 'thisYear';
@@ -120,6 +121,9 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Budget overview */}
+      <BudgetOverview />
 
       {/* Recent transactions */}
       <Card>

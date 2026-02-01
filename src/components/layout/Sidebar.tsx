@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, Tags, Receipt, Settings } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, Tags, PiggyBank, Receipt, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { href: '/categories', label: 'Categories', icon: Tags },
+  { href: '/budgets', label: 'Budgets', icon: PiggyBank },
   { href: '/reimbursements', label: 'Reimbursements', icon: Receipt },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
