@@ -19,21 +19,16 @@ export function Sidebar({ className }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'fixed inset-y-0 left-0 z-30 w-60 flex-col border-r border-border bg-card',
+        'fixed inset-y-0 left-0 z-30 w-60 flex-col bg-[#1D4739]',
         className
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center border-b border-border px-4">
-        <img
-          src="/logo.svg"
-          alt="Free Lunch"
-          className="h-8 dark:hidden"
-        />
+      <div className="flex h-16 items-center border-b border-white/10 px-4">
         <img
           src="/logo-dark.svg"
           alt="Free Lunch"
-          className="hidden h-8 dark:block"
+          className="h-8"
         />
       </div>
 
@@ -48,8 +43,8 @@ export function Sidebar({ className }: SidebarProps) {
               cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/70 hover:bg-white/10 hover:text-white'
               )
             }
           >
