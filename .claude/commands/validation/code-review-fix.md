@@ -11,6 +11,7 @@ Please fix these issues one by one. If the Code-review is a file read the entire
 Scope: $2
 
 For each fix:
+
 1. Explain what was wrong
 2. Show the fix
 3. Create and run relevant tests to verify

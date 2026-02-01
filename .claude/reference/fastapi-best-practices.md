@@ -122,6 +122,7 @@ async def get_habit(
 ```
 
 **Rule of thumb**:
+
 - Path parameters for resource identification: `/habits/{id}`
 - Query parameters for filtering, sorting, pagination: `/habits?status=active&page=1`
 
@@ -428,9 +429,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 ```json
 {
-    "error": "HABIT_NOT_FOUND",
-    "detail": "Habit with ID 123 not found",
-    "path": "/api/habits/123"
+  "error": "HABIT_NOT_FOUND",
+  "detail": "Habit with ID 123 not found",
+  "path": "/api/habits/123"
 }
 ```
 
@@ -563,11 +564,11 @@ habits = db.query(Habit).options(selectinload(Habit.completions)).all()
 
 ### Async vs Sync Functions
 
-| Work Type | Function Definition | Reason |
-|-----------|---------------------|--------|
-| Async I/O (DB, HTTP) | `async def` | Non-blocking |
-| Sync/blocking I/O | `def` | Runs in threadpool |
-| CPU-bound | External worker | Avoids blocking |
+| Work Type            | Function Definition | Reason             |
+| -------------------- | ------------------- | ------------------ |
+| Async I/O (DB, HTTP) | `async def`         | Non-blocking       |
+| Sync/blocking I/O    | `def`               | Runs in threadpool |
+| CPU-bound            | External worker     | Avoids blocking    |
 
 ```python
 # GOOD: Async for I/O operations
@@ -827,15 +828,15 @@ CORS_ORIGINS=["http://localhost:5173"]
 
 ### Critical Anti-Patterns to Avoid
 
-| Anti-Pattern | Problem | Solution |
-|--------------|---------|----------|
-| Blocking I/O in `async def` | Halts event loop | Use async libs or plain `def` |
-| Endpoint-to-endpoint calls | Tight coupling | Use service layer |
-| Global mutable state | Race conditions | Use Redis/database |
-| Returning ORM objects | Exposes internals | Use response schemas |
-| Not using Pydantic | Missing validation | Always define schemas |
-| String-formatted SQL | SQL injection | Use ORM or parameterized queries |
-| Hardcoded config | Inflexible | Use environment variables |
+| Anti-Pattern                | Problem            | Solution                         |
+| --------------------------- | ------------------ | -------------------------------- |
+| Blocking I/O in `async def` | Halts event loop   | Use async libs or plain `def`    |
+| Endpoint-to-endpoint calls  | Tight coupling     | Use service layer                |
+| Global mutable state        | Race conditions    | Use Redis/database               |
+| Returning ORM objects       | Exposes internals  | Use response schemas             |
+| Not using Pydantic          | Missing validation | Always define schemas            |
+| String-formatted SQL        | SQL injection      | Use ORM or parameterized queries |
+| Hardcoded config            | Inflexible         | Use environment variables        |
 
 ### Common Mistakes
 
@@ -891,16 +892,16 @@ app = FastAPI(lifespan=lifespan)
 
 ### HTTP Status Codes
 
-| Code | Constant | Use Case |
-|------|----------|----------|
-| 200 | `HTTP_200_OK` | Successful GET, PUT |
-| 201 | `HTTP_201_CREATED` | Successful POST |
-| 204 | `HTTP_204_NO_CONTENT` | Successful DELETE |
-| 400 | `HTTP_400_BAD_REQUEST` | Invalid request |
-| 404 | `HTTP_404_NOT_FOUND` | Resource not found |
-| 409 | `HTTP_409_CONFLICT` | Duplicate resource |
-| 422 | `HTTP_422_UNPROCESSABLE_ENTITY` | Validation error |
-| 500 | `HTTP_500_INTERNAL_SERVER_ERROR` | Server error |
+| Code | Constant                         | Use Case            |
+| ---- | -------------------------------- | ------------------- |
+| 200  | `HTTP_200_OK`                    | Successful GET, PUT |
+| 201  | `HTTP_201_CREATED`               | Successful POST     |
+| 204  | `HTTP_204_NO_CONTENT`            | Successful DELETE   |
+| 400  | `HTTP_400_BAD_REQUEST`           | Invalid request     |
+| 404  | `HTTP_404_NOT_FOUND`             | Resource not found  |
+| 409  | `HTTP_409_CONFLICT`              | Duplicate resource  |
+| 422  | `HTTP_422_UNPROCESSABLE_ENTITY`  | Validation error    |
+| 500  | `HTTP_500_INTERNAL_SERVER_ERROR` | Server error        |
 
 ### Common Imports
 

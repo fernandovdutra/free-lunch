@@ -61,8 +61,9 @@ export default defineConfig({
 ```
 
 Now frontend code can use relative paths:
+
 ```javascript
-fetch('/api/habits')  // Proxied to http://localhost:8000/api/habits
+fetch('/api/habits'); // Proxied to http://localhost:8000/api/habits
 ```
 
 ### Hot Reloading
@@ -94,6 +95,7 @@ npm run build  # Creates dist/ folder
 ```
 
 **Output:**
+
 ```
 dist/
 ├── index.html
@@ -132,10 +134,7 @@ npm install rollup-plugin-visualizer --save-dev
 import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
-  plugins: [
-    react(),
-    visualizer({ open: true }),
-  ],
+  plugins: [react(), visualizer({ open: true })],
 });
 ```
 
@@ -290,6 +289,7 @@ netlify deploy --prod
 ```
 
 Configure API URL for separate backend:
+
 ```javascript
 // frontend/.env.production
 VITE_API_URL=https://api.yourdomain.com
@@ -367,17 +367,17 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - '8000:8000'
     environment:
       - DATABASE_URL=sqlite:///./data/habits.db
     volumes:
-      - ./data:/app/data  # Persist SQLite database
+      - ./data:/app/data # Persist SQLite database
     restart: unless-stopped
 
   frontend:
     build: ./frontend
     ports:
-      - "80:80"
+      - '80:80'
     depends_on:
       - backend
     restart: unless-stopped
@@ -404,15 +404,16 @@ docker-compose up --build backend
 
 ### Image Optimization Tips
 
-| Tip | Impact |
-|-----|--------|
-| Use slim base images | `python:3.11-slim` is 45MB vs 125MB |
-| Multi-stage builds | 70%+ smaller images |
-| Use `.dockerignore` | Faster builds |
-| Order layers by change frequency | Better caching |
-| Combine RUN commands | Fewer layers |
+| Tip                              | Impact                              |
+| -------------------------------- | ----------------------------------- |
+| Use slim base images             | `python:3.11-slim` is 45MB vs 125MB |
+| Multi-stage builds               | 70%+ smaller images                 |
+| Use `.dockerignore`              | Faster builds                       |
+| Order layers by change frequency | Better caching                      |
+| Combine RUN commands             | Fewer layers                        |
 
 **.dockerignore:**
+
 ```
 __pycache__
 *.pyc
@@ -510,14 +511,14 @@ server {
 
 ### 12-Factor App Principles
 
-| Factor | Application |
-|--------|-------------|
-| Config | Environment variables |
-| Dependencies | requirements.txt / package.json |
-| Processes | Stateless app |
-| Port binding | App binds to port |
-| Logs | Stream to stdout |
-| Dev/prod parity | Use Docker |
+| Factor          | Application                     |
+| --------------- | ------------------------------- |
+| Config          | Environment variables           |
+| Dependencies    | requirements.txt / package.json |
+| Processes       | Stateless app                   |
+| Port binding    | App binds to port               |
+| Logs            | Stream to stdout                |
+| Dev/prod parity | Use Docker                      |
 
 ### Pydantic Settings
 
@@ -558,12 +559,12 @@ CORS_ORIGINS=["https://yourdomain.com"]
 
 ### Secrets Management (Production)
 
-| Environment | Solution |
-|-------------|----------|
-| Local | `.env` files (gitignored) |
-| Docker | Environment variables / secrets |
-| Cloud | Platform secrets (Railway, Fly.io) |
-| Enterprise | HashiCorp Vault, AWS Secrets Manager |
+| Environment | Solution                             |
+| ----------- | ------------------------------------ |
+| Local       | `.env` files (gitignored)            |
+| Docker      | Environment variables / secrets      |
+| Cloud       | Platform secrets (Railway, Fly.io)   |
+| Enterprise  | HashiCorp Vault, AWS Secrets Manager |
 
 ---
 
@@ -572,12 +573,14 @@ CORS_ORIGINS=["https://yourdomain.com"]
 ### SQLite Considerations
 
 **When SQLite works**:
+
 - Single server deployment
 - Low write concurrency
 - Database < 1TB
 - Local/personal applications
 
 **When to migrate to PostgreSQL**:
+
 - Multiple servers/load balancing
 - High write concurrency
 - Need for replication/HA
@@ -647,6 +650,7 @@ alembic downgrade -1
 ```
 
 **Production deployment:**
+
 1. Create backup
 2. Run migrations: `alembic upgrade head`
 3. Start application
@@ -725,12 +729,12 @@ async def readiness_check(db: Session = Depends(get_db)):
 
 ### Monitoring Stack (Optional)
 
-| Tool | Purpose |
-|------|---------|
+| Tool       | Purpose            |
+| ---------- | ------------------ |
 | Prometheus | Metrics collection |
-| Grafana | Visualization |
-| Sentry | Error tracking |
-| Loki | Log aggregation |
+| Grafana    | Visualization      |
+| Sentry     | Error tracking     |
+| Loki       | Log aggregation    |
 
 ---
 
@@ -738,13 +742,13 @@ async def readiness_check(db: Session = Depends(get_db)):
 
 ### Platform Comparison
 
-| Platform | Pricing | Best For | SQLite Support |
-|----------|---------|----------|----------------|
-| **Railway** | Usage-based | Fast deploys | Limited |
-| **Render** | $7+/mo | Managed services | Limited |
-| **Fly.io** | $2+/mo | Global, SQLite | Yes (volumes) |
-| **DigitalOcean** | $4+/mo | VPS control | Yes |
-| **Hetzner** | $4+/mo | Europe, budget | Yes |
+| Platform         | Pricing     | Best For         | SQLite Support |
+| ---------------- | ----------- | ---------------- | -------------- |
+| **Railway**      | Usage-based | Fast deploys     | Limited        |
+| **Render**       | $7+/mo      | Managed services | Limited        |
+| **Fly.io**       | $2+/mo      | Global, SQLite   | Yes (volumes)  |
+| **DigitalOcean** | $4+/mo      | VPS control      | Yes            |
+| **Hetzner**      | $4+/mo      | Europe, budget   | Yes            |
 
 ### Fly.io Deployment
 
@@ -769,6 +773,7 @@ fly status
 ```
 
 **fly.toml:**
+
 ```toml
 app = "habit-tracker"
 
@@ -803,17 +808,20 @@ railway up
 ### VPS Deployment Checklist
 
 1. **Server setup**
+
    ```bash
    sudo apt update && sudo apt upgrade
    sudo apt install nginx python3-pip python3-venv
    ```
 
 2. **Clone repository**
+
    ```bash
    git clone https://github.com/user/habit-tracker /var/www/habit-tracker
    ```
 
 3. **Setup backend**
+
    ```bash
    cd /var/www/habit-tracker/backend
    python3 -m venv .venv
@@ -822,6 +830,7 @@ railway up
    ```
 
 4. **Build frontend**
+
    ```bash
    cd /var/www/habit-tracker/frontend
    npm install && npm run build
@@ -918,6 +927,7 @@ pyi-makespec --onefile --name habittracker backend/app/main.py
 ```
 
 **entrypoint.py:**
+
 ```python
 import multiprocessing
 import uvicorn
@@ -928,6 +938,7 @@ if __name__ == "__main__":
 ```
 
 **Build:**
+
 ```bash
 pyinstaller --onefile --add-data "frontend/dist:frontend/dist" entrypoint.py
 ```
@@ -948,6 +959,7 @@ cargo tauri build
 ```
 
 **Benefits**:
+
 - Native WebView (not bundled browser)
 - Small binary (~10-50MB)
 - Cross-platform
@@ -966,6 +978,7 @@ cargo tauri build
 ```
 
 **Commands:**
+
 ```bash
 cd backend && uvicorn app.main:app --port 8000
 # Access at http://localhost:8000
@@ -1050,13 +1063,13 @@ sqlite3 db.db "VACUUM INTO 'backup.db'"
 
 ### Port Reference
 
-| Service | Default Port |
-|---------|--------------|
-| Vite dev server | 5173 |
-| FastAPI/Uvicorn | 8000 |
-| Nginx HTTP | 80 |
-| Nginx HTTPS | 443 |
-| PostgreSQL | 5432 |
+| Service         | Default Port |
+| --------------- | ------------ |
+| Vite dev server | 5173         |
+| FastAPI/Uvicorn | 8000         |
+| Nginx HTTP      | 80           |
+| Nginx HTTPS     | 443          |
+| PostgreSQL      | 5432         |
 
 ---
 

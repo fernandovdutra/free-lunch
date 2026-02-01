@@ -10,6 +10,7 @@ argument-hint: [github-issue-id]
 Investigate GitHub issue #$ARGUMENTS from this repository, identify the root cause, and document findings for future implementation.
 
 **Prerequisites:**
+
 - Working in a local Git repository with GitHub origin
 - GitHub CLI installed and authenticated (`gh auth status`)
 - Valid GitHub issue ID from this repository
@@ -25,6 +26,7 @@ gh issue view $ARGUMENTS
 ```
 
 This fetches:
+
 - Issue title and description
 - Reporter and creation date
 - Labels and status
@@ -33,12 +35,14 @@ This fetches:
 ### 2. Search Codebase
 
 **Identify relevant code:**
+
 - Search for components mentioned in issue
 - Find related functions, classes, or modules
 - Check similar implementations
 - Look for patterns or recent changes
 
 Use grep/search to find:
+
 - Error messages from issue
 - Related function names
 - Component identifiers
@@ -49,6 +53,7 @@ Check recent changes to affected areas:
 !`git log --oneline -20 -- [relevant-paths]`
 
 Look for:
+
 - Recent modifications to affected code
 - Related bug fixes
 - Refactorings that might have introduced the issue
@@ -56,6 +61,7 @@ Look for:
 ### 4. Investigate Root Cause
 
 **Analyze the code to determine:**
+
 - What is the actual bug or issue?
 - Why is it happening?
 - What was the original intent?
@@ -63,6 +69,7 @@ Look for:
 - Are there related issues or symptoms?
 
 **Consider:**
+
 - Input validation failures
 - Edge cases not handled
 - Race conditions or timing issues
@@ -73,6 +80,7 @@ Look for:
 ### 5. Assess Impact
 
 **Determine:**
+
 - How widespread is this issue?
 - What features are affected?
 - Are there workarounds?
@@ -82,6 +90,7 @@ Look for:
 ### 6. Propose Fix Approach
 
 **Design the solution:**
+
 - What needs to be changed?
 - Which files will be modified?
 - What is the fix strategy?
@@ -118,11 +127,13 @@ Save analysis as: `docs/rca/issue-$ARGUMENTS.md`
 [What actually happens]
 
 **Symptoms:**
+
 - [List observable symptoms]
 
 ## Reproduction
 
 **Steps to Reproduce:**
+
 1. [Step 1]
 2. [Step 2]
 3. [Observe issue]
@@ -146,9 +157,11 @@ Save analysis as: `docs/rca/issue-$ARGUMENTS.md`
 
 **Code Location:**
 ```
+
 [File path:line number]
 [Relevant code snippet showing the issue]
-```
+
+````
 
 ### Related Issues
 
@@ -204,7 +217,7 @@ Save analysis as: `docs/rca/issue-$ARGUMENTS.md`
 **Validation Commands:**
 ```bash
 [Exact commands to verify fix]
-```
+````
 
 ## Implementation Plan
 
@@ -217,4 +230,7 @@ This RCA document should be used by `/implement-fix` command.
 1. Review this RCA document
 2. Run: `/implement-fix $ARGUMENTS` to implement the fix
 3. Run: `/commit` after implementation complete
+
+```
+
 ```

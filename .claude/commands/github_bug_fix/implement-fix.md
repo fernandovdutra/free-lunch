@@ -9,6 +9,7 @@ allowed-tools: Read, Write, Edit, Bash(ruff:*), Bash(mypy:*), Bash(pytest:*), Ba
 ## Prerequisites
 
 **This command implements fixes for GitHub issues based on RCA documents:**
+
 - Working in a local Git repository with GitHub origin
 - RCA document exists at `docs/rca/issue-$ARGUMENTS.md`
 - GitHub CLI installed and authenticated (optional, for status updates)
@@ -18,6 +19,7 @@ allowed-tools: Read, Write, Edit, Bash(ruff:*), Bash(mypy:*), Bash(pytest:*), Ba
 Read RCA: `docs/rca/issue-$ARGUMENTS.md`
 
 **Optional - View GitHub issue for context:**
+
 ```bash
 gh issue view $ARGUMENTS
 ```
@@ -36,6 +38,7 @@ gh issue view $ARGUMENTS
 ### 2. Verify Current State
 
 Before making changes:
+
 - Confirm the issue still exists
 - Check current state of affected files
 - Review any recent changes to those files
@@ -47,16 +50,19 @@ Following the "Proposed Fix" section of the RCA:
 **For each file to modify:**
 
 #### a. Read the existing file
+
 - Understand current implementation
 - Locate the specific code mentioned in RCA
 
 #### b. Make the fix
+
 - Implement the change as described in RCA
 - Follow the fix strategy exactly
 - Maintain code style and conventions
 - Add comments if the fix is non-obvious
 
 #### c. Handle related changes
+
 - Update any related code affected by the fix
 - Ensure consistency across the codebase
 - Update imports if needed
@@ -66,17 +72,20 @@ Following the "Proposed Fix" section of the RCA:
 Following the "Testing Requirements" from RCA:
 
 **Create test cases for:**
+
 1. Verify the fix resolves the issue
 2. Test edge cases related to the bug
 3. Ensure no regression in related functionality
 4. Test any new code paths introduced
 
 **Test file location:**
+
 - Follow project's test structure
 - Mirror the source file location
 - Use descriptive test names
 
 **Test implementation:**
+
 ```python
 def test_issue_$ARGUMENTS_fix():
     """Test that issue #$ARGUMENTS is fixed."""
@@ -101,6 +110,7 @@ Execute validation commands from RCA:
 ```
 
 **If validation fails:**
+
 - Fix the issues
 - Re-run validation
 - Don't proceed until all pass
@@ -108,6 +118,7 @@ Execute validation commands from RCA:
 ### 6. Verify Fix
 
 **Manually verify:**
+
 - Follow reproduction steps from RCA
 - Confirm issue no longer occurs
 - Test edge cases
@@ -116,6 +127,7 @@ Execute validation commands from RCA:
 ### 7. Update Documentation
 
 If needed:
+
 - Update code comments
 - Update API documentation
 - Update README if user-facing
@@ -135,6 +147,7 @@ If needed:
 ### Changes Made
 
 **Files Modified:**
+
 1. **[file-path]**
    - Change: [What was changed]
    - Lines: [Line numbers]
@@ -146,10 +159,12 @@ If needed:
 ### Tests Added
 
 **Test Files Created/Modified:**
+
 1. **[test-file-path]**
    - Test cases: [List test functions added]
 
 **Test Coverage:**
+
 - ✅ Fix verification test
 - ✅ Edge case tests
 - ✅ Regression prevention tests
@@ -170,6 +185,7 @@ If needed:
 ### Verification
 
 **Manual Testing:**
+
 - ✅ Followed reproduction steps - issue resolved
 - ✅ Tested edge cases - all pass
 - ✅ No new issues introduced
@@ -178,6 +194,7 @@ If needed:
 ### Files Summary
 
 **Total Changes:**
+
 - X files modified
 - Y files created (tests)
 - Z lines added
@@ -186,11 +203,13 @@ If needed:
 ### Ready for Commit
 
 All changes complete and validated. Ready for:
+
 ```bash
 /commit
 ```
 
 **Suggested commit message:**
+
 ```
 fix(scope): resolve GitHub issue #$ARGUMENTS - [brief description]
 
@@ -204,16 +223,19 @@ Fixes #$ARGUMENTS
 ### Optional: Update GitHub Issue
 
 **Add implementation comment to issue:**
+
 ```bash
 gh issue comment $ARGUMENTS --body "Fix implemented in commit [commit-hash]. Ready for review."
 ```
 
 **Update issue labels (if needed):**
+
 ```bash
 gh issue edit $ARGUMENTS --add-label "fixed" --remove-label "bug"
 ```
 
 **Close the issue (if not using auto-close via commit message):**
+
 ```bash
 gh issue close $ARGUMENTS --comment "Fixed and merged."
 ```

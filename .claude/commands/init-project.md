@@ -55,6 +55,7 @@ curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:8000/docs
 ## Cleanup
 
 To stop services:
+
 - Backend: Ctrl+C in terminal
 - Frontend: Ctrl+C in terminal
 
