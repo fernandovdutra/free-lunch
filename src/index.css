@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Background & Foreground - Warm Neutrals */
+    --color-background: 40 20% 98%;
+    --color-foreground: 160 8% 11%;
+
+    /* Card */
+    --color-card: 0 0% 100%;
+    --color-card-foreground: 160 8% 11%;
+
+    /* Popover */
+    --color-popover: 0 0% 100%;
+    --color-popover-foreground: 160 8% 11%;
+
+    /* Primary - Deep Forest Green */
+    --color-primary: 158 41% 20%;
+    --color-primary-foreground: 0 0% 100%;
+
+    /* Secondary - Rich Gold */
+    --color-secondary: 45 70% 47%;
+    --color-secondary-foreground: 160 8% 11%;
+
+    /* Muted */
+    --color-muted: 150 8% 95%;
+    --color-muted-foreground: 155 8% 45%;
+
+    /* Accent - Warm background for hover */
+    --color-accent: 150 15% 95%;
+    --color-accent-foreground: 160 8% 11%;
+
+    /* Destructive - Terracotta */
+    --color-destructive: 10 50% 53%;
+    --color-destructive-foreground: 0 0% 100%;
+
+    /* Border & Input - Warm Gray */
+    --color-border: 140 8% 89%;
+    --color-input: 140 8% 89%;
+    --color-ring: 158 41% 20%;
+
+    /* Radius */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Background & Foreground */
+    --color-background: 158 30% 8%;
+    --color-foreground: 40 20% 95%;
+
+    /* Card */
+    --color-card: 158 25% 12%;
+    --color-card-foreground: 40 20% 95%;
+
+    /* Popover */
+    --color-popover: 158 25% 12%;
+    --color-popover-foreground: 40 20% 95%;
+
+    /* Primary - Slightly lighter forest for dark mode */
+    --color-primary: 155 33% 32%;
+    --color-primary-foreground: 0 0% 100%;
+
+    /* Secondary - Gold (same, pops on dark) */
+    --color-secondary: 45 70% 47%;
+    --color-secondary-foreground: 160 8% 11%;
+
+    /* Muted */
+    --color-muted: 158 20% 18%;
+    --color-muted-foreground: 150 10% 55%;
+
+    /* Accent */
+    --color-accent: 158 20% 18%;
+    --color-accent-foreground: 40 20% 95%;
+
+    /* Destructive - Lighter terracotta for dark mode */
+    --color-destructive: 10 55% 58%;
+    --color-destructive-foreground: 0 0% 100%;
+
+    /* Border & Input */
+    --color-border: 158 15% 22%;
+    --color-input: 158 15% 22%;
+    --color-ring: 155 33% 40%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+  }
+}
+
+@layer utilities {
+  /* Tabular numbers for financial data */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer components {
+  /* Button press effect */
+  .btn-press:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

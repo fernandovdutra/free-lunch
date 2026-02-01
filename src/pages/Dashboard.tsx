@@ -1,0 +1,105 @@
+import { format } from 'date-fns';
+import { AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { useCategories } from '@/hooks/useCategories';
+import { useMonth } from '@/contexts/MonthContext';
+import {
+  SummaryCards,
+  SpendingByCategoryChart,
+  SpendingOverTimeChart,
+  RecentTransactions,
+  BudgetOverview,
+} from '@/components/dashboard';
+
+export function Dashboard() {
+  const { dateRange, selectedMonth } = useMonth();
+
+  const { data: categories = [] } = useCategories();
+  const { data: dashboardData, isLoading, error } = useDashboardData(dateRange);
+
+  if (error) {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
+          <h3 className="mt-4 text-lg font-semibold">Failed to load dashboard</h3>
+          <p className="text-muted-foreground">Please try refreshing the page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const periodLabel = format(selectedMonth, 'MMMM yyyy');
+
+  // Count pending reimbursements
+  const pendingCount =
+    dashboardData?.recentTransactions.filter((t) => t.reimbursement?.status === 'pending').length ??
+    0;
+
+  return (
+    <div className="space-y-6">
+      {/* Page header */}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">Your financial overview for {periodLabel}</p>
+      </div>
+
+      {/* Summary cards */}
+      <SummaryCards
+        summary={
+          dashboardData?.summary ?? {
+            totalIncome: 0,
+            totalExpenses: 0,
+            netBalance: 0,
+            pendingReimbursements: 0,
+            transactionCount: 0,
+          }
+        }
+        isLoading={isLoading}
+        pendingCount={pendingCount}
+      />
+
+      {/* Charts section */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Spending by Category</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SpendingByCategoryChart
+              data={dashboardData?.categorySpending ?? []}
+              isLoading={isLoading}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Spending Over Time</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SpendingOverTimeChart data={dashboardData?.timeline ?? []} isLoading={isLoading} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Budget overview */}
+      <BudgetOverview />
+
+      {/* Recent transactions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Transactions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RecentTransactions
+            transactions={dashboardData?.recentTransactions ?? []}
+            categories={categories}
+            isLoading={isLoading}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

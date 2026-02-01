@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 40" fill="none">
+  <!-- Icon: Simplified plate with coin -->
+  <g transform="translate(0, 0)">
+    <!-- Outer plate (forest green circle) -->
+    <circle cx="20" cy="20" r="18" fill="#1D4739"/>
+    <!-- Inner plate rim -->
+    <circle cx="20" cy="20" r="13" fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity="0.85"/>
+    <!-- Plate center -->
+    <circle cx="20" cy="20" r="9" fill="#FFFFFF" opacity="0.95"/>
+    <!-- Gold coin -->
+    <circle cx="20" cy="20" r="6" fill="#C9A227"/>
+    <!-- Euro symbol -->
+    <text x="20" y="23" font-family="system-ui, -apple-system, sans-serif" font-size="8" font-weight="600" fill="#1D4739" text-anchor="middle">€</text>
+    <!-- Fork (left) -->
+    <path d="M5 10 L5 14 M3 10 L3 14 M7 10 L7 14 M5 14 L5 30" stroke="#C9A227" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+    <!-- Knife (right) -->
+    <path d="M35 10 L35 30 M35 10 C37 10 38 12 38 15 L35 18" stroke="#C9A227" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- Wordmark: "Free Lunch" -->
+  <text x="48" y="26" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700" fill="#1D4739">
+    Free Lunch
+  </text>
+</svg>
