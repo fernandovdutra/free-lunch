@@ -54,3 +54,4 @@ yarn-error.log*
 .vercel
 .turbo
 .secret.local
+free-lunch-85447-firebase-adminsdk-*.json

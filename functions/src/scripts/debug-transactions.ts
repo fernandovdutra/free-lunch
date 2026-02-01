@@ -14,13 +14,13 @@ if (getApps().length === 0) {
     console.log('🔐 Using service account:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
     initializeApp({
       credential: cert(process.env.GOOGLE_APPLICATION_CREDENTIALS),
-      projectId: 'free-lunch-85447'
+      projectId: 'free-lunch-85447',
     });
   } else {
     console.log('🔐 Connecting to production Firestore with default credentials');
     initializeApp({
       credential: applicationDefault(),
-      projectId: 'free-lunch-85447'
+      projectId: 'free-lunch-85447',
     });
   }
 }
@@ -48,7 +48,7 @@ async function debugTransactions() {
     const connection = connectionsSnapshot.docs[0].data();
     console.log('\n🏦 Bank Connection:');
     console.log(JSON.stringify(connection, null, 2));
-    userIbans = (connection.accounts as Array<{ iban: string }>)?.map(a => a.iban) || [];
+    userIbans = (connection.accounts as Array<{ iban: string }>)?.map((a) => a.iban) || [];
   }
 
   // Get sample of transactions to analyze

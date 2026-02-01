@@ -7,6 +7,7 @@ Pay special attention to naming of existing utils types and models. Import from 
 ## Feature Description
 
 This is a critical bug-fix and polish release addressing multiple issues discovered during real-world bank sync testing. The current transaction sync from Enable Banking API has several data transformation bugs that result in:
+
 - All transactions appearing as credits (positive amounts)
 - Missing or incorrect counterparty names
 - Raw JSON objects displayed as descriptions
@@ -24,6 +25,7 @@ So that I can understand my spending patterns and categorize transactions correc
 ## Problem Statement
 
 The Enable Banking API returns transaction data in a specific format that is not being correctly transformed:
+
 1. **Amounts are always positive strings** - The API uses `creditor`/`debtor` fields to indicate direction, not amount sign
 2. **Descriptions fallback to raw JSON** - When `remittance_information` is empty, code falls back to `bank_transaction_code` which is a structured object
 3. **Counterparty extraction is inverted** - Logic uses amount sign (always positive) to determine which party name to use
@@ -33,6 +35,7 @@ The Enable Banking API returns transaction data in a specific format that is not
 ## Solution Statement
 
 Fix the `syncTransactions.ts` transformation logic to:
+
 1. Determine transaction direction by comparing account IBAN with `creditor_account`/`debtor_account`
 2. Extract meaningful description from `bank_transaction_code.description` if it's an object
 3. Pick correct counterparty based on actual transaction direction
@@ -40,6 +43,7 @@ Fix the `syncTransactions.ts` transformation logic to:
 5. Improve category slug resolution to handle case variations
 
 Enhance the UI to:
+
 1. Add a dedicated "Counterparty" column in the transaction list
 2. Show direction indicator (arrow up/down) next to amounts
 3. Ensure proper display of debit vs credit transactions
@@ -49,11 +53,12 @@ Enhance the UI to:
 **Feature Type**: Bug Fix + Enhancement
 **Estimated Complexity**: Medium-High
 **Primary Systems Affected**:
+
 - `functions/src/handlers/syncTransactions.ts` - Transaction transformation
 - `functions/src/categorization/categorizer.ts` - Category resolution
 - `src/components/transactions/TransactionList.tsx` - UI display
 - `src/components/transactions/TransactionRow.tsx` - Row rendering
-**Dependencies**: None (all fixes are internal)
+  **Dependencies**: None (all fixes are internal)
 
 ---
 
@@ -84,16 +89,19 @@ Enhance the UI to:
 ### Patterns to Follow
 
 **Amount Formatting (already correct in utils.ts):**
+
 ```typescript
-if (amount > 0) return `+${formatted}`;  // Income
-if (amount < 0) return `-${formatted}`;  // Expense
+if (amount > 0) return `+${formatted}`; // Income
+if (amount < 0) return `-${formatted}`; // Expense
 ```
 
 **Category Naming Convention (from AuthContext.tsx):**
+
 - Parent: `id: 'food', name: 'Food & Drink'`
 - Child: `id: 'food-groceries', name: 'Groceries', parentId: 'food'`
 
 **Date Formatting Pattern:**
+
 ```typescript
 // Use date-fns for consistent formatting
 import { format, parseISO } from 'date-fns';
@@ -109,6 +117,7 @@ const dateStr = format(parseISO(bookingDate), 'yyyy-MM-dd');
 Fix the core transformation logic that processes Enable Banking API responses.
 
 **Tasks:**
+
 1. Fix transaction direction detection using IBAN comparison
 2. Fix amount sign based on direction (negative for debits)
 3. Fix counterparty extraction based on direction
@@ -120,6 +129,7 @@ Fix the core transformation logic that processes Enable Banking API responses.
 Improve slug resolution to handle the mismatch between merchant database slugs and actual category names.
 
 **Tasks:**
+
 1. Improve `buildCategorySlugMap()` to handle more variations
 2. Add fallback matching for common category names
 3. Fix `categorySource` to be 'none' when no match found
@@ -129,6 +139,7 @@ Improve slug resolution to handle the mismatch between merchant database slugs a
 Add counterparty column and improve transaction display.
 
 **Tasks:**
+
 1. Add "Counterparty" column to TransactionList header
 2. Display counterparty prominently in TransactionRow
 3. Add direction indicator (arrow icon) next to amount
@@ -138,6 +149,7 @@ Add counterparty column and improve transaction display.
 Add tests for the fixed transformation logic.
 
 **Tasks:**
+
 1. Add unit tests for `transformTransaction` function
 2. Update E2E tests to verify correct display of synced transactions
 
@@ -189,9 +201,7 @@ function transformTransaction(
   const amount = isOutgoing ? -Math.abs(rawAmount) : Math.abs(rawAmount);
 
   // 4. Get counterparty: for outgoing, show who we paid; for incoming, show who paid us
-  const counterparty = isOutgoing
-    ? (tx.creditor?.name || null)
-    : (tx.debtor?.name || null);
+  const counterparty = isOutgoing ? tx.creditor?.name || null : tx.debtor?.name || null;
 
   // 5. Extract description - handle structured bank_transaction_code
   let description = 'Bank transaction';
@@ -255,9 +265,11 @@ function transformTransaction(
 ### Task 3: UPDATE `functions/src/enableBanking/types.ts` - Fix bank_transaction_code type
 
 - **IMPLEMENT**: Change `bank_transaction_code` type to union:
+
 ```typescript
 bank_transaction_code?: string | { description?: string; code?: string; sub_code?: string | null };
 ```
+
 - **VALIDATE**: `cd functions && npm run build`
 
 ---
@@ -265,6 +277,7 @@ bank_transaction_code?: string | { description?: string; code?: string; sub_code
 ### Task 4: UPDATE `functions/src/handlers/syncTransactions.ts` - Fix date range calculation
 
 - **IMPLEMENT**: Update lines 89-104 to avoid UTC shift:
+
 ```typescript
 // Calculate date range using local dates
 const today = new Date();
@@ -284,6 +297,7 @@ if (connection.lastSync) {
   dateFrom = `${ninetyDaysAgo.getFullYear()}-${String(ninetyDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(ninetyDaysAgo.getDate()).padStart(2, '0')}`;
 }
 ```
+
 - **VALIDATE**: `cd functions && npm run build`
 
 ---
@@ -291,10 +305,12 @@ if (connection.lastSync) {
 ### Task 5: UPDATE `functions/src/handlers/syncTransactions.ts` - Fix categorySource assignment
 
 - **IMPLEMENT**: Change line 155-156:
+
 ```typescript
 transactionData.categorySource =
   categorizationResult.source === 'none' ? 'none' : categorizationResult.source;
 ```
+
 - **PATTERN**: Keep source as 'none' when no categorization found, not 'auto'
 - **VALIDATE**: `cd functions && npm run build`
 
@@ -303,6 +319,7 @@ transactionData.categorySource =
 ### Task 6: UPDATE `functions/src/categorization/types.ts` - Add 'none' to categorySource type
 
 - **IMPLEMENT**: Find the CategorizationResult type and ensure `source` includes `'none'`:
+
 ```typescript
 export interface CategorizationResult {
   categoryId: string | null;
@@ -311,6 +328,7 @@ export interface CategorizationResult {
   matchedPattern?: string;
 }
 ```
+
 - **VALIDATE**: `cd functions && npm run build`
 
 ---
@@ -318,6 +336,7 @@ export interface CategorizationResult {
 ### Task 7: UPDATE `functions/src/categorization/categorizer.ts` - Improve slug resolution
 
 - **IMPLEMENT**: Enhance `buildCategorySlugMap()` method (lines 74-93) to handle more name variations:
+
 ```typescript
 private buildCategorySlugMap(): void {
   this.categorySlugMap.clear();
@@ -350,6 +369,7 @@ private buildCategorySlugMap(): void {
   }
 }
 ```
+
 - **VALIDATE**: `cd functions && npm run build`
 
 ---
@@ -357,9 +377,11 @@ private buildCategorySlugMap(): void {
 ### Task 8: UPDATE `src/types/index.ts` - Add 'none' to categorySource
 
 - **IMPLEMENT**: Update Transaction interface categorySource field:
+
 ```typescript
 categorySource: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned' | 'none';
 ```
+
 - **VALIDATE**: `npm run typecheck`
 
 ---
@@ -367,8 +389,11 @@ categorySource: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned' | 'none';
 ### Task 9: UPDATE `src/components/transactions/TransactionList.tsx` - Add Counterparty column
 
 - **IMPLEMENT**: Update the header row (lines 59-67) to include Counterparty:
+
 ```tsx
-{/* Header row */}
+{
+  /* Header row */
+}
 <div className="flex items-center gap-4 bg-muted/50 px-4 py-2 text-sm font-medium text-muted-foreground">
   <div className="w-20 flex-shrink-0">Date</div>
   <div className="min-w-0 flex-1">Description</div>
@@ -377,8 +402,9 @@ categorySource: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned' | 'none';
   <div className="w-6 flex-shrink-0" />
   <div className="w-24 flex-shrink-0 text-right">Amount</div>
   <div className="w-8 flex-shrink-0" />
-</div>
+</div>;
 ```
+
 - **VALIDATE**: `npm run typecheck && npm run lint`
 
 ---
@@ -386,21 +412,37 @@ categorySource: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned' | 'none';
 ### Task 10: UPDATE `src/components/transactions/TransactionRow.tsx` - Add Counterparty column and direction indicator
 
 - **IMPLEMENT**: Add imports for direction icons:
+
 ```typescript
-import { MoreHorizontal, Pencil, Trash2, Split, Receipt, Banknote, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import {
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Split,
+  Receipt,
+  Banknote,
+  ArrowUpRight,
+  ArrowDownRight,
+} from 'lucide-react';
 ```
 
 - **IMPLEMENT**: Update the row structure (after description div, before category div) to add counterparty column:
+
 ```tsx
-{/* Counterparty */}
+{
+  /* Counterparty */
+}
 <div className="w-32 flex-shrink-0 truncate text-sm text-muted-foreground">
   {transaction.counterparty || '—'}
-</div>
+</div>;
 ```
 
 - **IMPLEMENT**: Update the amount display (lines 123-133) to include direction arrow:
+
 ```tsx
-{/* Amount */}
+{
+  /* Amount */
+}
 <div
   className={cn(
     'flex w-24 flex-shrink-0 items-center justify-end gap-1 font-medium tabular-nums',
@@ -415,15 +457,20 @@ import { MoreHorizontal, Pencil, Trash2, Split, Receipt, Banknote, ArrowUpRight,
     <ArrowDownRight className="h-3 w-3" />
   ) : null}
   {formatAmount(transaction.amount)}
-</div>
+</div>;
 ```
 
 - **IMPLEMENT**: Remove counterparty from description subtitle (remove lines 80-82):
+
 ```tsx
-{/* Remove this block - counterparty now has its own column */}
-{/* {transaction.counterparty && typeof transaction.counterparty === 'string' && (
+{
+  /* Remove this block - counterparty now has its own column */
+}
+{
+  /* {transaction.counterparty && typeof transaction.counterparty === 'string' && (
   <p className="truncate text-sm text-muted-foreground">{transaction.counterparty}</p>
-)} */}
+)} */
+}
 ```
 
 - **VALIDATE**: `npm run typecheck && npm run lint`
@@ -433,6 +480,7 @@ import { MoreHorizontal, Pencil, Trash2, Split, Receipt, Banknote, ArrowUpRight,
 ### Task 11: CREATE unit tests for transformTransaction
 
 - **IMPLEMENT**: Create `functions/src/handlers/__tests__/syncTransactions.test.ts`:
+
 ```typescript
 import { describe, it, expect, vi } from 'vitest';
 
@@ -530,6 +578,7 @@ describe('Transaction Transformation Logic', () => {
 ### Task 12: UPDATE E2E tests for transaction display
 
 - **IMPLEMENT**: Add to `e2e/transactions.spec.ts`:
+
 ```typescript
 test('should display counterparty column header', async ({ page }) => {
   await page.waitForTimeout(2000);
@@ -542,7 +591,10 @@ test('should display direction arrows for transactions', async ({ page }) => {
   await page.getByRole('button', { name: /add transaction/i }).click();
   await page.getByLabel(/description/i).fill('Direction Test');
   await page.getByLabel(/amount/i).fill('-50');
-  await page.getByRole('button', { name: /add transaction/i }).last().click();
+  await page
+    .getByRole('button', { name: /add transaction/i })
+    .last()
+    .click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
 
   // Check that the transaction row has expected structure
@@ -559,6 +611,7 @@ test('should display direction arrows for transactions', async ({ page }) => {
 ### Task 13: Rebuild and deploy functions
 
 - **IMPLEMENT**: Rebuild cloud functions with fixes:
+
 ```bash
 cd functions && npm run build
 ```
@@ -574,6 +627,7 @@ cd functions && npm run build
 **Location:** `functions/src/handlers/__tests__/syncTransactions.test.ts`
 
 Test the transformation logic:
+
 - Amount sign determination based on IBAN matching
 - Counterparty extraction based on direction
 - Description extraction from various source fields
@@ -582,6 +636,7 @@ Test the transformation logic:
 **Location:** `functions/src/categorization/__tests__/categorizer.test.ts`
 
 Test slug resolution improvements:
+
 - Simple name matching (case insensitive)
 - Hierarchical slug matching (parent.child)
 - ID-based matching
@@ -589,6 +644,7 @@ Test slug resolution improvements:
 ### Integration Tests
 
 The existing categorization tests cover the engine:
+
 - `functions/src/categorization/__tests__/merchantDatabase.test.ts`
 - `functions/src/categorization/__tests__/ruleEngine.test.ts`
 
@@ -597,6 +653,7 @@ The existing categorization tests cover the engine:
 **Location:** `e2e/transactions.spec.ts`
 
 Verify:
+
 - Counterparty column is visible in transaction list
 - Transaction amounts display correctly (with + or - sign)
 - Direction arrows are visible

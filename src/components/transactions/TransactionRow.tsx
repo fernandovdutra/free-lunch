@@ -1,4 +1,13 @@
-import { MoreHorizontal, Pencil, Trash2, Split, Receipt, Banknote, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import {
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Split,
+  Receipt,
+  Banknote,
+  ArrowUpRight,
+  ArrowDownRight,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
 import { CategoryPicker } from './CategoryPicker';
@@ -43,7 +52,9 @@ export function TransactionRow({
   };
 
   // Determine if we should show booking date separately
-  const showBookingDate = transaction.bookingDate && transaction.transactionDate &&
+  const showBookingDate =
+    transaction.bookingDate &&
+    transaction.transactionDate &&
     transaction.bookingDate.toDateString() !== transaction.transactionDate.toDateString();
 
   return (

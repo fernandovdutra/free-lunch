@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="80" x2="904" y2="944" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#78B07A"/>
+      <stop offset="1" stop-color="#5F9068"/>
+    </linearGradient>
+
+    <radialGradient id="plate" cx="360" cy="320" r="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F2F4F7"/>
+    </radialGradient>
+
+    <linearGradient id="gold" x1="512" y1="392" x2="512" y2="648" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E6C66A"/>
+      <stop offset="1" stop-color="#CDA64C"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="10"/>
+      <feOffset dx="0" dy="12" result="off"/>
+      <feColorMatrix in="off" type="matrix"
+        values="0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0.18 0"/>
+      <feComposite in2="SourceGraphic" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Rounded app icon background -->
+  <rect x="56" y="56" width="912" height="912" rx="180" fill="url(#bg)"/>
+
+  <!-- Plate -->
+  <g filter="url(#shadow)">
+    <circle cx="512" cy="520" r="340" fill="url(#plate)" stroke="#183447" stroke-width="18"/>
+    <circle cx="512" cy="520" r="255" fill="#EEF1F4" stroke="#183447" stroke-width="16"/>
+    <circle cx="512" cy="520" r="200" fill="#FBFBFD" stroke="#183447" stroke-width="14"/>
+  </g>
+
+  <!-- Fork (designer-clean silhouette) -->
+  <g stroke="#183447" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <path fill="#FBFBFD" d="M206 214c-20 0-36 16-36 36v184c0 40 28 74 68 82v266c0 26 21 47 47 47s47-21 47-47V516c40-8 68-42 68-82V250c0-20-16-36-36-36H206z"/>
+    <path d="M206 250v168"/>
+    <path d="M246 250v168"/>
+    <path d="M286 250v168"/>
+    <path d="M326 250v168"/>
+  </g>
+
+  <!-- Knife (designer-clean silhouette) -->
+  <g stroke="#183447" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <path fill="#FBFBFD" d="M824 214c36 0 64 32 64 72v494c0 64-46 116-110 116s-110-52-110-116V286c0-40 28-72 64-72h92z"/>
+    <path d="M720 560c22 14 76 14 98 0"/>
+  </g>
+
+  <!-- Center emblem: coin + locked $ (clean geometry) -->
+  <g filter="url(#shadow)">
+    <circle cx="512" cy="520" r="128" fill="url(#gold)" stroke="#183447" stroke-width="16"/>
+
+    <!-- locked-dollar mark -->
+    <path d="M512 424
+             c-30 0-54 24-54 54v8
+             h26v-8c0-16 12-28 28-28s28 12 28 28v20
+             h-70c-24 0-44 20-44 44s20 44 44 44h18v32c0 18 14 32 32 32s32-14 32-32v-10h-26v10c0 4-2 6-6 6s-6-2-6-6v-32h18c24 0 44-20 44-44 0-22-16-40-36-44v-20c0-30-24-54-54-54z
+             m-50 172c-10 0-18-8-18-18s8-18 18-18h100c10 0 18 8 18 18s-8 18-18 18H462z"
+          fill="#FBFBFD" stroke="#183447" stroke-width="12" stroke-linejoin="round"/>
+
+    <!-- keyhole -->
+    <path d="M512 558
+             c-10 0-18 8-18 18
+             c0 8 5 15 12 17
+             l-6 28h24l-6-28
+             c7-2 12-9 12-17
+             c0-10-8-18-18-18z"
+          fill="#183447"/>
+  </g>
+</svg>

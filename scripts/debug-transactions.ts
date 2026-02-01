@@ -15,7 +15,9 @@ if (getApps().length === 0) {
   } else {
     // Production - needs service account
     console.log('⚠️  No FIRESTORE_EMULATOR_HOST set. Set it to connect to emulators.');
-    console.log('   Run: FIRESTORE_EMULATOR_HOST=localhost:8080 npx tsx scripts/debug-transactions.ts');
+    console.log(
+      '   Run: FIRESTORE_EMULATOR_HOST=localhost:8080 npx tsx scripts/debug-transactions.ts'
+    );
     process.exit(1);
   }
 }
@@ -60,8 +62,12 @@ async function debugTransactions() {
       console.log(`  debtor: ${JSON.stringify(raw?.debtor)}`);
       console.log(`  creditor_account: ${JSON.stringify(raw?.creditor_account)}`);
       console.log(`  debtor_account: ${JSON.stringify(raw?.debtor_account)}`);
-      console.log(`  remittance_information_unstructured: ${raw?.remittance_information_unstructured}`);
-      console.log(`  remittance_information_unstructured_array: ${JSON.stringify(raw?.remittance_information_unstructured_array)}`);
+      console.log(
+        `  remittance_information_unstructured: ${raw?.remittance_information_unstructured}`
+      );
+      console.log(
+        `  remittance_information_unstructured_array: ${JSON.stringify(raw?.remittance_information_unstructured_array)}`
+      );
       console.log(`  bank_transaction_code: ${JSON.stringify(raw?.bank_transaction_code)}`);
       console.log(`  booking_date: ${raw?.booking_date}`);
       console.log(`  status: ${raw?.status}`);
@@ -90,7 +96,9 @@ async function debugTransactions() {
         console.log('\n  🔍 Analysis:');
         const rawAmount = parseFloat(raw?.transaction_amount?.amount || '0');
         if (processed.amount > 0 && raw?.creditor?.name) {
-          console.log(`  ⚠️  ISSUE: Amount is positive (${processed.amount}) but has creditor (${raw?.creditor?.name})`);
+          console.log(
+            `  ⚠️  ISSUE: Amount is positive (${processed.amount}) but has creditor (${raw?.creditor?.name})`
+          );
           console.log(`     This should be NEGATIVE (expense) because we paid the creditor`);
         }
         if (processed.amount > 0 && raw?.debtor_account?.iban) {
@@ -122,11 +130,7 @@ async function debugTransactions() {
     }
 
     // Summary of all transactions
-    const allTxSnapshot = await db
-      .collection('users')
-      .doc(userId)
-      .collection('transactions')
-      .get();
+    const allTxSnapshot = await db.collection('users').doc(userId).collection('transactions').get();
 
     let positiveCount = 0;
     let negativeCount = 0;
