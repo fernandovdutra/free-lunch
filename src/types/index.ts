@@ -69,7 +69,7 @@ export interface Transaction {
   // Categorization
   categoryId: string | null;
   categoryConfidence: number;
-  categorySource: 'auto' | 'manual' | 'rule';
+  categorySource: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned';
 
   // Splitting
   isSplit: boolean;
@@ -109,7 +109,9 @@ export interface CategorizationRule {
   categoryId: string;
   priority: number;
   isLearned: boolean;
+  isSystem: boolean;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 // ============================================================================

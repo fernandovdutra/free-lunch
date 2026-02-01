@@ -14,6 +14,7 @@ import {
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { TransactionFilters } from '@/components/transactions/TransactionFilters';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
+import { CreateRuleDialog } from '@/components/transactions/CreateRuleDialog';
 import { MarkReimbursableDialog, ClearReimbursementDialog } from '@/components/reimbursements';
 import { useCategories } from '@/hooks/useCategories';
 import {
@@ -29,6 +30,7 @@ import {
   useMarkAsReimbursable,
   useClearReimbursement,
 } from '@/hooks/useReimbursements';
+import { useCreateRule } from '@/hooks/useRules';
 import type { Transaction, TransactionFormData } from '@/types';
 
 export function Transactions() {
@@ -45,6 +47,14 @@ export function Transactions() {
   const [clearReimbursementTransaction, setClearReimbursementTransaction] =
     useState<Transaction | null>(null);
 
+  // Rule creation state
+  const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
+  const [pendingCategoryChange, setPendingCategoryChange] = useState<{
+    transactionId: string;
+    newCategoryId: string;
+    transaction: Transaction;
+  } | null>(null);
+
   const { data: categories = [] } = useCategories();
   const { data: transactions = [], isLoading, error } = useTransactions(filters);
   const { data: pendingReimbursements = [] } = usePendingReimbursements();
@@ -55,6 +65,7 @@ export function Transactions() {
   const deleteMutation = useDeleteTransaction();
   const markReimbursableMutation = useMarkAsReimbursable();
   const clearReimbursementMutation = useClearReimbursement();
+  const createRuleMutation = useCreateRule();
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -65,8 +76,34 @@ export function Transactions() {
     setDeleteTransaction(transaction);
   };
 
-  const handleCategoryChange = (transactionId: string, categoryId: string | null) => {
-    updateCategoryMutation.mutate({ id: transactionId, categoryId });
+  const handleCategoryChange = async (transactionId: string, categoryId: string | null) => {
+    const transaction = transactions.find((t) => t.id === transactionId);
+    await updateCategoryMutation.mutateAsync({ id: transactionId, categoryId });
+
+    // Only offer to create rule if:
+    // 1. A category was selected (not uncategorized)
+    // 2. The transaction was auto-categorized or uncategorized before
+    if (
+      categoryId &&
+      transaction &&
+      (transaction.categorySource === 'auto' || !transaction.categoryId)
+    ) {
+      setPendingCategoryChange({ transactionId, newCategoryId: categoryId, transaction });
+      setRuleDialogOpen(true);
+    }
+  };
+
+  const handleCreateRule = async (pattern: string, matchType: 'contains' | 'exact') => {
+    if (pendingCategoryChange) {
+      await createRuleMutation.mutateAsync({
+        pattern,
+        matchType,
+        categoryId: pendingCategoryChange.newCategoryId,
+        isLearned: true,
+      });
+      setRuleDialogOpen(false);
+      setPendingCategoryChange(null);
+    }
   };
 
   const handleFormSubmit = async (data: TransactionFormData) => {
@@ -157,7 +194,7 @@ export function Transactions() {
             transactions={transactions}
             categories={categories}
             isLoading={isLoading}
-            onCategoryChange={handleCategoryChange}
+            onCategoryChange={(id, categoryId) => void handleCategoryChange(id, categoryId)}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onMarkReimbursable={handleMarkReimbursable}
@@ -200,6 +237,20 @@ export function Transactions() {
         categories={categories}
         onSubmit={handleFormSubmit}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
+      />
+
+      {/* Create Rule Dialog */}
+      <CreateRuleDialog
+        open={ruleDialogOpen}
+        onOpenChange={(open) => {
+          setRuleDialogOpen(open);
+          if (!open) setPendingCategoryChange(null);
+        }}
+        transaction={pendingCategoryChange?.transaction ?? null}
+        newCategoryId={pendingCategoryChange?.newCategoryId ?? ''}
+        categories={categories}
+        onCreateRule={(pattern, matchType) => void handleCreateRule(pattern, matchType)}
+        isCreating={createRuleMutation.isPending}
       />
 
       {/* Delete Confirmation Dialog */}

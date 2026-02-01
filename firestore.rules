@@ -36,6 +36,14 @@ service cloud.firestore {
       match /bankConnections/{connectionId} {
         allow read, write: if isOwner(userId);
       }
+
+      // Raw bank transactions subcollection (for debugging/audit)
+      match /rawBankTransactions/{rawId} {
+        allow read: if isOwner(userId);
+        // Delete allowed for reset functionality, create/update only by Cloud Functions
+        allow delete: if isOwner(userId);
+        allow create, update: if false;
+      }
     }
 
     // Deny all other access by default

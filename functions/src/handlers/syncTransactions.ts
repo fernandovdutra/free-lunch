@@ -1,8 +1,9 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Timestamp, WriteBatch } from 'firebase-admin/firestore';
 import { EnableBankingClient } from '../enableBanking/client.js';
 import type { EnableBankingTransaction } from '../enableBanking/types.js';
 import { config } from '../config.js';
+import { Categorizer } from '../categorization/index.js';
 
 interface SyncResult {
   accountId: string;
@@ -10,6 +11,9 @@ interface SyncResult {
   updatedTransactions: number;
   errors: string[];
 }
+
+// Firestore batch limit is 500 operations
+const BATCH_SIZE = 250; // Use 250 to have room for both transaction + raw writes
 
 export const syncTransactions = onCall(
   {
@@ -65,6 +69,10 @@ export const syncTransactions = onCall(
       applicationId: config.enableBankingAppId,
     });
 
+    // Initialize categorizer for this user
+    const categorizer = new Categorizer(userId);
+    await categorizer.initialize();
+
     const results: SyncResult[] = [];
     const accounts = connection.accounts as Array<{ uid: string; iban: string }>;
 
@@ -110,8 +118,18 @@ export const syncTransactions = onCall(
           continuationKey = response.continuation_key;
         } while (continuationKey);
 
-        // Process transactions
+        // Process transactions in batches
         const transactionsRef = db.collection('users').doc(userId).collection('transactions');
+        const rawTransactionsRef = db
+          .collection('users')
+          .doc(userId)
+          .collection('rawBankTransactions');
+
+        // Collect new transactions for batch processing
+        const newTransactionsToCreate: Array<{
+          tx: EnableBankingTransaction;
+          transactionData: ReturnType<typeof transformTransaction>;
+        }> = [];
 
         for (const tx of allTransactions) {
           const externalId = tx.entry_reference;
@@ -122,16 +140,22 @@ export const syncTransactions = onCall(
             .limit(1)
             .get();
 
-          const transactionData = transformTransaction(tx, account.iban, connectionId);
-
           if (existingQuery.empty) {
-            // Create new transaction
-            await transactionsRef.add({
-              ...transactionData,
-              importedAt: FieldValue.serverTimestamp(),
-              updatedAt: FieldValue.serverTimestamp(),
-            });
-            result.newTransactions++;
+            // Collect for batch creation
+            const transactionData = transformTransaction(tx, account.iban, connectionId);
+
+            // Apply auto-categorization
+            const categorizationResult = categorizer.categorize(
+              transactionData.description,
+              transactionData.counterparty
+            );
+
+            transactionData.categoryId = categorizationResult.categoryId;
+            transactionData.categoryConfidence = categorizationResult.confidence;
+            transactionData.categorySource =
+              categorizationResult.source === 'none' ? 'auto' : categorizationResult.source;
+
+            newTransactionsToCreate.push({ tx, transactionData });
           } else {
             // Update existing transaction (status might have changed)
             const existingDoc = existingQuery.docs[0];
@@ -147,6 +171,35 @@ export const syncTransactions = onCall(
               result.updatedTransactions++;
             }
           }
+        }
+
+        // Process new transactions in batches
+        for (let i = 0; i < newTransactionsToCreate.length; i += BATCH_SIZE) {
+          const batchItems = newTransactionsToCreate.slice(i, i + BATCH_SIZE);
+          const batch: WriteBatch = db.batch();
+
+          for (const { tx, transactionData } of batchItems) {
+            // Create transaction document
+            const transactionRef = transactionsRef.doc();
+            batch.set(transactionRef, {
+              ...transactionData,
+              importedAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+
+            // Store raw transaction data for debugging/audit
+            const rawRef = rawTransactionsRef.doc();
+            batch.set(rawRef, {
+              transactionId: transactionRef.id,
+              accountUid: account.uid,
+              connectionId,
+              rawData: tx,
+              importedAt: FieldValue.serverTimestamp(),
+            });
+          }
+
+          await batch.commit();
+          result.newTransactions += batchItems.length;
         }
       } catch (err) {
         const error = err instanceof Error ? err.message : 'Unknown error';
@@ -211,9 +264,9 @@ function transformTransaction(
     amount,
     currency: tx.transaction_amount.currency as 'EUR',
     counterparty,
-    categoryId: null, // Will be set by auto-categorization
+    categoryId: null as string | null,
     categoryConfidence: 0,
-    categorySource: 'auto' as const,
+    categorySource: 'auto' as 'auto' | 'rule' | 'merchant' | 'learned',
     isSplit: false,
     splits: null,
     reimbursement: null,

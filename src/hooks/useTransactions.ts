@@ -15,7 +15,12 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Transaction, TransactionFormData, TransactionSplit, ReimbursementInfo } from '@/types';
+import type {
+  Transaction,
+  TransactionFormData,
+  TransactionSplit,
+  ReimbursementInfo,
+} from '@/types';
 import { generateId } from '@/lib/utils';
 
 // Firestore document shape
@@ -28,7 +33,7 @@ interface TransactionDocument {
   counterparty?: string | null;
   categoryId?: string | null;
   categoryConfidence?: number;
-  categorySource?: 'auto' | 'manual' | 'rule';
+  categorySource?: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned';
   isSplit?: boolean;
   splits?: TransactionSplit[] | null;
   reimbursement?: ReimbursementInfo | null;

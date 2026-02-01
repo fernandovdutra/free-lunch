@@ -79,3 +79,19 @@ export interface EnableBankingTransaction {
   bank_transaction_code?: string;
   status: 'booked' | 'pending';
 }
+
+/**
+ * Raw bank transaction as stored in Firestore for debugging/audit
+ */
+export interface RawBankTransactionRecord {
+  /** Reference to the processed transaction document */
+  transactionId: string;
+  /** The Enable Banking account UID this transaction came from */
+  accountUid: string;
+  /** The bank connection ID */
+  connectionId: string;
+  /** Raw transaction data exactly as received from Enable Banking API */
+  rawData: EnableBankingTransaction;
+  /** When this was imported */
+  importedAt: FirebaseFirestore.Timestamp;
+}
