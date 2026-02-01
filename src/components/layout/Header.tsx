@@ -58,7 +58,7 @@ export function Header() {
 
         {/* Logo (mobile only) */}
         <img
-          src="/free-lunch-icon.png"
+          src="/free-lunch-icon.jpg"
           alt="Free Lunch"
           className="h-9 w-9 lg:hidden"
         />

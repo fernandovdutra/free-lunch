@@ -51,7 +51,7 @@ export function Login() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex items-center justify-center gap-3">
-            <img src="/free-lunch-icon.png" alt="" className="h-12 w-12" />
+            <img src="/free-lunch-icon.jpg" alt="" className="h-12 w-12" />
             <span className="text-2xl font-bold text-primary">Free Lunch</span>
           </div>
           <CardTitle className="text-2xl">Welcome back</CardTitle>
