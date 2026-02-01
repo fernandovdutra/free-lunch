@@ -13,15 +13,15 @@ export function BudgetCard({ progress, onClick }: BudgetCardProps) {
   const { budget, categoryName, categoryIcon, spent, remaining, percentage, status } = progress;
 
   const statusColors = {
-    safe: 'bg-emerald-500',
-    warning: 'bg-amber-500',
-    exceeded: 'bg-red-500',
+    safe: 'bg-primary',
+    warning: 'bg-secondary',
+    exceeded: 'bg-destructive',
   };
 
   const statusTextColors = {
-    safe: 'text-emerald-500',
-    warning: 'text-amber-500',
-    exceeded: 'text-red-500',
+    safe: 'text-primary',
+    warning: 'text-secondary',
+    exceeded: 'text-destructive',
   };
 
   return (
@@ -38,13 +38,13 @@ export function BudgetCard({ progress, onClick }: BudgetCardProps) {
           <span>{budget.name}</span>
         </CardTitle>
         {status === 'exceeded' && (
-          <AlertTriangle className="h-4 w-4 text-red-500" />
+          <AlertTriangle className="h-4 w-4 text-destructive" />
         )}
         {status === 'warning' && (
-          <TrendingUp className="h-4 w-4 text-amber-500" />
+          <TrendingUp className="h-4 w-4 text-secondary" />
         )}
         {status === 'safe' && percentage > 0 && (
-          <TrendingDown className="h-4 w-4 text-emerald-500" />
+          <TrendingDown className="h-4 w-4 text-primary" />
         )}
       </CardHeader>
       <CardContent className="space-y-3">

@@ -5,40 +5,40 @@
 
 export const colors = {
   primary: {
-    50: '#ECFDF5',
-    100: '#D1FAE5',
-    200: '#A7F3D0',
-    300: '#6EE7B7',
-    400: '#34D399',
-    500: '#10B981',
-    600: '#059669',
-    700: '#047857',
-    800: '#065F46',
-    900: '#064E3B',
+    50: '#E8F0ED',
+    100: '#D1E1DA',
+    200: '#A3C4B5',
+    300: '#75A790',
+    400: '#478A6B',
+    500: '#2D5A4A',
+    600: '#1D4739',
+    700: '#163829',
+    800: '#0F291D',
+    900: '#081A11',
   },
   gray: {
-    50: '#F9FAFB',
-    100: '#F3F4F6',
-    200: '#E5E7EB',
-    300: '#D1D5DB',
-    400: '#9CA3AF',
-    500: '#6B7280',
-    600: '#4B5563',
-    700: '#374151',
-    800: '#1F2937',
-    900: '#111827',
+    50: '#FAFAF8',
+    100: '#F5F5F3',
+    200: '#E2E5E3',
+    300: '#C9CDCB',
+    400: '#9CA3A0',
+    500: '#6B7C72',
+    600: '#5C6661',
+    700: '#454B48',
+    800: '#2E3331',
+    900: '#1A1D1C',
   },
   semantic: {
-    success: '#10B981',
-    error: '#EF4444',
-    warning: '#F59E0B',
-    info: '#3B82F6',
+    success: '#2D5A4A',
+    error: '#C45C4A',
+    warning: '#C9A227',
+    info: '#4A6FA5',
   },
   amount: {
-    positive: '#10B981',
-    negative: '#EF4444',
-    neutral: '#6B7280',
-    pending: '#F59E0B',
+    positive: '#2D5A4A',
+    negative: '#C45C4A',
+    neutral: '#5C6661',
+    pending: '#C9A227',
   },
 } as const;
 
@@ -46,32 +46,32 @@ export const colors = {
  * Category colors for charts and badges
  */
 export const CATEGORY_COLORS: Record<string, string> = {
-  income: '#10B981',
-  housing: '#6366F1',
-  transport: '#3B82F6',
-  food: '#F59E0B',
-  shopping: '#EC4899',
-  entertainment: '#8B5CF6',
-  health: '#14B8A6',
-  personal: '#F97316',
-  utilities: '#64748B',
-  other: '#9CA3AF',
+  income: '#2D5A4A',
+  housing: '#5B6E8A',
+  transport: '#4A6FA5',
+  food: '#C9A227',
+  shopping: '#A67B8A',
+  entertainment: '#7B6B8A',
+  health: '#4A9A8A',
+  personal: '#B87D4B',
+  utilities: '#6B7C72',
+  other: '#9CA3A0',
 };
 
 /**
  * Chart color palette for visualizations
  */
 export const CHART_COLORS = [
-  '#10B981', // Emerald
-  '#6366F1', // Indigo
-  '#3B82F6', // Blue
-  '#F59E0B', // Amber
-  '#EC4899', // Pink
-  '#8B5CF6', // Violet
-  '#14B8A6', // Teal
-  '#F97316', // Orange
-  '#64748B', // Slate
-  '#EF4444', // Red
+  '#2D5A4A', // Forest green
+  '#5B6E8A', // Slate
+  '#4A6FA5', // Slate blue
+  '#C9A227', // Gold
+  '#A67B8A', // Dusty mauve
+  '#7B6B8A', // Muted purple
+  '#4A9A8A', // Teal
+  '#B87D4B', // Warm bronze
+  '#6B7C72', // Moss gray
+  '#C45C4A', // Terracotta
 ];
 
 /**

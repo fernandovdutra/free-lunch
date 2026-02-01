@@ -81,12 +81,12 @@ function CustomTooltip({ active, payload }: TooltipProps) {
 
   const data = payload[0].payload;
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-      <p className="font-medium text-gray-900">{data.name}</p>
-      <p className="text-lg font-bold tabular-nums text-gray-900">
+    <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
+      <p className="font-medium text-foreground">{data.name}</p>
+      <p className="text-lg font-bold tabular-nums text-foreground">
         {formatAmount(data.value, { showSign: false })}
       </p>
-      <p className="text-sm text-gray-500">{data.percentage.toFixed(1)}%</p>
+      <p className="text-sm text-muted-foreground">{data.percentage.toFixed(1)}%</p>
     </div>
   );
 }
@@ -108,7 +108,7 @@ function prepareChartData(data: CategorySpending[]): ChartDataEntry[] {
     chartData.push({
       name: 'Other',
       value: otherAmount,
-      color: '#9CA3AF',
+      color: '#9CA3A0',
       percentage: otherPercentage,
     });
   }

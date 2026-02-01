@@ -43,24 +43,24 @@ export default {
 
         // Amount colors (for financial data)
         amount: {
-          positive: '#10B981',
-          negative: '#EF4444',
-          neutral: '#6B7280',
-          pending: '#F59E0B',
+          positive: '#2D5A4A',
+          negative: '#C45C4A',
+          neutral: '#5C6661',
+          pending: '#C9A227',
         },
 
         // Category colors
         category: {
-          income: '#10B981',
-          housing: '#6366F1',
-          transport: '#3B82F6',
-          food: '#F59E0B',
-          shopping: '#EC4899',
-          entertainment: '#8B5CF6',
-          health: '#14B8A6',
-          personal: '#F97316',
-          utilities: '#64748B',
-          other: '#9CA3AF',
+          income: '#2D5A4A',
+          housing: '#5B6E8A',
+          transport: '#4A6FA5',
+          food: '#C9A227',
+          shopping: '#A67B8A',
+          entertainment: '#7B6B8A',
+          health: '#4A9A8A',
+          personal: '#B87D4B',
+          utilities: '#6B7C72',
+          other: '#9CA3A0',
         },
       },
       borderRadius: {

@@ -23,15 +23,15 @@ export function BudgetOverview() {
     .slice(0, 4);
 
   const statusColors = {
-    safe: 'bg-emerald-500',
-    warning: 'bg-amber-500',
-    exceeded: 'bg-red-500',
+    safe: 'bg-primary',
+    warning: 'bg-secondary',
+    exceeded: 'bg-destructive',
   };
 
   const statusTextColors = {
-    safe: 'text-emerald-500',
-    warning: 'text-amber-500',
-    exceeded: 'text-red-500',
+    safe: 'text-primary',
+    warning: 'text-secondary',
+    exceeded: 'text-destructive',
   };
 
   if (isLoading) {
@@ -78,7 +78,7 @@ export function BudgetOverview() {
         <div className="flex items-center gap-2">
           <CardTitle>Budget Status</CardTitle>
           {exceededCount > 0 && (
-            <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            <span className="flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-medium text-destructive dark:bg-destructive/20">
               <AlertTriangle className="h-3 w-3" />
               {exceededCount} exceeded
             </span>

@@ -63,10 +63,10 @@ export function formatDate(
  * Get color for amount display
  */
 export function getAmountColor(amount: number, isPending = false): string {
-  if (isPending) return 'text-amber-500';
-  if (amount > 0) return 'text-emerald-500';
-  if (amount < 0) return 'text-red-500';
-  return 'text-gray-500';
+  if (isPending) return 'text-secondary';
+  if (amount > 0) return 'text-primary';
+  if (amount < 0) return 'text-destructive';
+  return 'text-muted-foreground';
 }
 
 /**

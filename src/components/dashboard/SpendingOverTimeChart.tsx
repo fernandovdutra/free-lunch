@@ -30,15 +30,15 @@ export function SpendingOverTimeChart({ data, isLoading, className }: SpendingOv
     <div className={className}>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E2E5E3" vertical={false} />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tick={{ fontSize: 12, fill: '#5C6661' }}
             tickLine={false}
-            axisLine={{ stroke: '#E5E7EB' }}
+            axisLine={{ stroke: '#E2E5E3' }}
           />
           <YAxis
-            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tick={{ fontSize: 12, fill: '#5C6661' }}
             tickLine={false}
             axisLine={false}
             tickFormatter={(value) =>
@@ -47,7 +47,7 @@ export function SpendingOverTimeChart({ data, isLoading, className }: SpendingOv
             width={60}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }} />
-          <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} isAnimationActive={true} />
+          <Bar dataKey="expenses" fill="#C45C4A" radius={[4, 4, 0, 0]} isAnimationActive={true} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -68,9 +68,9 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length || !payload[0]) return null;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-lg font-bold tabular-nums text-red-500">
+    <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="text-lg font-bold tabular-nums text-destructive">
         {formatAmount(-payload[0].value, { showSign: false })}
       </p>
     </div>

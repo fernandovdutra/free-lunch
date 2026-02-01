@@ -84,7 +84,7 @@ export function TransactionRow({
           {/* Reimbursement badge */}
           {isPendingReimbursement && (
             <span
-              className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+              className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-secondary/15 px-2 py-0.5 text-xs font-medium text-secondary dark:bg-secondary/20"
               title={`Pending ${transaction.reimbursement?.type === 'work' ? 'work' : 'personal'} reimbursement`}
             >
               <Receipt className="h-3 w-3" />
@@ -93,7 +93,7 @@ export function TransactionRow({
           )}
           {isClearedReimbursement && (
             <span
-              className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+              className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary dark:bg-primary/20"
               title="Reimbursement cleared"
             >
               <Receipt className="h-3 w-3" />
@@ -194,7 +194,7 @@ export function TransactionRow({
             {isExpense && !transaction.reimbursement && onMarkReimbursable && (
               <button
                 type="button"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-amber-600 hover:bg-accent dark:text-amber-500"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-secondary hover:bg-accent dark:text-secondary"
                 onClick={() => {
                   onMarkReimbursable(transaction);
                 }}
@@ -207,7 +207,7 @@ export function TransactionRow({
             {isIncome && onClearReimbursement && (
               <button
                 type="button"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-emerald-600 hover:bg-accent dark:text-emerald-500"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary hover:bg-accent dark:text-primary"
                 onClick={() => {
                   onClearReimbursement(transaction);
                 }}

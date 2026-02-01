@@ -72,41 +72,57 @@ The name "Free Lunch" carries a playful, libertarian undertone. The design balan
 
 ### Philosophy
 
-Green is our primary color—it represents money, growth, and positive outcomes. We use a sophisticated, muted green palette that feels trustworthy and calm, avoiding the harsh "money green" of cheap finance apps.
+We use a "Professional Forest" color palette—deep forest green represents stability, wealth, and trustworthiness, while avoiding the harsh "money green" of cheap finance apps. The warm gold secondary adds premium warmth, and terracotta replaces harsh red for a softer, less anxiety-inducing approach to negative amounts. Warm-toned neutrals create a welcoming, professional feel.
 
-### Primary Palette
+### Primary Palette - Deep Forest Green
 
-| Color                                                    | Name            | Hex       | RGB                  | HSL           | Usage                                              |
-| -------------------------------------------------------- | --------------- | --------- | -------------------- | ------------- | -------------------------------------------------- |
-| ![#10B981](https://via.placeholder.com/20/10B981/10B981) | **Emerald 500** | `#10B981` | `rgb(16, 185, 129)`  | `160 84% 39%` | Primary actions, positive indicators, brand accent |
-| ![#059669](https://via.placeholder.com/20/059669/059669) | **Emerald 600** | `#059669` | `rgb(5, 150, 105)`   | `161 94% 30%` | Primary button hover, links                        |
-| ![#047857](https://via.placeholder.com/20/047857/047857) | **Emerald 700** | `#047857` | `rgb(4, 120, 87)`    | `163 94% 24%` | Active states, focus rings                         |
-| ![#D1FAE5](https://via.placeholder.com/20/D1FAE5/D1FAE5) | **Emerald 100** | `#D1FAE5` | `rgb(209, 250, 229)` | `149 80% 90%` | Success backgrounds, positive highlights           |
-| ![#ECFDF5](https://via.placeholder.com/20/ECFDF5/ECFDF5) | **Emerald 50**  | `#ECFDF5` | `rgb(236, 253, 245)` | `152 81% 96%` | Subtle success backgrounds                         |
+| Color                                                    | Name            | Hex       | HSL           | Usage                                              |
+| -------------------------------------------------------- | --------------- | --------- | ------------- | -------------------------------------------------- |
+| ![#E8F0ED](https://via.placeholder.com/20/E8F0ED/E8F0ED) | **Forest 50**   | `#E8F0ED` | `150 28% 93%` | Very light backgrounds                             |
+| ![#D1E1DA](https://via.placeholder.com/20/D1E1DA/D1E1DA) | **Forest 100**  | `#D1E1DA` | `150 25% 85%` | Light backgrounds                                  |
+| ![#A3C4B5](https://via.placeholder.com/20/A3C4B5/A3C4B5) | **Forest 200**  | `#A3C4B5` | `150 22% 70%` | Borders, dividers                                  |
+| ![#75A790](https://via.placeholder.com/20/75A790/75A790) | **Forest 300**  | `#75A790` | `150 22% 55%` | -                                                  |
+| ![#478A6B](https://via.placeholder.com/20/478A6B/478A6B) | **Forest 400**  | `#478A6B` | `150 32% 41%` | -                                                  |
+| ![#2D5A4A](https://via.placeholder.com/20/2D5A4A/2D5A4A) | **Forest 500**  | `#2D5A4A` | `155 33% 26%` | Medium emphasis                                    |
+| ![#1D4739](https://via.placeholder.com/20/1D4739/1D4739) | **Forest 600**  | `#1D4739` | `158 41% 20%` | **PRIMARY** - buttons, links                       |
+| ![#163829](https://via.placeholder.com/20/163829/163829) | **Forest 700**  | `#163829` | `158 44% 15%` | Hover states                                       |
+| ![#0F291D](https://via.placeholder.com/20/0F291D/0F291D) | **Forest 800**  | `#0F291D` | `158 47% 11%` | Active states                                      |
+| ![#081A11](https://via.placeholder.com/20/081A11/081A11) | **Forest 900**  | `#081A11` | `158 50% 7%`  | Dark mode backgrounds                              |
 
-### Neutral Palette
+### Secondary Palette - Rich Gold
+
+| Color                                                    | Name           | Hex       | HSL           | Usage                                              |
+| -------------------------------------------------------- | -------------- | --------- | ------------- | -------------------------------------------------- |
+| ![#FDF6E3](https://via.placeholder.com/20/FDF6E3/FDF6E3) | **Gold 50**    | `#FDF6E3` | `45 85% 94%`  | Subtle warning backgrounds                         |
+| ![#F9E9C0](https://via.placeholder.com/20/F9E9C0/F9E9C0) | **Gold 100**   | `#F9E9C0` | `43 85% 86%`  | Light gold backgrounds                             |
+| ![#E6C66A](https://via.placeholder.com/20/E6C66A/E6C66A) | **Gold 200**   | `#E6C66A` | `45 72% 66%`  | Medium gold                                        |
+| ![#C9A227](https://via.placeholder.com/20/C9A227/C9A227) | **Gold 500**   | `#C9A227` | `45 70% 47%`  | **SECONDARY** - CTAs, warnings, pending            |
+| ![#A88520](https://via.placeholder.com/20/A88520/A88520) | **Gold 600**   | `#A88520` | `45 70% 39%`  | Hover states                                       |
+| ![#876A1A](https://via.placeholder.com/20/876A1A/876A1A) | **Gold 700**   | `#876A1A` | `45 70% 31%`  | -                                                  |
+
+### Neutral Palette - Warm Toned
 
 | Color                                                    | Name         | Hex       | Usage                            |
 | -------------------------------------------------------- | ------------ | --------- | -------------------------------- |
-| ![#111827](https://via.placeholder.com/20/111827/111827) | **Gray 900** | `#111827` | Primary text, headings           |
-| ![#374151](https://via.placeholder.com/20/374151/374151) | **Gray 700** | `#374151` | Secondary text, labels           |
-| ![#6B7280](https://via.placeholder.com/20/6B7280/6B7280) | **Gray 500** | `#6B7280` | Muted text, placeholders         |
-| ![#9CA3AF](https://via.placeholder.com/20/9CA3AF/9CA3AF) | **Gray 400** | `#9CA3AF` | Disabled text, borders           |
-| ![#D1D5DB](https://via.placeholder.com/20/D1D5DB/D1D5DB) | **Gray 300** | `#D1D5DB` | Borders, dividers                |
-| ![#E5E7EB](https://via.placeholder.com/20/E5E7EB/E5E7EB) | **Gray 200** | `#E5E7EB` | Light borders, backgrounds       |
-| ![#F3F4F6](https://via.placeholder.com/20/F3F4F6/F3F4F6) | **Gray 100** | `#F3F4F6` | Subtle backgrounds, hover states |
-| ![#F9FAFB](https://via.placeholder.com/20/F9FAFB/F9FAFB) | **Gray 50**  | `#F9FAFB` | Page background                  |
+| ![#1A1D1C](https://via.placeholder.com/20/1A1D1C/1A1D1C) | **Gray 900** | `#1A1D1C` | Primary text, headings           |
+| ![#454B48](https://via.placeholder.com/20/454B48/454B48) | **Gray 700** | `#454B48` | Secondary text, labels           |
+| ![#5C6661](https://via.placeholder.com/20/5C6661/5C6661) | **Gray 600** | `#5C6661` | Body text                        |
+| ![#6B7C72](https://via.placeholder.com/20/6B7C72/6B7C72) | **Gray 500** | `#6B7C72` | Muted text, placeholders         |
+| ![#9CA3A0](https://via.placeholder.com/20/9CA3A0/9CA3A0) | **Gray 400** | `#9CA3A0` | Disabled text, borders           |
+| ![#C9CDCB](https://via.placeholder.com/20/C9CDCB/C9CDCB) | **Gray 300** | `#C9CDCB` | Borders, dividers                |
+| ![#E2E5E3](https://via.placeholder.com/20/E2E5E3/E2E5E3) | **Gray 200** | `#E2E5E3` | Light borders, backgrounds       |
+| ![#F5F5F3](https://via.placeholder.com/20/F5F5F3/F5F5F3) | **Gray 100** | `#F5F5F3` | Subtle backgrounds, hover states |
+| ![#FAFAF8](https://via.placeholder.com/20/FAFAF8/FAFAF8) | **Gray 50**  | `#FAFAF8` | Page background (warm white)     |
 | ![#FFFFFF](https://via.placeholder.com/20/FFFFFF/FFFFFF) | **White**    | `#FFFFFF` | Card backgrounds, inputs         |
 
 ### Semantic Colors
 
 | Color                                                    | Name              | Hex       | Usage                                    |
 | -------------------------------------------------------- | ----------------- | --------- | ---------------------------------------- |
-| ![#10B981](https://via.placeholder.com/20/10B981/10B981) | **Success**       | `#10B981` | Positive amounts, income, success states |
-| ![#EF4444](https://via.placeholder.com/20/EF4444/EF4444) | **Expense/Error** | `#EF4444` | Negative amounts, expenses, errors       |
-| ![#F59E0B](https://via.placeholder.com/20/F59E0B/F59E0B) | **Warning**       | `#F59E0B` | Pending items, warnings, reimbursables   |
-| ![#3B82F6](https://via.placeholder.com/20/3B82F6/3B82F6) | **Info**          | `#3B82F6` | Information, links, neutral indicators   |
-| ![#8B5CF6](https://via.placeholder.com/20/8B5CF6/8B5CF6) | **Accent**        | `#8B5CF6` | Special highlights, selected items       |
+| ![#2D5A4A](https://via.placeholder.com/20/2D5A4A/2D5A4A) | **Success**       | `#2D5A4A` | Positive amounts, income, success states |
+| ![#C45C4A](https://via.placeholder.com/20/C45C4A/C45C4A) | **Expense/Error** | `#C45C4A` | Negative amounts, expenses, errors       |
+| ![#C9A227](https://via.placeholder.com/20/C9A227/C9A227) | **Warning**       | `#C9A227` | Pending items, warnings, reimbursables   |
+| ![#4A6FA5](https://via.placeholder.com/20/4A6FA5/4A6FA5) | **Info**          | `#4A6FA5` | Information, links, neutral indicators   |
 
 ### Amount Colors (Critical)
 
@@ -114,27 +130,27 @@ These colors are specifically for displaying monetary amounts:
 
 | Context               | Color                   | Example            |
 | --------------------- | ----------------------- | ------------------ |
-| Income (positive)     | `#10B981` (Emerald 500) | +€2,500.00         |
-| Expense (negative)    | `#EF4444` (Red 500)     | -€45.50            |
-| Neutral/Zero          | `#6B7280` (Gray 500)    | €0.00              |
-| Pending Reimbursement | `#F59E0B` (Amber 500)   | -€125.00 (pending) |
+| Income (positive)     | `#2D5A4A` (Forest 500)  | +€2,500.00         |
+| Expense (negative)    | `#C45C4A` (Terracotta)  | -€45.50            |
+| Neutral/Zero          | `#5C6661` (Gray 600)    | €0.00              |
+| Pending Reimbursement | `#C9A227` (Gold 500)    | -€125.00 (pending) |
 
 ### Category Colors
 
-Predefined colors for spending categories (ensure good contrast and distinguishability):
+Predefined colors for spending categories (harmonized with the Professional Forest palette):
 
 ```typescript
 export const CATEGORY_COLORS = {
-  income: '#10B981', // Emerald - income
-  housing: '#6366F1', // Indigo - housing
-  transport: '#3B82F6', // Blue - transport
-  food: '#F59E0B', // Amber - food & drink
-  shopping: '#EC4899', // Pink - shopping
-  entertainment: '#8B5CF6', // Violet - entertainment
-  health: '#14B8A6', // Teal - health
-  personal: '#F97316', // Orange - personal
-  utilities: '#64748B', // Slate - utilities
-  other: '#9CA3AF', // Gray - uncategorized
+  income: '#2D5A4A',      // Forest green
+  housing: '#5B6E8A',     // Slate
+  transport: '#4A6FA5',   // Slate blue
+  food: '#C9A227',        // Gold
+  shopping: '#A67B8A',    // Dusty mauve
+  entertainment: '#7B6B8A', // Muted purple
+  health: '#4A9A8A',      // Teal
+  personal: '#B87D4B',    // Warm bronze
+  utilities: '#6B7C72',   // Moss gray
+  other: '#9CA3A0',       // Neutral gray
 } as const;
 ```
 
@@ -142,38 +158,44 @@ export const CATEGORY_COLORS = {
 
 ```css
 :root {
-  /* Brand Colors */
-  --color-primary: 160 84% 39%; /* Emerald 500 */
-  --color-primary-hover: 161 94% 30%; /* Emerald 600 */
-  --color-primary-active: 163 94% 24%; /* Emerald 700 */
-  --color-primary-light: 149 80% 90%; /* Emerald 100 */
+  /* Background & Foreground - Warm Neutrals */
+  --color-background: 40 20% 98%;
+  --color-foreground: 160 8% 11%;
 
-  /* Semantic Colors */
-  --color-success: 160 84% 39%; /* Emerald 500 */
-  --color-error: 0 84% 60%; /* Red 500 */
-  --color-warning: 38 92% 50%; /* Amber 500 */
-  --color-info: 217 91% 60%; /* Blue 500 */
+  /* Card */
+  --color-card: 0 0% 100%;
+  --color-card-foreground: 160 8% 11%;
 
-  /* Neutrals */
-  --color-background: 210 20% 98%; /* Gray 50 */
-  --color-foreground: 221 39% 11%; /* Gray 900 */
-  --color-muted: 220 14% 96%; /* Gray 100 */
-  --color-muted-foreground: 220 9% 46%; /* Gray 500 */
-  --color-border: 220 13% 91%; /* Gray 200 */
-  --color-input: 220 13% 91%; /* Gray 200 */
-
-  /* Component Colors */
-  --color-card: 0 0% 100%; /* White */
-  --color-card-foreground: 221 39% 11%; /* Gray 900 */
+  /* Popover */
   --color-popover: 0 0% 100%;
-  --color-popover-foreground: 221 39% 11%;
+  --color-popover-foreground: 160 8% 11%;
 
-  /* Semantic Mappings */
-  --primary: var(--color-primary);
-  --primary-foreground: 0 0% 100%; /* White text on primary */
-  --destructive: var(--color-error);
-  --destructive-foreground: 0 0% 100%;
-  --ring: var(--color-primary);
+  /* Primary - Deep Forest Green */
+  --color-primary: 158 41% 20%;
+  --color-primary-foreground: 0 0% 100%;
+
+  /* Secondary - Rich Gold */
+  --color-secondary: 45 70% 47%;
+  --color-secondary-foreground: 160 8% 11%;
+
+  /* Muted */
+  --color-muted: 150 8% 95%;
+  --color-muted-foreground: 155 8% 45%;
+
+  /* Accent - Warm background for hover */
+  --color-accent: 150 15% 95%;
+  --color-accent-foreground: 160 8% 11%;
+
+  /* Destructive - Terracotta */
+  --color-destructive: 10 50% 53%;
+  --color-destructive-foreground: 0 0% 100%;
+
+  /* Border & Input - Warm Gray */
+  --color-border: 140 8% 89%;
+  --color-input: 140 8% 89%;
+  --color-ring: 158 41% 20%;
+
+  /* Radius */
   --radius: 0.5rem;
 }
 ```
@@ -184,40 +206,40 @@ export const CATEGORY_COLORS = {
 // src/lib/colors.ts
 export const colors = {
   primary: {
-    50: '#ECFDF5',
-    100: '#D1FAE5',
-    200: '#A7F3D0',
-    300: '#6EE7B7',
-    400: '#34D399',
-    500: '#10B981',
-    600: '#059669',
-    700: '#047857',
-    800: '#065F46',
-    900: '#064E3B',
+    50: '#E8F0ED',
+    100: '#D1E1DA',
+    200: '#A3C4B5',
+    300: '#75A790',
+    400: '#478A6B',
+    500: '#2D5A4A',
+    600: '#1D4739',
+    700: '#163829',
+    800: '#0F291D',
+    900: '#081A11',
   },
   gray: {
-    50: '#F9FAFB',
-    100: '#F3F4F6',
-    200: '#E5E7EB',
-    300: '#D1D5DB',
-    400: '#9CA3AF',
-    500: '#6B7280',
-    600: '#4B5563',
-    700: '#374151',
-    800: '#1F2937',
-    900: '#111827',
+    50: '#FAFAF8',
+    100: '#F5F5F3',
+    200: '#E2E5E3',
+    300: '#C9CDCB',
+    400: '#9CA3A0',
+    500: '#6B7C72',
+    600: '#5C6661',
+    700: '#454B48',
+    800: '#2E3331',
+    900: '#1A1D1C',
   },
   semantic: {
-    success: '#10B981',
-    error: '#EF4444',
-    warning: '#F59E0B',
-    info: '#3B82F6',
+    success: '#2D5A4A',
+    error: '#C45C4A',
+    warning: '#C9A227',
+    info: '#4A6FA5',
   },
   amount: {
-    positive: '#10B981',
-    negative: '#EF4444',
-    neutral: '#6B7280',
-    pending: '#F59E0B',
+    positive: '#2D5A4A',
+    negative: '#C45C4A',
+    neutral: '#5C6661',
+    pending: '#C9A227',
   },
 } as const;
 
@@ -1129,16 +1151,16 @@ Use category colors for consistency:
 
 ```typescript
 export const CHART_COLORS = [
-  '#10B981', // Emerald - income/positive
-  '#6366F1', // Indigo
-  '#3B82F6', // Blue
-  '#F59E0B', // Amber
-  '#EC4899', // Pink
-  '#8B5CF6', // Violet
-  '#14B8A6', // Teal
-  '#F97316', // Orange
-  '#64748B', // Slate
-  '#EF4444', // Red - expenses/negative
+  '#2D5A4A', // Forest green
+  '#5B6E8A', // Slate
+  '#4A6FA5', // Slate blue
+  '#C9A227', // Gold
+  '#A67B8A', // Dusty mauve
+  '#7B6B8A', // Muted purple
+  '#4A9A8A', // Teal
+  '#B87D4B', // Warm bronze
+  '#6B7C72', // Moss gray
+  '#C45C4A', // Terracotta
 ];
 ```
 
@@ -1715,16 +1737,16 @@ src/
 
 ### Colors (Hex)
 
-| Name        | Hex       | Usage                    |
-| ----------- | --------- | ------------------------ |
-| Emerald 500 | `#10B981` | Primary, success, income |
-| Emerald 600 | `#059669` | Primary hover            |
-| Red 500     | `#EF4444` | Expenses, errors         |
-| Amber 500   | `#F59E0B` | Warnings, pending        |
-| Gray 900    | `#111827` | Primary text             |
-| Gray 500    | `#6B7280` | Muted text               |
-| Gray 200    | `#E5E7EB` | Borders                  |
-| Gray 50     | `#F9FAFB` | Page background          |
+| Name          | Hex       | Usage                    |
+| ------------- | --------- | ------------------------ |
+| Forest 600    | `#1D4739` | Primary, success, income |
+| Forest 700    | `#163829` | Primary hover            |
+| Terracotta    | `#C45C4A` | Expenses, errors         |
+| Gold 500      | `#C9A227` | Warnings, pending        |
+| Warm Gray 900 | `#1A1D1C` | Primary text             |
+| Warm Gray 600 | `#5C6661` | Muted text               |
+| Warm Gray 200 | `#E2E5E3` | Borders                  |
+| Warm Gray 50  | `#FAFAF8` | Page background          |
 
 ### Spacing
 
@@ -1754,6 +1776,6 @@ src/
 
 ---
 
-_Document Version: 1.0_
+_Document Version: 2.0_
 _Created: January 2026_
-_Last Updated: January 2026_
+_Last Updated: February 2026_
