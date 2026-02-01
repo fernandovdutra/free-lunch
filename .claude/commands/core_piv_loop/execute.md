@@ -132,6 +132,9 @@ Before completing:
 - ✅ All validation commands pass
 - ✅ Code follows project conventions
 - ✅ Documentation added/updated as needed
+- ✅ Changes committed with `/commit`
+- ✅ Frontend rebuilt with `npm run build`
+- ✅ Deployed to production with `firebase deploy`
 
 ## Output Report
 
@@ -160,6 +163,45 @@ Provide summary:
 - Confirm all changes are complete
 - Confirm all validations pass
 - Ready for `/commit` command
+
+### Deployment (After Commit)
+
+After committing, deploy to production:
+
+#### a. Rebuild Frontend
+
+**IMPORTANT: Always rebuild the frontend before deploying to ensure the latest changes are included.**
+
+```bash
+npm run build
+```
+
+This compiles TypeScript and builds the Vite production bundle in `dist/`.
+
+#### b. Deploy to Firebase
+
+```bash
+# Deploy everything (functions + hosting)
+npm run firebase:deploy
+
+# Or deploy separately if needed:
+firebase deploy --only functions    # Cloud Functions only
+firebase deploy --only hosting      # Frontend only
+```
+
+#### c. Verify Deployment
+
+- Check the Hosting URL: https://free-lunch-85447.web.app
+- Hard refresh (Cmd+Shift+R / Ctrl+Shift+R) to bypass browser cache
+- Test the new features in production
+- Monitor Firebase Console for any function errors
+
+#### d. Common Deployment Issues
+
+- **Stale frontend**: Forgot to run `npm run build` before `firebase deploy`
+- **Browser cache**: Users need hard refresh to see updates
+- **Firestore index errors**: Usually non-critical, can deploy with `--only functions,hosting`
+- **Function cold starts**: First invocation after deploy may be slow
 
 ## Notes
 
