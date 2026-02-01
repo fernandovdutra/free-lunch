@@ -60,7 +60,7 @@ export function Header() {
         <img
           src="/free-lunch-icon.jpg"
           alt="Free Lunch"
-          className="h-9 w-9 lg:hidden"
+          className="h-9 lg:hidden"
         />
 
         {/* Spacer for desktop */}

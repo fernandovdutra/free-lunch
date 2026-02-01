@@ -28,7 +28,7 @@ export function Sidebar({ className }: SidebarProps) {
         <img
           src="/free-lunch-icon.jpg"
           alt=""
-          className="h-9 w-9"
+          className="h-9"
         />
         <span className="text-lg font-bold text-white">Free Lunch</span>
       </div>
