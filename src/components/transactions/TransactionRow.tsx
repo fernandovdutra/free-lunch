@@ -43,8 +43,12 @@ export function TransactionRow({
 
       {/* Description */}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{transaction.description}</p>
-        {transaction.counterparty && (
+        <p className="truncate font-medium">
+          {typeof transaction.description === 'string'
+            ? transaction.description
+            : 'Bank transaction'}
+        </p>
+        {transaction.counterparty && typeof transaction.counterparty === 'string' && (
           <p className="truncate text-sm text-muted-foreground">{transaction.counterparty}</p>
         )}
       </div>

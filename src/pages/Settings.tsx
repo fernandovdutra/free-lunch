@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { BankConnectionCard } from '@/components/settings/BankConnectionCard';
 
 export function Settings() {
   const { user } = useAuth();
@@ -13,18 +14,7 @@ export function Settings() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Bank Connection</CardTitle>
-            <CardDescription>Connect your bank account to sync transactions</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex h-[100px] items-center justify-center rounded-lg border-2 border-dashed text-muted-foreground">
-              Bank connection UI will go here
-            </div>
-            <Button className="w-full">Connect ABN AMRO</Button>
-          </CardContent>
-        </Card>
+        <BankConnectionCard />
 
         <Card>
           <CardHeader>

@@ -53,3 +53,4 @@ yarn-error.log*
 *.pem
 .vercel
 .turbo
+.secret.local

@@ -15,8 +15,27 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Transaction, TransactionFormData } from '@/types';
+import type { Transaction, TransactionFormData, TransactionSplit, ReimbursementInfo } from '@/types';
 import { generateId } from '@/lib/utils';
+
+// Firestore document shape
+interface TransactionDocument {
+  externalId?: string | null;
+  date: Timestamp | string;
+  description: string;
+  amount: number;
+  currency?: 'EUR';
+  counterparty?: string | null;
+  categoryId?: string | null;
+  categoryConfidence?: number;
+  categorySource?: 'auto' | 'manual' | 'rule';
+  isSplit?: boolean;
+  splits?: TransactionSplit[] | null;
+  reimbursement?: ReimbursementInfo | null;
+  bankAccountId?: string | null;
+  importedAt?: Timestamp | string;
+  updatedAt?: Timestamp | string;
+}
 
 // Filter interface
 export interface TransactionFilters {
@@ -37,12 +56,12 @@ export const transactionKeys = {
 
 // Transform Firestore data to Transaction type
 function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
-  const data = docSnap.data();
+  const data = docSnap.data() as TransactionDocument;
   return {
     id: docSnap.id,
     externalId: data.externalId ?? null,
     date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date),
-    description: data.description,
+    description: typeof data.description === 'string' ? data.description : 'Bank transaction',
     amount: data.amount,
     currency: data.currency ?? 'EUR',
     counterparty: data.counterparty ?? null,
@@ -54,9 +73,13 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
     reimbursement: data.reimbursement ?? null,
     bankAccountId: data.bankAccountId ?? null,
     importedAt:
-      data.importedAt instanceof Timestamp ? data.importedAt.toDate() : new Date(data.importedAt),
+      data.importedAt instanceof Timestamp
+        ? data.importedAt.toDate()
+        : new Date(data.importedAt ?? Date.now()),
     updatedAt:
-      data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
+      data.updatedAt instanceof Timestamp
+        ? data.updatedAt.toDate()
+        : new Date(data.updatedAt ?? Date.now()),
   };
 }
 
@@ -140,7 +163,7 @@ export function useCreateTransaction() {
       return id;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 }
@@ -174,7 +197,7 @@ export function useUpdateTransaction() {
       return id;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 }
@@ -218,7 +241,7 @@ export function useUpdateTransactionCategory() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 }
@@ -235,7 +258,7 @@ export function useDeleteTransaction() {
       return id;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 }

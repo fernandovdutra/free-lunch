@@ -50,7 +50,11 @@ export function RecentTransactions({ transactions, categories, isLoading }: Rece
               {formatDate(transaction.date, 'short')}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{transaction.description}</p>
+              <p className="truncate text-sm font-medium">
+                {typeof transaction.description === 'string'
+                  ? transaction.description
+                  : 'Bank transaction'}
+              </p>
             </div>
             {category && <CategoryBadge category={category} size="sm" />}
             <div
