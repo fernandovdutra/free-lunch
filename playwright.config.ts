@@ -20,9 +20,12 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: 'VITE_USE_EMULATORS=true npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: true,
     timeout: 30000,
+    env: {
+      VITE_USE_EMULATORS: 'true',
+    },
   },
 });

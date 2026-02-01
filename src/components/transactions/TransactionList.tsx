@@ -9,6 +9,8 @@ interface TransactionListProps {
   onCategoryChange: (transactionId: string, categoryId: string | null) => void;
   onEdit: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
+  onMarkReimbursable?: ((transaction: Transaction) => void) | undefined;
+  onClearReimbursement?: ((transaction: Transaction) => void) | undefined;
 }
 
 export function TransactionList({
@@ -18,6 +20,8 @@ export function TransactionList({
   onCategoryChange,
   onEdit,
   onDelete,
+  onMarkReimbursable,
+  onClearReimbursement,
 }: TransactionListProps) {
   if (isLoading) {
     return (
@@ -71,6 +75,8 @@ export function TransactionList({
           onCategoryChange={onCategoryChange}
           onEdit={onEdit}
           onDelete={onDelete}
+          onMarkReimbursable={onMarkReimbursable}
+          onClearReimbursement={onClearReimbursement}
         />
       ))}
     </div>

@@ -65,7 +65,7 @@ test.describe('Transactions Page', () => {
 
   test('should display category filter dropdown', async ({ page }) => {
     await expect(
-      page.getByText(/all categories/i).or(page.getByText(/uncategorized/i))
+      page.getByRole('combobox').filter({ hasText: /all categories|uncategorized/i }).first()
     ).toBeVisible();
   });
 

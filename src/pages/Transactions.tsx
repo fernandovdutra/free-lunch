@@ -14,6 +14,7 @@ import {
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { TransactionFilters } from '@/components/transactions/TransactionFilters';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
+import { MarkReimbursableDialog, ClearReimbursementDialog } from '@/components/reimbursements';
 import { useCategories } from '@/hooks/useCategories';
 import {
   useTransactions,
@@ -23,6 +24,11 @@ import {
   useDeleteTransaction,
   type TransactionFilters as Filters,
 } from '@/hooks/useTransactions';
+import {
+  usePendingReimbursements,
+  useMarkAsReimbursable,
+  useClearReimbursement,
+} from '@/hooks/useReimbursements';
 import type { Transaction, TransactionFormData } from '@/types';
 
 export function Transactions() {
@@ -34,14 +40,21 @@ export function Transactions() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteTransaction, setDeleteTransaction] = useState<Transaction | null>(null);
+  const [markReimbursableTransaction, setMarkReimbursableTransaction] =
+    useState<Transaction | null>(null);
+  const [clearReimbursementTransaction, setClearReimbursementTransaction] =
+    useState<Transaction | null>(null);
 
   const { data: categories = [] } = useCategories();
   const { data: transactions = [], isLoading, error } = useTransactions(filters);
+  const { data: pendingReimbursements = [] } = usePendingReimbursements();
 
   const createMutation = useCreateTransaction();
   const updateMutation = useUpdateTransaction();
   const updateCategoryMutation = useUpdateTransactionCategory();
   const deleteMutation = useDeleteTransaction();
+  const markReimbursableMutation = useMarkAsReimbursable();
+  const clearReimbursementMutation = useClearReimbursement();
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -75,6 +88,38 @@ export function Transactions() {
   const handleNewTransaction = () => {
     setEditingTransaction(null);
     setFormOpen(true);
+  };
+
+  const handleMarkReimbursable = (transaction: Transaction) => {
+    setMarkReimbursableTransaction(transaction);
+  };
+
+  const handleClearReimbursement = (transaction: Transaction) => {
+    setClearReimbursementTransaction(transaction);
+  };
+
+  const handleMarkReimbursableSubmit = async (data: {
+    type: 'work' | 'personal';
+    note?: string | undefined;
+  }) => {
+    if (markReimbursableTransaction) {
+      await markReimbursableMutation.mutateAsync({
+        id: markReimbursableTransaction.id,
+        type: data.type,
+        note: data.note,
+      });
+      setMarkReimbursableTransaction(null);
+    }
+  };
+
+  const handleClearReimbursementSubmit = async (expenseIds: string[]) => {
+    if (clearReimbursementTransaction) {
+      await clearReimbursementMutation.mutateAsync({
+        incomeTransactionId: clearReimbursementTransaction.id,
+        expenseTransactionIds: expenseIds,
+      });
+      setClearReimbursementTransaction(null);
+    }
   };
 
   if (error) {
@@ -115,6 +160,8 @@ export function Transactions() {
             onCategoryChange={handleCategoryChange}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onMarkReimbursable={handleMarkReimbursable}
+            onClearReimbursement={handleClearReimbursement}
           />
         </CardContent>
       </Card>
@@ -188,6 +235,29 @@ export function Transactions() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Mark as Reimbursable Dialog */}
+      <MarkReimbursableDialog
+        open={!!markReimbursableTransaction}
+        onOpenChange={(open) => {
+          if (!open) setMarkReimbursableTransaction(null);
+        }}
+        transaction={markReimbursableTransaction}
+        onSubmit={handleMarkReimbursableSubmit}
+        isSubmitting={markReimbursableMutation.isPending}
+      />
+
+      {/* Clear Reimbursement Dialog */}
+      <ClearReimbursementDialog
+        open={!!clearReimbursementTransaction}
+        onOpenChange={(open) => {
+          if (!open) setClearReimbursementTransaction(null);
+        }}
+        incomeTransaction={clearReimbursementTransaction}
+        pendingReimbursements={pendingReimbursements}
+        onSubmit={handleClearReimbursementSubmit}
+        isSubmitting={clearReimbursementMutation.isPending}
+      />
     </div>
   );
 }

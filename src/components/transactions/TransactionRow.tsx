@@ -1,4 +1,4 @@
-import { MoreHorizontal, Pencil, Trash2, Split } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Split, Receipt, Banknote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
 import { CategoryPicker } from './CategoryPicker';
@@ -12,6 +12,8 @@ interface TransactionRowProps {
   onCategoryChange: (transactionId: string, categoryId: string | null) => void;
   onEdit: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
+  onMarkReimbursable?: ((transaction: Transaction) => void) | undefined;
+  onClearReimbursement?: ((transaction: Transaction) => void) | undefined;
 }
 
 export function TransactionRow({
@@ -20,10 +22,16 @@ export function TransactionRow({
   onCategoryChange,
   onEdit,
   onDelete,
+  onMarkReimbursable,
+  onClearReimbursement,
 }: TransactionRowProps) {
   const [isPickingCategory, setIsPickingCategory] = useState(false);
 
   const category = categories.find((c) => c.id === transaction.categoryId);
+  const isExpense = transaction.amount < 0;
+  const isIncome = transaction.amount > 0;
+  const isPendingReimbursement = transaction.reimbursement?.status === 'pending';
+  const isClearedReimbursement = transaction.reimbursement?.status === 'cleared';
 
   const handleCategoryClick = () => {
     setIsPickingCategory(true);
@@ -43,11 +51,32 @@ export function TransactionRow({
 
       {/* Description */}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">
-          {typeof transaction.description === 'string'
-            ? transaction.description
-            : 'Bank transaction'}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="truncate font-medium">
+            {typeof transaction.description === 'string'
+              ? transaction.description
+              : 'Bank transaction'}
+          </p>
+          {/* Reimbursement badge */}
+          {isPendingReimbursement && (
+            <span
+              className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+              title={`Pending ${transaction.reimbursement?.type === 'work' ? 'work' : 'personal'} reimbursement`}
+            >
+              <Receipt className="h-3 w-3" />
+              {transaction.reimbursement?.type === 'work' ? 'Work' : 'IOU'}
+            </span>
+          )}
+          {isClearedReimbursement && (
+            <span
+              className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+              title="Reimbursement cleared"
+            >
+              <Receipt className="h-3 w-3" />
+              Cleared
+            </span>
+          )}
+        </div>
         {transaction.counterparty && typeof transaction.counterparty === 'string' && (
           <p className="truncate text-sm text-muted-foreground">{transaction.counterparty}</p>
         )}
@@ -76,7 +105,7 @@ export function TransactionRow({
             onClick={handleCategoryClick}
             className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80"
           >
-            <span>❓</span>
+            <span>?</span>
             Uncategorized
           </button>
         )}
@@ -95,7 +124,9 @@ export function TransactionRow({
       <div
         className={cn(
           'w-24 flex-shrink-0 text-right font-medium tabular-nums',
-          getAmountColor(transaction.amount)
+          isPendingReimbursement
+            ? getAmountColor(transaction.amount, true)
+            : getAmountColor(transaction.amount)
         )}
       >
         {formatAmount(transaction.amount)}
@@ -116,7 +147,7 @@ export function TransactionRow({
             <MoreHorizontal className="h-4 w-4" />
             <span className="sr-only">Actions</span>
           </Button>
-          <div className="absolute right-0 top-full z-10 mt-1 hidden min-w-[120px] rounded-md border bg-popover p-1 shadow-md">
+          <div className="absolute right-0 top-full z-10 mt-1 hidden min-w-[180px] rounded-md border bg-popover p-1 shadow-md">
             <button
               type="button"
               className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
@@ -127,6 +158,34 @@ export function TransactionRow({
               <Pencil className="h-4 w-4" />
               Edit
             </button>
+
+            {/* Reimbursement actions */}
+            {isExpense && !transaction.reimbursement && onMarkReimbursable && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-amber-600 hover:bg-accent dark:text-amber-500"
+                onClick={() => {
+                  onMarkReimbursable(transaction);
+                }}
+              >
+                <Receipt className="h-4 w-4" />
+                Mark as Reimbursable
+              </button>
+            )}
+
+            {isIncome && onClearReimbursement && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-emerald-600 hover:bg-accent dark:text-emerald-500"
+                onClick={() => {
+                  onClearReimbursement(transaction);
+                }}
+              >
+                <Banknote className="h-4 w-4" />
+                Contains Reimbursement
+              </button>
+            )}
+
             <button
               type="button"
               className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-accent"
