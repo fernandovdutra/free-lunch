@@ -272,13 +272,22 @@ function useToast() {
 }
 
 function Toaster() {
-  const { toasts } = useToast();
+  const { toasts, dismiss } = useToast();
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+      {toasts.map(function ({ id, title, description, action, open, ...props }) {
         return (
-          <Toast key={id} {...props}>
+          <Toast
+            key={id}
+            open={open}
+            onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                dismiss(id);
+              }
+            }}
+            {...props}
+          >
             <div className="grid gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && <ToastDescription>{description}</ToastDescription>}
