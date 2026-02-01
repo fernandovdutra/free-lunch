@@ -17,14 +17,14 @@ export function Login() {
 
   const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
 
     try {
       await login(email, password);
-      navigate(from, { replace: true });
+      void navigate(from, { replace: true });
     } catch {
       setError('Invalid email or password');
     } finally {
@@ -38,7 +38,7 @@ export function Login() {
 
     try {
       await loginWithGoogle();
-      navigate(from, { replace: true });
+      void navigate(from, { replace: true });
     } catch {
       setError('Google sign-in failed');
     } finally {
@@ -70,7 +70,9 @@ export function Login() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                }}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 placeholder="you@example.com"
                 required
@@ -85,7 +87,9 @@ export function Login() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                }}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 placeholder="Enter your password"
                 required

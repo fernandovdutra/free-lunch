@@ -17,6 +17,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Category, CategoryFormData, CategoryWithChildren } from '@/types';
 import { generateId } from '@/lib/utils';
 
+// Firestore document shape
+interface CategoryDocument {
+  name: string;
+  icon: string;
+  color: string;
+  parentId?: string | null;
+  order?: number;
+  isSystem?: boolean;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
 // Query keys
 export const categoryKeys = {
   all: (userId: string) => ['categories', userId] as const,
@@ -24,7 +36,7 @@ export const categoryKeys = {
 
 // Transform Firestore data to Category type
 function transformCategory(docSnap: QueryDocumentSnapshot): Category {
-  const data = docSnap.data();
+  const data = docSnap.data() as CategoryDocument;
   return {
     id: docSnap.id,
     name: data.name,
@@ -119,7 +131,7 @@ export function useCreateCategory() {
       return id;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      void queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
   });
 }
@@ -139,7 +151,7 @@ export function useUpdateCategory() {
       return id;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      void queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
   });
 }
@@ -156,7 +168,7 @@ export function useDeleteCategory() {
       return id;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      void queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
   });
 }

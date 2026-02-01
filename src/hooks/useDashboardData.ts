@@ -11,8 +11,35 @@ import {
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCategories } from '@/hooks/useCategories';
-import type { Transaction, Category, SpendingSummary, CategorySpending, TimelineData } from '@/types';
+import type {
+  Transaction,
+  Category,
+  SpendingSummary,
+  CategorySpending,
+  TimelineData,
+  TransactionSplit,
+  ReimbursementInfo,
+} from '@/types';
 import { eachDayOfInterval, format } from 'date-fns';
+
+// Firestore document shape
+interface TransactionDocument {
+  externalId?: string | null;
+  date: Timestamp | string;
+  description: string;
+  amount: number;
+  currency?: 'EUR';
+  counterparty?: string | null;
+  categoryId?: string | null;
+  categoryConfidence?: number;
+  categorySource?: 'auto' | 'manual' | 'rule';
+  isSplit?: boolean;
+  splits?: TransactionSplit[] | null;
+  reimbursement?: ReimbursementInfo | null;
+  bankAccountId?: string | null;
+  importedAt?: Timestamp | string;
+  updatedAt?: Timestamp | string;
+}
 
 // Query keys
 export const dashboardKeys = {
@@ -35,7 +62,7 @@ interface DashboardData {
 
 // Transform Firestore data to Transaction type
 function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
-  const data = docSnap.data();
+  const data = docSnap.data() as TransactionDocument;
   return {
     id: docSnap.id,
     externalId: data.externalId ?? null,
@@ -52,9 +79,13 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
     reimbursement: data.reimbursement ?? null,
     bankAccountId: data.bankAccountId ?? null,
     importedAt:
-      data.importedAt instanceof Timestamp ? data.importedAt.toDate() : new Date(data.importedAt),
+      data.importedAt instanceof Timestamp
+        ? data.importedAt.toDate()
+        : new Date(data.importedAt ?? Date.now()),
     updatedAt:
-      data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
+      data.updatedAt instanceof Timestamp
+        ? data.updatedAt.toDate()
+        : new Date(data.updatedAt ?? Date.now()),
   };
 }
 

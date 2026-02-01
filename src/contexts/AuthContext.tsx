@@ -9,9 +9,24 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  type DocumentData,
+  type Timestamp,
+} from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import type { User, UserSettings } from '@/types';
+import type { User, UserSettings, BankConnection } from '@/types';
+
+// Firestore document shape
+interface UserDocument extends DocumentData {
+  displayName?: string | null;
+  createdAt?: Timestamp;
+  settings?: UserSettings;
+  bankConnections?: BankConnection[];
+}
 
 interface AuthContextType {
   user: User | null;
@@ -58,7 +73,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const userSnap = await getDoc(userRef);
 
     if (userSnap.exists()) {
-      const data = userSnap.data();
+      const data = userSnap.data() as UserDocument;
       return {
         id: fbUser.uid,
         email: fbUser.email ?? '',
@@ -422,21 +437,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Listen for auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       if (fbUser) {
         setFirebaseUser(fbUser);
-        try {
-          const userData = await fetchOrCreateUser(fbUser);
-          setUser(userData);
-        } catch (error) {
-          console.error('Error fetching user data:', error);
-          setUser(null);
-        }
+        fetchOrCreateUser(fbUser)
+          .then((userData) => {
+            setUser(userData);
+          })
+          .catch((error: unknown) => {
+            console.error('Error fetching user data:', error);
+            setUser(null);
+          })
+          .finally(() => {
+            setIsLoading(false);
+          });
       } else {
         setFirebaseUser(null);
         setUser(null);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     return () => {
