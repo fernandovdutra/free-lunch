@@ -52,6 +52,10 @@ export interface TransactionFilters {
   searchText?: string;
   minAmount?: number;
   maxAmount?: number;
+  // New filter fields
+  direction?: 'income' | 'expense' | 'all';
+  reimbursementStatus?: 'none' | 'pending' | 'cleared' | 'all';
+  categorizationStatus?: 'auto' | 'manual' | 'uncategorized' | 'all';
 }
 
 // Query keys with filters
@@ -142,6 +146,45 @@ export function useTransactions(filters: TransactionFilters = {}) {
       }
       if (filters.maxAmount !== undefined) {
         transactions = transactions.filter((t) => Math.abs(t.amount) <= filters.maxAmount!);
+      }
+
+      // Client-side filtering for direction
+      if (filters.direction && filters.direction !== 'all') {
+        transactions = transactions.filter((t) =>
+          filters.direction === 'income' ? t.amount > 0 : t.amount < 0
+        );
+      }
+
+      // Client-side filtering for reimbursement status
+      if (filters.reimbursementStatus && filters.reimbursementStatus !== 'all') {
+        transactions = transactions.filter((t) => {
+          switch (filters.reimbursementStatus) {
+            case 'none':
+              return !t.reimbursement;
+            case 'pending':
+              return t.reimbursement?.status === 'pending';
+            case 'cleared':
+              return t.reimbursement?.status === 'cleared';
+            default:
+              return true;
+          }
+        });
+      }
+
+      // Client-side filtering for categorization status
+      if (filters.categorizationStatus && filters.categorizationStatus !== 'all') {
+        transactions = transactions.filter((t) => {
+          switch (filters.categorizationStatus) {
+            case 'manual':
+              return t.categorySource === 'manual';
+            case 'auto':
+              return t.categorySource !== 'manual' && t.categorySource !== 'none' && t.categoryId;
+            case 'uncategorized':
+              return !t.categoryId || t.categorySource === 'none';
+            default:
+              return true;
+          }
+        });
       }
 
       return transactions;

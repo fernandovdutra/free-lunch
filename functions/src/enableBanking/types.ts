@@ -80,8 +80,27 @@ export interface EnableBankingTransaction {
   remittance_information_unstructured_array?: string[];
   /** Remittance information as array (alternative field name) */
   remittance_information?: string[];
-  bank_transaction_code?: string | { description?: string; code?: string; sub_code?: string | null };
+  bank_transaction_code?:
+    | string
+    | { description?: string; code?: string; sub_code?: string | null };
   status: 'booked' | 'pending';
+}
+
+/**
+ * Balance information from Enable Banking API
+ */
+export interface AccountBalance {
+  balance_amount: {
+    amount: string;
+    currency: string;
+  };
+  balance_type: 'CLBD' | 'ITAV' | 'XPCD' | 'PRCD' | 'AVBL' | 'OTHR';
+  credit_line_included?: boolean;
+  reference_date?: string;
+}
+
+export interface BalanceResponse {
+  balances: AccountBalance[];
 }
 
 /**

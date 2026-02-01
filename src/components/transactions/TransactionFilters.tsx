@@ -1,7 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, X, Calendar } from 'lucide-react';
+import { Search, X, Calendar, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { CategoryPicker } from './CategoryPicker';
 import type { TransactionFilters as Filters } from '@/hooks/useTransactions';
 import type { Category } from '@/types';
@@ -91,7 +98,12 @@ export function TransactionFilters({ filters, onChange, categories }: Transactio
   };
 
   const hasActiveFilters =
-    !!filters.searchText || !!filters.categoryId || activePreset !== 'this-month';
+    !!filters.searchText ||
+    !!filters.categoryId ||
+    !!filters.direction ||
+    !!filters.categorizationStatus ||
+    !!filters.reimbursementStatus ||
+    activePreset !== 'this-month';
 
   const getDateRangeText = () => {
     if (!filters.startDate || !filters.endDate) return 'All time';
@@ -122,6 +134,87 @@ export function TransactionFilters({ filters, onChange, categories }: Transactio
           placeholder="All categories"
           className="w-[180px]"
         />
+
+        {/* Direction filter */}
+        <Select
+          value={filters.direction ?? 'all'}
+          onValueChange={(value: 'income' | 'expense' | 'all') => {
+            const newFilters = { ...filters };
+            if (value === 'all') {
+              delete newFilters.direction;
+            } else {
+              newFilters.direction = value;
+            }
+            onChange(newFilters);
+          }}
+        >
+          <SelectTrigger className="w-[140px]" data-testid="direction-filter">
+            <SelectValue placeholder="Direction" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="income">
+              <span className="flex items-center gap-1">
+                <ArrowUpRight className="h-3 w-3 text-emerald-500" />
+                Income
+              </span>
+            </SelectItem>
+            <SelectItem value="expense">
+              <span className="flex items-center gap-1">
+                <ArrowDownRight className="h-3 w-3 text-red-500" />
+                Expense
+              </span>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Categorization status filter */}
+        <Select
+          value={filters.categorizationStatus ?? 'all'}
+          onValueChange={(value: 'auto' | 'manual' | 'uncategorized' | 'all') => {
+            const newFilters = { ...filters };
+            if (value === 'all') {
+              delete newFilters.categorizationStatus;
+            } else {
+              newFilters.categorizationStatus = value;
+            }
+            onChange(newFilters);
+          }}
+        >
+          <SelectTrigger className="w-[160px]" data-testid="categorization-filter">
+            <SelectValue placeholder="Cat. Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="manual">Manually Set</SelectItem>
+            <SelectItem value="auto">Auto-categorized</SelectItem>
+            <SelectItem value="uncategorized">Uncategorized</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Reimbursement filter */}
+        <Select
+          value={filters.reimbursementStatus ?? 'all'}
+          onValueChange={(value: 'none' | 'pending' | 'cleared' | 'all') => {
+            const newFilters = { ...filters };
+            if (value === 'all') {
+              delete newFilters.reimbursementStatus;
+            } else {
+              newFilters.reimbursementStatus = value;
+            }
+            onChange(newFilters);
+          }}
+        >
+          <SelectTrigger className="w-[160px]" data-testid="reimbursement-filter">
+            <SelectValue placeholder="Reimbursement" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="none">No Reimbursement</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="cleared">Cleared</SelectItem>
+          </SelectContent>
+        </Select>
 
         {/* Clear filters */}
         {hasActiveFilters && (

@@ -1,5 +1,11 @@
 import { generateJWT, type JWTConfig } from './auth.js';
-import type { ASPSP, AuthResponse, SessionResponse, TransactionResponse } from './types.js';
+import type {
+  ASPSP,
+  AuthResponse,
+  SessionResponse,
+  TransactionResponse,
+  BalanceResponse,
+} from './types.js';
 
 export class EnableBankingClient {
   private baseUrl: string;
@@ -71,7 +77,7 @@ export class EnableBankingClient {
     return this.request<TransactionResponse>('GET', path);
   }
 
-  async getBalances(accountId: string) {
-    return this.request('GET', `/accounts/${accountId}/balances`);
+  async getBalances(accountId: string): Promise<BalanceResponse> {
+    return this.request<BalanceResponse>('GET', `/accounts/${accountId}/balances`);
   }
 }

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAvailableBanks = exports.getBankStatus = exports.syncTransactions = exports.bankCallback = exports.initBankConnection = void 0;
+exports.recategorizeTransactions = exports.getAvailableBanks = exports.getBankStatus = exports.syncTransactions = exports.bankCallback = exports.initBankConnection = void 0;
 const app_1 = require("firebase-admin/app");
 // Initialize Firebase Admin
 (0, app_1.initializeApp)();
@@ -15,4 +15,6 @@ var getBankStatus_js_1 = require("./handlers/getBankStatus.js");
 Object.defineProperty(exports, "getBankStatus", { enumerable: true, get: function () { return getBankStatus_js_1.getBankStatus; } });
 var getAvailableBanks_js_1 = require("./handlers/getAvailableBanks.js");
 Object.defineProperty(exports, "getAvailableBanks", { enumerable: true, get: function () { return getAvailableBanks_js_1.getAvailableBanks; } });
+var recategorizeTransactions_js_1 = require("./handlers/recategorizeTransactions.js");
+Object.defineProperty(exports, "recategorizeTransactions", { enumerable: true, get: function () { return recategorizeTransactions_js_1.recategorizeTransactions; } });
 //# sourceMappingURL=index.js.map

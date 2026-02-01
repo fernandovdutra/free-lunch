@@ -14,6 +14,7 @@ import {
   getBankStatus,
   initBankConnection,
   syncTransactions,
+  recategorizeTransactions,
 } from '@/lib/bankingFunctions';
 
 export function useAvailableBanks(country = 'NL') {
@@ -138,6 +139,25 @@ export function useResetTransactionData() {
       void queryClient.invalidateQueries({ queryKey: ['bankConnections'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       void queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
+    },
+  });
+}
+
+/**
+ * Re-run auto-categorization on all non-manually categorized transactions.
+ */
+export function useRecategorizeTransactions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const result = await recategorizeTransactions();
+      return result.data;
+    },
+    onSuccess: () => {
+      // Invalidate transactions to reflect new categories
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

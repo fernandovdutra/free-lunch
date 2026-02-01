@@ -149,4 +149,25 @@ test.describe('Auto-Categorization', () => {
       }
     }
   });
+
+  test('should display re-categorize button on settings page', async ({ page }) => {
+    await page.goto('/settings');
+    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Look for the re-categorize section
+    await expect(page.getByText(/auto-categorization/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /re-categorize/i })).toBeVisible();
+  });
+
+  test('should display re-categorize description', async ({ page }) => {
+    await page.goto('/settings');
+    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Check for the description text
+    await expect(page.getByText(/re-apply auto-categorization to all transactions/i)).toBeVisible();
+  });
 });

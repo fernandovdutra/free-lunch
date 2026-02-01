@@ -25,6 +25,13 @@ export const getBankStatus = onCall(
         bankName: data.bankName,
         status: data.status,
         accountCount: data.accounts?.length ?? 0,
+        accounts:
+          data.accounts?.map((acc: { uid: string; iban: string; name?: string }) => ({
+            uid: acc.uid,
+            iban: acc.iban,
+            name: acc.name,
+            balance: data.accountBalances?.[acc.uid] ?? null,
+          })) ?? [],
         lastSync: data.lastSync instanceof Timestamp ? data.lastSync.toDate().toISOString() : null,
         consentExpiresAt:
           data.consentExpiresAt instanceof Timestamp

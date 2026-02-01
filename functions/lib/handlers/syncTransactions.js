@@ -75,9 +75,10 @@ exports.syncTransactions = (0, https_1.onCall)({
                 dateFrom = `${lastSync.getFullYear()}-${String(lastSync.getMonth() + 1).padStart(2, '0')}-${String(lastSync.getDate()).padStart(2, '0')}`;
             }
             else {
-                const ninetyDaysAgo = new Date();
-                ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-                dateFrom = `${ninetyDaysAgo.getFullYear()}-${String(ninetyDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(ninetyDaysAgo.getDate()).padStart(2, '0')}`;
+                // Fetch up to 1 year of history on initial sync (banks typically support this during auth window)
+                const oneYearAgo = new Date();
+                oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+                dateFrom = `${oneYearAgo.getFullYear()}-${String(oneYearAgo.getMonth() + 1).padStart(2, '0')}-${String(oneYearAgo.getDate()).padStart(2, '0')}`;
             }
             // Fetch all transactions with pagination
             let continuationKey;
@@ -113,7 +114,8 @@ exports.syncTransactions = (0, https_1.onCall)({
                         creditor_account: tx.creditor_account,
                         debtor_account: tx.debtor_account,
                         remittance_information_unstructured: tx.remittance_information_unstructured,
-                        remittance_information: tx.remittance_information,
+                        remittance_information: tx
+                            .remittance_information,
                         bank_transaction_code: tx.bank_transaction_code,
                         booking_date: tx.booking_date,
                         status: tx.status,
@@ -178,6 +180,30 @@ exports.syncTransactions = (0, https_1.onCall)({
                 await batch.commit();
                 result.newTransactions += batchItems.length;
             }
+            // Fetch and store account balances
+            try {
+                const balanceResponse = await client.getBalances(account.uid);
+                // Find the most relevant balance (prefer CLBD = closing booked balance)
+                const primaryBalance = balanceResponse.balances.find((b) => b.balance_type === 'CLBD') ||
+                    balanceResponse.balances.find((b) => b.balance_type === 'AVBL') ||
+                    balanceResponse.balances[0];
+                if (primaryBalance) {
+                    // Update the account with balance info
+                    await connectionRef.update({
+                        [`accountBalances.${account.uid}`]: {
+                            amount: parseFloat(primaryBalance.balance_amount.amount),
+                            currency: primaryBalance.balance_amount.currency,
+                            type: primaryBalance.balance_type,
+                            referenceDate: primaryBalance.reference_date || new Date().toISOString().split('T')[0],
+                            updatedAt: firestore_1.FieldValue.serverTimestamp(),
+                        },
+                    });
+                }
+            }
+            catch (balanceErr) {
+                console.warn(`Failed to fetch balance for account ${account.uid}:`, balanceErr);
+                // Non-fatal - continue with sync
+            }
         }
         catch (err) {
             const error = err instanceof Error ? err.message : 'Unknown error';
@@ -226,9 +252,7 @@ function transformTransaction(tx, accountIban, connectionId) {
     // 3. Set amount sign: negative for expenses (debit), positive for income (credit)
     const amount = isDebit ? -Math.abs(rawAmount) : Math.abs(rawAmount);
     // 4. Get counterparty: for debits (expenses), show who we paid; for credits (income), show who paid us
-    let counterparty = isDebit
-        ? tx.creditor?.name || null
-        : tx.debtor?.name || null;
+    let counterparty = isDebit ? tx.creditor?.name || null : tx.debtor?.name || null;
     // 5. Extract description from remittance_information
     // The API returns remittance_information as an array with multiple lines
     const remittanceInfo = tx.remittance_information || tx.remittance_information_unstructured_array || [];
@@ -243,7 +267,9 @@ function transformTransaction(tx, accountIban, connectionId) {
         // The merchant name is typically in the second line for POS, or first line for others
         // Check if first line indicates POS/card payment
         const firstLine = remittanceInfo[0] || '';
-        const isPOS = firstLine.startsWith('BEA') || firstLine.includes('Apple Pay') || firstLine.includes('Google Pay');
+        const isPOS = firstLine.startsWith('BEA') ||
+            firstLine.includes('Apple Pay') ||
+            firstLine.includes('Google Pay');
         if (isPOS && remittanceInfo.length > 1) {
             // For POS: use second line as description (contains merchant name)
             // Extract just the merchant name (before any comma with PAS number)
@@ -257,7 +283,7 @@ function transformTransaction(tx, accountIban, connectionId) {
         }
         else if (firstLine.startsWith('SEPA') && remittanceInfo.length > 3) {
             // For SEPA: look for "Naam:" line which contains the merchant name
-            const naamLine = remittanceInfo.find(line => line.startsWith('Naam:'));
+            const naamLine = remittanceInfo.find((line) => line.startsWith('Naam:'));
             if (naamLine) {
                 description = naamLine.replace('Naam:', '').trim();
                 if (!counterparty) {
@@ -266,7 +292,8 @@ function transformTransaction(tx, accountIban, connectionId) {
             }
             else {
                 // Fallback: use first non-SEPA line
-                description = remittanceInfo.find(line => !line.startsWith('SEPA') && !line.startsWith('IBAN') && !line.startsWith('BIC')) || firstLine;
+                description =
+                    remittanceInfo.find((line) => !line.startsWith('SEPA') && !line.startsWith('IBAN') && !line.startsWith('BIC')) || firstLine;
             }
         }
         else {
@@ -285,7 +312,10 @@ function transformTransaction(tx, accountIban, connectionId) {
         }
     }
     // Use counterparty as description if description is still generic
-    if (counterparty && (description === 'Bank transaction' || description.startsWith('SEPA iDEAL') || !description.trim())) {
+    if (counterparty &&
+        (description === 'Bank transaction' ||
+            description.startsWith('SEPA iDEAL') ||
+            !description.trim())) {
         description = counterparty;
     }
     // 6. Parse booking date (official bank date)

@@ -99,9 +99,10 @@ export const syncTransactions = onCall(
           lastSync.setDate(lastSync.getDate() - 1); // Overlap by 1 day
           dateFrom = `${lastSync.getFullYear()}-${String(lastSync.getMonth() + 1).padStart(2, '0')}-${String(lastSync.getDate()).padStart(2, '0')}`;
         } else {
-          const ninetyDaysAgo = new Date();
-          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-          dateFrom = `${ninetyDaysAgo.getFullYear()}-${String(ninetyDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(ninetyDaysAgo.getDate()).padStart(2, '0')}`;
+          // Fetch up to 1 year of history on initial sync (banks typically support this during auth window)
+          const oneYearAgo = new Date();
+          oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+          dateFrom = `${oneYearAgo.getFullYear()}-${String(oneYearAgo.getMonth() + 1).padStart(2, '0')}-${String(oneYearAgo.getDate()).padStart(2, '0')}`;
         }
 
         // Fetch all transactions with pagination
@@ -137,20 +138,28 @@ export const syncTransactions = onCall(
           console.log('=== RAW API TRANSACTIONS (first 3) ===');
           for (let i = 0; i < Math.min(3, allTransactions.length); i++) {
             const tx = allTransactions[i];
-            console.log(`Transaction ${i + 1}:`, JSON.stringify({
-              entry_reference: tx.entry_reference,
-              transaction_amount: tx.transaction_amount,
-              credit_debit_indicator: tx.credit_debit_indicator,
-              creditor: tx.creditor,
-              debtor: tx.debtor,
-              creditor_account: tx.creditor_account,
-              debtor_account: tx.debtor_account,
-              remittance_information_unstructured: tx.remittance_information_unstructured,
-              remittance_information: (tx as unknown as Record<string, unknown>).remittance_information,
-              bank_transaction_code: tx.bank_transaction_code,
-              booking_date: tx.booking_date,
-              status: tx.status,
-            }, null, 2));
+            console.log(
+              `Transaction ${i + 1}:`,
+              JSON.stringify(
+                {
+                  entry_reference: tx.entry_reference,
+                  transaction_amount: tx.transaction_amount,
+                  credit_debit_indicator: tx.credit_debit_indicator,
+                  creditor: tx.creditor,
+                  debtor: tx.debtor,
+                  creditor_account: tx.creditor_account,
+                  debtor_account: tx.debtor_account,
+                  remittance_information_unstructured: tx.remittance_information_unstructured,
+                  remittance_information: (tx as unknown as Record<string, unknown>)
+                    .remittance_information,
+                  bank_transaction_code: tx.bank_transaction_code,
+                  booking_date: tx.booking_date,
+                  status: tx.status,
+                },
+                null,
+                2
+              )
+            );
           }
         }
 
@@ -224,6 +233,33 @@ export const syncTransactions = onCall(
           await batch.commit();
           result.newTransactions += batchItems.length;
         }
+        // Fetch and store account balances
+        try {
+          const balanceResponse = await client.getBalances(account.uid);
+
+          // Find the most relevant balance (prefer CLBD = closing booked balance)
+          const primaryBalance =
+            balanceResponse.balances.find((b) => b.balance_type === 'CLBD') ||
+            balanceResponse.balances.find((b) => b.balance_type === 'AVBL') ||
+            balanceResponse.balances[0];
+
+          if (primaryBalance) {
+            // Update the account with balance info
+            await connectionRef.update({
+              [`accountBalances.${account.uid}`]: {
+                amount: parseFloat(primaryBalance.balance_amount.amount),
+                currency: primaryBalance.balance_amount.currency,
+                type: primaryBalance.balance_type,
+                referenceDate:
+                  primaryBalance.reference_date || new Date().toISOString().split('T')[0],
+                updatedAt: FieldValue.serverTimestamp(),
+              },
+            });
+          }
+        } catch (balanceErr) {
+          console.warn(`Failed to fetch balance for account ${account.uid}:`, balanceErr);
+          // Non-fatal - continue with sync
+        }
       } catch (err) {
         const error = err instanceof Error ? err.message : 'Unknown error';
         result.errors.push(error);
@@ -284,13 +320,12 @@ function transformTransaction(
   const amount = isDebit ? -Math.abs(rawAmount) : Math.abs(rawAmount);
 
   // 4. Get counterparty: for debits (expenses), show who we paid; for credits (income), show who paid us
-  let counterparty = isDebit
-    ? tx.creditor?.name || null
-    : tx.debtor?.name || null;
+  let counterparty = isDebit ? tx.creditor?.name || null : tx.debtor?.name || null;
 
   // 5. Extract description from remittance_information
   // The API returns remittance_information as an array with multiple lines
-  const remittanceInfo = tx.remittance_information || tx.remittance_information_unstructured_array || [];
+  const remittanceInfo =
+    tx.remittance_information || tx.remittance_information_unstructured_array || [];
   const remittanceText = tx.remittance_information_unstructured || '';
 
   let description = 'Bank transaction';
@@ -304,7 +339,10 @@ function transformTransaction(
 
     // Check if first line indicates POS/card payment
     const firstLine = remittanceInfo[0] || '';
-    const isPOS = firstLine.startsWith('BEA') || firstLine.includes('Apple Pay') || firstLine.includes('Google Pay');
+    const isPOS =
+      firstLine.startsWith('BEA') ||
+      firstLine.includes('Apple Pay') ||
+      firstLine.includes('Google Pay');
 
     if (isPOS && remittanceInfo.length > 1) {
       // For POS: use second line as description (contains merchant name)
@@ -319,7 +357,7 @@ function transformTransaction(
       }
     } else if (firstLine.startsWith('SEPA') && remittanceInfo.length > 3) {
       // For SEPA: look for "Naam:" line which contains the merchant name
-      const naamLine = remittanceInfo.find(line => line.startsWith('Naam:'));
+      const naamLine = remittanceInfo.find((line) => line.startsWith('Naam:'));
       if (naamLine) {
         description = naamLine.replace('Naam:', '').trim();
         if (!counterparty) {
@@ -327,7 +365,11 @@ function transformTransaction(
         }
       } else {
         // Fallback: use first non-SEPA line
-        description = remittanceInfo.find(line => !line.startsWith('SEPA') && !line.startsWith('IBAN') && !line.startsWith('BIC')) || firstLine;
+        description =
+          remittanceInfo.find(
+            (line) =>
+              !line.startsWith('SEPA') && !line.startsWith('IBAN') && !line.startsWith('BIC')
+          ) || firstLine;
       }
     } else {
       // Generic: join first 2 lines
@@ -344,7 +386,12 @@ function transformTransaction(
   }
 
   // Use counterparty as description if description is still generic
-  if (counterparty && (description === 'Bank transaction' || description.startsWith('SEPA iDEAL') || !description.trim())) {
+  if (
+    counterparty &&
+    (description === 'Bank transaction' ||
+      description.startsWith('SEPA iDEAL') ||
+      !description.trim())
+  ) {
     description = counterparty;
   }
 
@@ -370,7 +417,13 @@ function transformTransaction(
     if (posMatch) {
       const [, d, m, y, hour, min] = posMatch;
       const fullYear = y.length === 2 ? 2000 + parseInt(y) : parseInt(y);
-      transactionDateObj = new Date(fullYear, parseInt(m) - 1, parseInt(d), parseInt(hour), parseInt(min));
+      transactionDateObj = new Date(
+        fullYear,
+        parseInt(m) - 1,
+        parseInt(d),
+        parseInt(hour),
+        parseInt(min)
+      );
       break;
     }
 
@@ -378,7 +431,13 @@ function transformTransaction(
     const sepaMatch = line.match(/(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2})/);
     if (sepaMatch) {
       const [, d, m, y, hour, min] = sepaMatch;
-      transactionDateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), parseInt(hour), parseInt(min));
+      transactionDateObj = new Date(
+        parseInt(y),
+        parseInt(m) - 1,
+        parseInt(d),
+        parseInt(hour),
+        parseInt(min)
+      );
       break;
     }
   }

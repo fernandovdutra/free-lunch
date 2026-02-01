@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, Loader2, AlertTriangle, Trash2 } from 'lucide-react';
+import { Download, Loader2, AlertTriangle, Trash2, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { BankConnectionCard } from '@/components/settings/BankConnectionCard';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
-import { useResetTransactionData } from '@/hooks/useBankConnection';
+import { useResetTransactionData, useRecategorizeTransactions } from '@/hooks/useBankConnection';
 import { exportTransactionsAsCSV, exportTransactionsAsJSON } from '@/lib/export';
 
 export function Settings() {
@@ -29,6 +29,7 @@ export function Settings() {
   const { data: transactions = [], isLoading: isLoadingTransactions } = useTransactions({});
   const { data: categories = [] } = useCategories();
   const resetMutation = useResetTransactionData();
+  const recategorizeMutation = useRecategorizeTransactions();
 
   const handleExportCSV = async () => {
     setIsExporting('csv');
@@ -138,6 +139,44 @@ export function Settings() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Re-categorization Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Auto-Categorization</CardTitle>
+          <CardDescription>
+            Re-run the auto-categorization algorithm on existing transactions
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                This will re-apply auto-categorization to all transactions that weren't manually
+                categorized. Manually set categories will not be changed.
+              </p>
+              {recategorizeMutation.data && (
+                <p className="text-sm text-emerald-600">
+                  Processed {recategorizeMutation.data.processed} transactions, updated{' '}
+                  {recategorizeMutation.data.updated}, skipped {recategorizeMutation.data.skipped}
+                </p>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => void recategorizeMutation.mutateAsync()}
+              disabled={recategorizeMutation.isPending || transactions.length === 0}
+            >
+              {recategorizeMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              {recategorizeMutation.isPending ? 'Re-categorizing...' : 'Re-categorize'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Danger Zone - at the bottom */}
       <Card className="border-destructive/50">

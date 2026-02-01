@@ -21,6 +21,12 @@ exports.getBankStatus = (0, https_1.onCall)({
             bankName: data.bankName,
             status: data.status,
             accountCount: data.accounts?.length ?? 0,
+            accounts: data.accounts?.map((acc) => ({
+                uid: acc.uid,
+                iban: acc.iban,
+                name: acc.name,
+                balance: data.accountBalances?.[acc.uid] ?? null,
+            })) ?? [],
             lastSync: data.lastSync instanceof firestore_1.Timestamp ? data.lastSync.toDate().toISOString() : null,
             consentExpiresAt: data.consentExpiresAt instanceof firestore_1.Timestamp
                 ? data.consentExpiresAt.toDate().toISOString()

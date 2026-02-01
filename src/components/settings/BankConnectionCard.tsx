@@ -96,41 +96,64 @@ export function BankConnectionCard() {
           <div className="space-y-2">
             <p className="text-sm font-medium">Connected Accounts</p>
             {connections.map((connection) => (
-              <div
-                key={connection.id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-center gap-3">
-                  {getStatusIcon(connection.status)}
-                  <div>
-                    <p className="font-medium">{connection.bankName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {connection.accountCount} account{connection.accountCount !== 1 ? 's' : ''}
-                      {connection.lastSync && (
-                        <>
-                          {' · '}Last synced {formatDate(new Date(connection.lastSync), 'relative')}
-                        </>
-                      )}
-                    </p>
+              <div key={connection.id} className="space-y-2">
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-3">
+                    {getStatusIcon(connection.status)}
+                    <div>
+                      <p className="font-medium">{connection.bankName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {connection.accountCount} account{connection.accountCount !== 1 ? 's' : ''}
+                        {connection.lastSync && (
+                          <>
+                            {' · '}Last synced{' '}
+                            {formatDate(new Date(connection.lastSync), 'relative')}
+                          </>
+                        )}
+                      </p>
+                    </div>
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      handleSync(connection.id);
+                    }}
+                    disabled={sync.isPending || connection.status === 'expired'}
+                  >
+                    {sync.isPending ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Sync
+                      </>
+                    )}
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    handleSync(connection.id);
-                  }}
-                  disabled={sync.isPending || connection.status === 'expired'}
-                >
-                  {sync.isPending ? (
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Sync
-                    </>
-                  )}
-                </Button>
+
+                {/* Account balances */}
+                {connection.accounts.length > 0 && (
+                  <div className="ml-7 space-y-1">
+                    {connection.accounts.map((account) => (
+                      <div key={account.uid} className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {account.name || `Account ${account.iban.slice(-4)}`}
+                        </span>
+                        {account.balance ? (
+                          <span className="font-medium tabular-nums">
+                            {new Intl.NumberFormat('nl-NL', {
+                              style: 'currency',
+                              currency: account.balance.currency,
+                            }).format(account.balance.amount)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -231,4 +231,75 @@ test.describe('Transactions Page', () => {
     // Verify the transaction shows with positive amount and proper formatting
     await expect(page.getByText(/\+.*€.*150/)).toBeVisible();
   });
+
+  test('should display direction filter dropdown', async ({ page }) => {
+    await page.waitForTimeout(1000);
+    // Look for the direction filter
+    const directionFilter = page.getByTestId('direction-filter');
+    await expect(directionFilter).toBeVisible();
+  });
+
+  test('should filter transactions by direction', async ({ page }) => {
+    const incomeDesc = `Income Filter Test ${Date.now()}`;
+    const expenseDesc = `Expense Filter Test ${Date.now()}`;
+
+    // Create an income transaction
+    await page.getByRole('button', { name: /add transaction/i }).click();
+    await page.getByLabel(/description/i).fill(incomeDesc);
+    await page.getByLabel(/amount/i).fill('100');
+    await page
+      .getByRole('button', { name: /add transaction/i })
+      .last()
+      .click();
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+
+    // Create an expense transaction
+    await page.getByRole('button', { name: /add transaction/i }).click();
+    await page.getByLabel(/description/i).fill(expenseDesc);
+    await page.getByLabel(/amount/i).fill('-50');
+    await page
+      .getByRole('button', { name: /add transaction/i })
+      .last()
+      .click();
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+
+    await expect(page.getByText(incomeDesc)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(expenseDesc)).toBeVisible({ timeout: 10000 });
+
+    // Apply income filter
+    await page.getByTestId('direction-filter').click();
+    await page.getByRole('option', { name: /income/i }).click();
+
+    // Income transaction should be visible, expense should not
+    await expect(page.getByText(incomeDesc)).toBeVisible();
+    await expect(page.getByText(expenseDesc)).not.toBeVisible();
+
+    // Apply expense filter
+    await page.getByTestId('direction-filter').click();
+    await page.getByRole('option', { name: /expense/i }).click();
+
+    // Expense transaction should be visible, income should not
+    await expect(page.getByText(expenseDesc)).toBeVisible();
+    await expect(page.getByText(incomeDesc)).not.toBeVisible();
+
+    // Reset to all
+    await page.getByTestId('direction-filter').click();
+    await page.getByRole('option', { name: /^all$/i }).click();
+
+    // Both should be visible again
+    await expect(page.getByText(incomeDesc)).toBeVisible();
+    await expect(page.getByText(expenseDesc)).toBeVisible();
+  });
+
+  test('should display categorization status filter', async ({ page }) => {
+    await page.waitForTimeout(1000);
+    const catStatusFilter = page.getByTestId('categorization-filter');
+    await expect(catStatusFilter).toBeVisible();
+  });
+
+  test('should display reimbursement filter', async ({ page }) => {
+    await page.waitForTimeout(1000);
+    const reimbursementFilter = page.getByTestId('reimbursement-filter');
+    await expect(reimbursementFilter).toBeVisible();
+  });
 });
