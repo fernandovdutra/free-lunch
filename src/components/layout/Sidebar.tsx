@@ -24,8 +24,17 @@ export function Sidebar({ className }: SidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center border-b border-border px-6">
-        <span className="text-xl font-bold text-primary">Free Lunch</span>
+      <div className="flex h-16 items-center border-b border-border px-4">
+        <img
+          src="/logo.svg"
+          alt="Free Lunch"
+          className="h-8 dark:hidden"
+        />
+        <img
+          src="/logo-dark.svg"
+          alt="Free Lunch"
+          className="hidden h-8 dark:block"
+        />
       </div>
 
       {/* Navigation */}

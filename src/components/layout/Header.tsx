@@ -57,7 +57,11 @@ export function Header() {
         </Button>
 
         {/* Logo (mobile only) */}
-        <span className="text-lg font-bold text-primary lg:hidden">Free Lunch</span>
+        <img
+          src="/logo-icon.svg"
+          alt="Free Lunch"
+          className="h-8 w-8 lg:hidden"
+        />
 
         {/* Spacer for desktop */}
         <div className="hidden lg:block" />

@@ -1,14 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Background -->
-  <rect width="32" height="32" rx="6" fill="#1D4739"/>
-
-  <!-- Simplified plate ring -->
-  <circle cx="16" cy="16" r="10" fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity="0.9"/>
-  <circle cx="16" cy="16" r="7" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.6"/>
-
-  <!-- Gold coin center -->
-  <circle cx="16" cy="16" r="4.5" fill="#C9A227"/>
-
-  <!-- Euro symbol on coin -->
-  <text x="16" y="18.5" font-family="system-ui, sans-serif" font-size="6" font-weight="600" fill="#1D4739" text-anchor="middle">€</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Outer plate (forest green) -->
+  <circle cx="16" cy="16" r="15" fill="#1D4739"/>
+  <!-- Inner plate rim -->
+  <circle cx="16" cy="16" r="11" fill="none" stroke="#FFFFFF" stroke-width="1.2" opacity="0.8"/>
+  <!-- Plate center -->
+  <circle cx="16" cy="16" r="7.5" fill="#FFFFFF" opacity="0.95"/>
+  <!-- Gold coin -->
+  <circle cx="16" cy="16" r="5" fill="#C9A227"/>
+  <!-- Euro symbol -->
+  <text x="16" y="19" font-family="system-ui, sans-serif" font-size="7" font-weight="600" fill="#1D4739" text-anchor="middle">€</text>
+  <!-- Fork (left, simplified) -->
+  <path d="M4 8 L4 11 M4 11 L4 24" stroke="#C9A227" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Knife (right, simplified) -->
+  <path d="M28 8 L28 24" stroke="#C9A227" stroke-width="1.5" stroke-linecap="round"/>
 </svg>

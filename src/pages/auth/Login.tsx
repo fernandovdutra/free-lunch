@@ -50,7 +50,8 @@ export function Login() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 text-3xl font-bold text-primary">Free Lunch</div>
+          <img src="/logo.svg" alt="Free Lunch" className="mx-auto mb-4 h-10 dark:hidden" />
+          <img src="/logo-dark.svg" alt="Free Lunch" className="mx-auto mb-4 hidden h-10 dark:block" />
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>
