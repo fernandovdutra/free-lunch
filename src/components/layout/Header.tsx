@@ -58,9 +58,9 @@ export function Header() {
 
         {/* Logo (mobile only) */}
         <img
-          src="/logo-icon.svg"
+          src="/free-lunch-icon.png"
           alt="Free Lunch"
-          className="h-8 w-8 lg:hidden"
+          className="h-9 w-9 lg:hidden"
         />
 
         {/* Spacer for desktop */}

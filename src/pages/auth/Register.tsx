@@ -60,8 +60,10 @@ export function Register() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <img src="/logo.svg" alt="Free Lunch" className="mx-auto mb-4 h-10 dark:hidden" />
-          <img src="/logo-dark.svg" alt="Free Lunch" className="mx-auto mb-4 hidden h-10 dark:block" />
+          <div className="mx-auto mb-4 flex items-center justify-center gap-3">
+            <img src="/free-lunch-icon.png" alt="" className="h-12 w-12" />
+            <span className="text-2xl font-bold text-primary">Free Lunch</span>
+          </div>
           <CardTitle className="text-2xl">Create an account</CardTitle>
           <CardDescription>Start tracking your finances for free</CardDescription>
         </CardHeader>
