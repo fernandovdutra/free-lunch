@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { BankConnectionCard } from '@/components/settings/BankConnectionCard';
+import { BuiltInRulesCard } from '@/components/settings/BuiltInRulesCard';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useRules, useCreateRule, useDeleteRule } from '@/hooks/useRules';
@@ -289,6 +290,9 @@ export function Settings() {
           )}
         </CardContent>
       </Card>
+
+      {/* Built-in Merchant Database */}
+      <BuiltInRulesCard />
 
       {/* Danger Zone - at the bottom */}
       <Card className="border-destructive/50">
