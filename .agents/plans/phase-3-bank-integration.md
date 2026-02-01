@@ -9,6 +9,7 @@ Pay special attention to naming of existing utils, types, and models. Import fro
 Implement automatic bank transaction synchronization with ABN AMRO (and other Dutch banks) using the Enable Banking API. This enables users to connect their bank accounts via PSD2-compliant OAuth flow and automatically import transactions without manual file uploads.
 
 **Key Technical Approach:**
+
 - Enable Banking API in "restricted production mode" - free for personal use when linking your own accounts
 - Firebase Cloud Functions handle OAuth callbacks and token storage (server-side for security)
 - Frontend initiates connection, backend manages tokens and sync
@@ -25,6 +26,7 @@ So that my transactions are automatically imported without manual work
 Currently, users have no way to import transactions. The app requires manual data entry which is tedious and error-prone. Users expect automatic bank sync similar to the original Grip app.
 
 **Why Enable Banking over alternatives:**
+
 - GoCardless Bank Account Data stopped accepting new accounts (July 2025)
 - Salt Edge discontinued free tier (October 2025)
 - Direct ABN AMRO API requires PSD2 license (~€10k+) and QWAC certificates (€358+/year)
@@ -33,6 +35,7 @@ Currently, users have no way to import transactions. The app requires manual dat
 ## Solution Statement
 
 Implement Enable Banking integration using their API:
+
 1. User initiates bank connection from Settings page
 2. Frontend calls Cloud Function to get authorization URL
 3. User authenticates with bank (Enable Banking handles OAuth)
@@ -46,6 +49,7 @@ Implement Enable Banking integration using their API:
 **Feature Type**: New Capability
 **Estimated Complexity**: High
 **Primary Systems Affected**:
+
 - `functions/` - New Firebase Cloud Functions directory
 - `src/components/settings/` - Bank connection UI components
 - `src/pages/Settings.tsx` - Integration with bank connection
@@ -53,6 +57,7 @@ Implement Enable Banking integration using their API:
 - `src/types/index.ts` - New bank-related types
 
 **Dependencies**:
+
 - Enable Banking API account (restricted production mode)
 - Firebase Cloud Functions (Node.js 20)
 - Firebase Cloud Scheduler (for automatic sync)
@@ -78,6 +83,7 @@ Implement Enable Banking integration using their API:
 ### New Files to Create
 
 **Cloud Functions (`functions/`):**
+
 - `functions/package.json` - Dependencies for Cloud Functions
 - `functions/tsconfig.json` - TypeScript config for functions
 - `functions/src/index.ts` - Main exports
@@ -91,6 +97,7 @@ Implement Enable Banking integration using their API:
 - `functions/src/handlers/getBankStatus.ts` - Get connection status
 
 **Frontend Components:**
+
 - `src/components/settings/BankConnectionCard.tsx` - Main bank connection UI
 - `src/components/settings/BankConnectionStatus.tsx` - Connection status display
 - `src/components/settings/BankSelector.tsx` - Bank selection dropdown
@@ -122,6 +129,7 @@ Implement Enable Banking integration using their API:
 ### Patterns to Follow
 
 **Enable Banking JWT Authentication:**
+
 ```typescript
 // JWT header
 {
@@ -140,6 +148,7 @@ Implement Enable Banking integration using their API:
 ```
 
 **Enable Banking Authorization Flow:**
+
 ```
 1. GET /aspsps?country=NL → List available banks
 2. POST /auth → Start authorization, get redirect URL
@@ -150,29 +159,28 @@ Implement Enable Banking integration using their API:
 ```
 
 **Cloud Functions Pattern:**
+
 ```typescript
 // functions/src/handlers/example.ts
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 
-export const myFunction = onCall(
-  { region: 'europe-west1', cors: true },
-  async (request) => {
-    // Verify auth
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Must be logged in');
-    }
-
-    const userId = request.auth.uid;
-    const db = getFirestore();
-
-    // Implementation
-    return { success: true };
+export const myFunction = onCall({ region: 'europe-west1', cors: true }, async (request) => {
+  // Verify auth
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Must be logged in');
   }
-);
+
+  const userId = request.auth.uid;
+  const db = getFirestore();
+
+  // Implementation
+  return { success: true };
+});
 ```
 
 **Calling Functions from Frontend:**
+
 ```typescript
 // src/lib/functions.ts
 import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions';
@@ -199,6 +207,7 @@ export const initBankConnection = httpsCallable<
 Set up the Firebase Cloud Functions infrastructure with TypeScript, including configuration and Enable Banking authentication.
 
 **Tasks:**
+
 - Initialize functions directory with TypeScript
 - Configure Firebase project for functions
 - Implement Enable Banking JWT authentication
@@ -210,6 +219,7 @@ Set up the Firebase Cloud Functions infrastructure with TypeScript, including co
 Implement the complete OAuth authorization flow with Enable Banking.
 
 **Tasks:**
+
 - Create initBankConnection callable function
 - Create bankCallback HTTP function for OAuth redirect
 - Implement session creation and account retrieval
@@ -221,6 +231,7 @@ Implement the complete OAuth authorization flow with Enable Banking.
 Implement transaction fetching and storage with deduplication.
 
 **Tasks:**
+
 - Create syncTransactions function
 - Transform Enable Banking transactions to app format
 - Implement deduplication by external ID
@@ -232,6 +243,7 @@ Implement transaction fetching and storage with deduplication.
 Build the UI components for bank connection management.
 
 **Tasks:**
+
 - Create bank connection components
 - Implement connection status display
 - Add manual sync trigger
@@ -243,6 +255,7 @@ Build the UI components for bank connection management.
 Add automatic daily sync via Cloud Scheduler.
 
 **Tasks:**
+
 - Configure Cloud Scheduler
 - Create scheduled function
 - Handle token refresh
@@ -325,18 +338,14 @@ Add automatic daily sync via Cloud Scheduler.
 - **VALIDATE**: `firebase emulators:start`
 
 Add to firebase.json:
+
 ```json
 {
   "functions": {
     "source": "functions",
     "codebase": "default",
     "runtime": "nodejs20",
-    "ignore": [
-      "node_modules",
-      ".git",
-      "firebase-debug.log",
-      "firebase-debug.*.log"
-    ]
+    "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log"]
   },
   "emulators": {
     "functions": {
@@ -526,17 +535,13 @@ export class EnableBankingClient {
     this.jwtConfig = jwtConfig;
   }
 
-  private async request<T>(
-    method: string,
-    path: string,
-    body?: unknown
-  ): Promise<T> {
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const jwt = generateJWT(this.jwtConfig);
 
     const response = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers: {
-        'Authorization': `Bearer ${jwt}`,
+        Authorization: `Bearer ${jwt}`,
         'Content-Type': 'application/json',
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -649,13 +654,10 @@ export const getAvailableBanks = onCall(
 
     const { country = 'NL' } = request.data as { country?: string };
 
-    const client = new EnableBankingClient(
-      ENABLE_BANKING_API_URL.value(),
-      {
-        privateKey: ENABLE_BANKING_PRIVATE_KEY.value(),
-        applicationId: ENABLE_BANKING_APP_ID.value(),
-      }
-    );
+    const client = new EnableBankingClient(ENABLE_BANKING_API_URL.value(), {
+      privateKey: ENABLE_BANKING_PRIVATE_KEY.value(),
+      applicationId: ENABLE_BANKING_APP_ID.value(),
+    });
 
     try {
       const aspsps = await client.getASPSPs(country);
@@ -735,13 +737,10 @@ export const initBankConnection = onCall(
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min expiry
     });
 
-    const client = new EnableBankingClient(
-      ENABLE_BANKING_API_URL.value(),
-      {
-        privateKey: ENABLE_BANKING_PRIVATE_KEY.value(),
-        applicationId: ENABLE_BANKING_APP_ID.value(),
-      }
-    );
+    const client = new EnableBankingClient(ENABLE_BANKING_API_URL.value(), {
+      privateKey: ENABLE_BANKING_PRIVATE_KEY.value(),
+      applicationId: ENABLE_BANKING_APP_ID.value(),
+    });
 
     try {
       const callbackUrl = `https://europe-west1-${process.env.GCLOUD_PROJECT}.cloudfunctions.net/bankCallback`;
@@ -840,13 +839,10 @@ export const bankCallback = onRequest(
       return;
     }
 
-    const client = new EnableBankingClient(
-      ENABLE_BANKING_API_URL.value(),
-      {
-        privateKey: ENABLE_BANKING_PRIVATE_KEY.value(),
-        applicationId: ENABLE_BANKING_APP_ID.value(),
-      }
-    );
+    const client = new EnableBankingClient(ENABLE_BANKING_API_URL.value(), {
+      privateKey: ENABLE_BANKING_PRIVATE_KEY.value(),
+      applicationId: ENABLE_BANKING_APP_ID.value(),
+    });
 
     try {
       // Exchange code for session
@@ -916,10 +912,7 @@ export const getBankStatus = onCall(
     const userId = request.auth.uid;
     const db = getFirestore();
 
-    const connectionsRef = db
-      .collection('users')
-      .doc(userId)
-      .collection('bankConnections');
+    const connectionsRef = db.collection('users').doc(userId).collection('bankConnections');
 
     const snapshot = await connectionsRef.get();
 
@@ -1015,13 +1008,10 @@ export const syncTransactions = onCall(
       throw new HttpsError('failed-precondition', 'Bank consent has expired');
     }
 
-    const client = new EnableBankingClient(
-      ENABLE_BANKING_API_URL.value(),
-      {
-        privateKey: ENABLE_BANKING_PRIVATE_KEY.value(),
-        applicationId: ENABLE_BANKING_APP_ID.value(),
-      }
-    );
+    const client = new EnableBankingClient(ENABLE_BANKING_API_URL.value(), {
+      privateKey: ENABLE_BANKING_PRIVATE_KEY.value(),
+      applicationId: ENABLE_BANKING_APP_ID.value(),
+    });
 
     const results: SyncResult[] = [];
     const accounts = connection.accounts as Array<{ uid: string; iban: string }>;
@@ -1066,10 +1056,7 @@ export const syncTransactions = onCall(
         } while (continuationKey);
 
         // Process transactions
-        const transactionsRef = db
-          .collection('users')
-          .doc(userId)
-          .collection('transactions');
+        const transactionsRef = db.collection('users').doc(userId).collection('transactions');
 
         for (const tx of allTransactions) {
           const externalId = tx.entry_reference;
@@ -1260,10 +1247,10 @@ export const getBankStatus = httpsCallable<void, BankConnectionStatus[]>(
   'getBankStatus'
 );
 
-export const syncTransactions = httpsCallable<
-  { connectionId: string },
-  SyncResult
->(functions, 'syncTransactions');
+export const syncTransactions = httpsCallable<{ connectionId: string }, SyncResult>(
+  functions,
+  'syncTransactions'
+);
 ```
 
 #### Task 4.3: CREATE `src/hooks/useBankConnection.ts`
@@ -1554,6 +1541,7 @@ export function BankConnectionCard() {
 - **VALIDATE**: `npm run dev` and verify UI
 
 Replace the placeholder bank connection card with:
+
 ```typescript
 import { BankConnectionCard } from '@/components/settings/BankConnectionCard';
 
@@ -1591,17 +1579,20 @@ import { BankConnectionCard } from '@/components/settings/BankConnectionCard';
 ### Unit Tests
 
 **Functions Tests (`functions/src/__tests__/`):**
+
 - Test JWT generation with mock private key
 - Test transaction transformation logic
 - Test deduplication logic
 
 **Frontend Tests (`src/hooks/__tests__/`):**
+
 - Test useBankConnection hook states
 - Mock callable functions
 
 ### Integration Tests
 
 Test the complete OAuth flow using Enable Banking's Mock ASPSP:
+
 1. Set up sandbox environment
 2. Initiate connection to Mock ASPSP
 3. Complete authorization with test credentials

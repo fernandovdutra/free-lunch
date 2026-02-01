@@ -24,6 +24,7 @@ So that I can quickly understand my financial situation at a glance
 The current Dashboard page displays hardcoded placeholder data and chart placeholders. Users cannot see their actual financial data, making the dashboard non-functional. The Recharts library is installed but unused.
 
 Current state:
+
 - Static summaryData object with hardcoded values (Dashboard.tsx lines 6-11)
 - Chart sections show "placeholder" text (lines 84-86, 95-96)
 - Recent transactions section shows placeholder (lines 108-109)
@@ -52,11 +53,13 @@ Current state:
 **Feature Type**: Enhancement
 **Estimated Complexity**: Medium
 **Primary Systems Affected**:
+
 - `src/pages/Dashboard.tsx` - Main dashboard page
 - `src/hooks/` - New useDashboardData hook
 - `src/components/dashboard/` - New chart components
 
 **Dependencies**:
+
 - Recharts 2.15.0 (already installed)
 - TanStack Query (already configured)
 - date-fns (already installed)
@@ -104,11 +107,13 @@ Current state:
 ### Patterns to Follow
 
 **Naming Conventions:**
+
 - Hooks: `useDashboardData`, `useSpendingByCategory`
 - Components: PascalCase, descriptive (`SpendingByCategoryChart`)
 - Files: Match component/hook name exactly
 
 **TanStack Query Pattern (from useTransactions.ts):**
+
 ```typescript
 export function useDashboardData(dateRange: { startDate: Date; endDate: Date }) {
   const { user } = useAuth();
@@ -124,6 +129,7 @@ export function useDashboardData(dateRange: { startDate: Date; endDate: Date }) 
 ```
 
 **Chart Styling (from design system lines 1232-1240):**
+
 ```typescript
 // Grid lines: dashed "3 3", color #E5E7EB (Gray 200)
 // Axis text: #6B7280 (Gray 500), 12px font
@@ -132,6 +138,7 @@ export function useDashboardData(dateRange: { startDate: Date; endDate: Date }) 
 ```
 
 **Component Pattern (from existing components):**
+
 ```typescript
 import { cn } from '@/lib/utils';
 
@@ -144,13 +151,14 @@ interface SpendingByCategoryChartProps {
 export function SpendingByCategoryChart({
   data,
   isLoading,
-  className
+  className,
 }: SpendingByCategoryChartProps) {
   // Component implementation
 }
 ```
 
 **Loading State Pattern (from TransactionList.tsx):**
+
 ```typescript
 if (isLoading) {
   return (
@@ -162,6 +170,7 @@ if (isLoading) {
 ```
 
 **Empty State Pattern:**
+
 ```typescript
 if (data.length === 0) {
   return (
@@ -183,6 +192,7 @@ if (data.length === 0) {
 Create the dashboard data hook that aggregates transactions into summary metrics, category breakdown, and timeline data.
 
 **Tasks:**
+
 - Create useDashboardData hook
 - Implement aggregation logic for summaries
 - Calculate category spending percentages
@@ -193,6 +203,7 @@ Create the dashboard data hook that aggregates transactions into summary metrics
 Create reusable chart components following the design system specifications.
 
 **Tasks:**
+
 - Create SpendingByCategoryChart (donut)
 - Create SpendingOverTimeChart (bar)
 - Create custom tooltips matching design system
@@ -203,6 +214,7 @@ Create reusable chart components following the design system specifications.
 Extract existing cards into a component and compose the full dashboard with real data.
 
 **Tasks:**
+
 - Create SummaryCards component
 - Create RecentTransactions component
 - Update Dashboard page to use new components and hooks
@@ -213,6 +225,7 @@ Extract existing cards into a component and compose the full dashboard with real
 Ensure the dashboard works correctly with E2E tests and visual polish.
 
 **Tasks:**
+
 - Add E2E tests for dashboard functionality
 - Test loading states and empty states
 - Verify responsive behavior
@@ -235,7 +248,13 @@ Ensure the dashboard works correctly with E2E tests and visual polish.
   import { db } from '@/lib/firebase';
   import { useAuth } from '@/contexts/AuthContext';
   import { useCategories } from '@/hooks/useCategories';
-  import type { Transaction, Category, SpendingSummary, CategorySpending, TimelineData } from '@/types';
+  import type {
+    Transaction,
+    Category,
+    SpendingSummary,
+    CategorySpending,
+    TimelineData,
+  } from '@/types';
   import { startOfDay, format, eachDayOfInterval, eachWeekOfInterval, startOfWeek } from 'date-fns';
   ```
 - **EXPORTS**:
@@ -268,7 +287,12 @@ export function useDashboardData(dateRange: DashboardDateRange) {
   const { data: categories = [] } = useCategories();
 
   return useQuery({
-    queryKey: ['dashboard', user?.id ?? '', dateRange.startDate.toISOString(), dateRange.endDate.toISOString()],
+    queryKey: [
+      'dashboard',
+      user?.id ?? '',
+      dateRange.startDate.toISOString(),
+      dateRange.endDate.toISOString(),
+    ],
     queryFn: async (): Promise<DashboardData> => {
       if (!user?.id) throw new Error('Not authenticated');
 
@@ -281,7 +305,7 @@ export function useDashboardData(dateRange: DashboardDateRange) {
         orderBy('date', 'desc')
       );
       const snapshot = await getDocs(q);
-      const transactions = snapshot.docs.map(doc => transformTransaction(doc));
+      const transactions = snapshot.docs.map((doc) => transformTransaction(doc));
 
       return {
         summary: calculateSummary(transactions),
@@ -300,7 +324,7 @@ export function calculateSummary(transactions: Transaction[]): SpendingSummary {
   let totalExpenses = 0;
   let pendingReimbursements = 0;
 
-  transactions.forEach(t => {
+  transactions.forEach((t) => {
     if (t.reimbursement?.status === 'pending') {
       pendingReimbursements += Math.abs(t.amount);
     } else if (t.amount > 0) {
@@ -325,16 +349,16 @@ export function calculateCategorySpending(
   categories: Category[]
 ): CategorySpending[] {
   const categoryMap = new Map<string, Category>();
-  categories.forEach(c => categoryMap.set(c.id, c));
+  categories.forEach((c) => categoryMap.set(c.id, c));
 
   // Only count expenses (negative amounts), exclude pending reimbursements
   const expenses = transactions.filter(
-    t => t.amount < 0 && t.reimbursement?.status !== 'pending'
+    (t) => t.amount < 0 && t.reimbursement?.status !== 'pending'
   );
 
   // Group by category
   const spending = new Map<string, { amount: number; count: number }>();
-  expenses.forEach(t => {
+  expenses.forEach((t) => {
     const key = t.categoryId ?? 'uncategorized';
     const current = spending.get(key) ?? { amount: 0, count: 0 };
     spending.set(key, {
@@ -374,12 +398,12 @@ export function calculateTimelineData(
 
   // Initialize all days in range
   const days = eachDayOfInterval({ start: dateRange.startDate, end: dateRange.endDate });
-  days.forEach(day => {
+  days.forEach((day) => {
     dailyData.set(format(day, 'yyyy-MM-dd'), { income: 0, expenses: 0 });
   });
 
   // Aggregate transactions by day
-  transactions.forEach(t => {
+  transactions.forEach((t) => {
     if (t.reimbursement?.status === 'pending') return; // Skip pending reimbursements
 
     const dateKey = format(t.date, 'yyyy-MM-dd');
@@ -553,7 +577,15 @@ function prepareChartData(data: CategorySpending[]) {
 - **PATTERN**: Follow design system (lines 1175-1210)
 - **IMPORTS**:
   ```typescript
-  import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+  import {
+    BarChart,
+    Bar,
+    CartesianGrid,
+    XAxis,
+    YAxis,
+    Tooltip,
+    ResponsiveContainer,
+  } from 'recharts';
   import { formatAmount } from '@/lib/utils';
   import { colors } from '@/lib/colors';
   import { Skeleton } from '@/components/ui/skeleton';
@@ -1126,13 +1158,39 @@ const mockTransactions: Transaction[] = [
     description: 'Work lunch',
     amount: -25,
     categoryId: 'food',
-    reimbursement: { status: 'pending', type: 'work', note: null, linkedTransactionId: null, clearedAt: null },
+    reimbursement: {
+      status: 'pending',
+      type: 'work',
+      note: null,
+      linkedTransactionId: null,
+      clearedAt: null,
+    },
   },
 ];
 
 const mockCategories: Category[] = [
-  { id: 'income-salary', name: 'Salary', color: '#10B981', icon: '💰', parentId: null, order: 0, isSystem: true, createdAt: new Date(), updatedAt: new Date() },
-  { id: 'food', name: 'Food & Drink', color: '#F59E0B', icon: '🍽️', parentId: null, order: 1, isSystem: true, createdAt: new Date(), updatedAt: new Date() },
+  {
+    id: 'income-salary',
+    name: 'Salary',
+    color: '#10B981',
+    icon: '💰',
+    parentId: null,
+    order: 0,
+    isSystem: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 'food',
+    name: 'Food & Drink',
+    color: '#F59E0B',
+    icon: '🍽️',
+    parentId: null,
+    order: 1,
+    isSystem: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
 ];
 
 describe('calculateSummary', () => {
@@ -1152,16 +1210,14 @@ describe('calculateSummary', () => {
 describe('calculateCategorySpending', () => {
   it('groups expenses by category', () => {
     const spending = calculateCategorySpending(mockTransactions, mockCategories);
-    const foodSpending = spending.find(s => s.categoryId === 'food');
+    const foodSpending = spending.find((s) => s.categoryId === 'food');
     expect(foodSpending?.amount).toBe(100); // Excludes pending reimbursement
   });
 
   it('handles uncategorized transactions', () => {
-    const transactions = [
-      { ...mockTransactions[1], categoryId: null },
-    ];
+    const transactions = [{ ...mockTransactions[1], categoryId: null }];
     const spending = calculateCategorySpending(transactions as Transaction[], mockCategories);
-    const uncategorized = spending.find(s => s.categoryId === 'uncategorized');
+    const uncategorized = spending.find((s) => s.categoryId === 'uncategorized');
     expect(uncategorized?.categoryName).toBe('Uncategorized');
   });
 });
@@ -1286,6 +1342,7 @@ test.describe('Dashboard Page', () => {
 ### Unit Tests
 
 Focus on pure aggregation functions in useDashboardData:
+
 - `calculateSummary` - Test various transaction combinations
 - `calculateCategorySpending` - Test grouping and percentage calculations
 - `calculateTimelineData` - Test date aggregation
@@ -1295,6 +1352,7 @@ Focus on pure aggregation functions in useDashboardData:
 ### Integration Tests
 
 Test chart components render correctly with mock data:
+
 - SpendingByCategoryChart renders SVG with correct data
 - SpendingOverTimeChart renders bar elements
 - SummaryCards shows correct formatted values
@@ -1304,6 +1362,7 @@ Test chart components render correctly with mock data:
 **CRITICAL: E2E tests are REQUIRED for this user-facing feature.**
 
 **E2E Test Requirements:**
+
 - Test dashboard loads with all sections visible
 - Test date range buttons toggle correctly
 - Test navigation to transactions from dashboard
@@ -1311,6 +1370,7 @@ Test chart components render correctly with mock data:
 - Verify chart sections render without errors
 
 **E2E Test Structure:**
+
 ```typescript
 test.describe('Dashboard', () => {
   test.beforeEach(async ({ page }) => {
@@ -1376,6 +1436,7 @@ npm run e2e:headed
 ```
 
 **E2E Test Coverage Requirements:**
+
 - Dashboard page loads correctly
 - All sections render (summary, charts, recent transactions)
 - Date range buttons work

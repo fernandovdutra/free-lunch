@@ -39,6 +39,7 @@ npm run firebase:deploy     # Deploy all Firebase services
 ## Architecture
 
 ### Frontend Stack
+
 - **React 19** with TypeScript and Vite
 - **TanStack Query** for server state (5-minute stale time default)
 - **React Router v7** for routing with nested layouts
@@ -46,12 +47,14 @@ npm run firebase:deploy     # Deploy all Firebase services
 - **React Hook Form + Zod** for forms and validation
 
 ### Backend (Firebase)
+
 - **Firebase Auth** - Email/password and Google sign-in
 - **Cloud Firestore** - NoSQL database with user-scoped collections
 - **Cloud Functions** - Bank sync, auto-categorization, scheduled jobs
 - **Firebase Hosting** - Static hosting with CDN
 
 ### Key Patterns
+
 - Path alias `@/` maps to `src/`
 - Auth state managed via `AuthContext` with `useAuth()` hook
 - Protected routes wrap content in `ProtectedRoute` component

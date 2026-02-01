@@ -39,7 +39,9 @@ export function transactionsToCSV(transactions: Transaction[], categories: Categ
   ];
 
   const rows = transactions.map((t) => {
-    const categoryName = t.categoryId ? categoryMap.get(t.categoryId) ?? 'Unknown' : 'Uncategorized';
+    const categoryName = t.categoryId
+      ? (categoryMap.get(t.categoryId) ?? 'Unknown')
+      : 'Uncategorized';
     const reimbursementStatus = t.reimbursement?.status ?? '';
     const reimbursementType = t.reimbursement?.type ?? '';
     const note = t.reimbursement?.note ?? '';
@@ -70,7 +72,7 @@ export function transactionsToJSON(transactions: Transaction[], categories: Cate
     description: t.description,
     amount: t.amount,
     currency: t.currency,
-    category: t.categoryId ? categoryMap.get(t.categoryId) ?? 'Unknown' : null,
+    category: t.categoryId ? (categoryMap.get(t.categoryId) ?? 'Unknown') : null,
     categoryId: t.categoryId,
     counterparty: t.counterparty,
     reimbursement: t.reimbursement
@@ -85,7 +87,7 @@ export function transactionsToJSON(transactions: Transaction[], categories: Cate
       : null,
     isSplit: t.isSplit,
     splits: t.splits,
-    importedAt: format(t.importedAt, 'yyyy-MM-dd\'T\'HH:mm:ss'),
+    importedAt: format(t.importedAt, "yyyy-MM-dd'T'HH:mm:ss"),
   }));
 
   return JSON.stringify(exportData, null, 2);

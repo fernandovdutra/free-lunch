@@ -51,9 +51,7 @@ export function ClearedReimbursementList({
               {transaction.reimbursement?.clearedAt && (
                 <>
                   <span>·</span>
-                  <span>
-                    Cleared {formatDate(transaction.reimbursement.clearedAt, 'relative')}
-                  </span>
+                  <span>Cleared {formatDate(transaction.reimbursement.clearedAt, 'relative')}</span>
                 </>
               )}
             </div>

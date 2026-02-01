@@ -143,7 +143,7 @@ So that <benefit/value>
 
 Whats below here is a template for you to fill for th4e implementation agent:
 
-```markdown
+````markdown
 # Feature: <feature-name>
 
 The following plan should be complete, but its important that you validate documentation and codebase patterns and task sanity before you start implementing.
@@ -311,6 +311,7 @@ Design unit tests with fixtures and assertions following existing testing approa
 <Define E2E test scenarios that verify the feature works correctly in a real browser>
 
 **E2E Testing Requirements:**
+
 - Test user flows from start to finish
 - Verify UI components render correctly
 - Test form submissions and data persistence
@@ -319,6 +320,7 @@ Design unit tests with fixtures and assertions following existing testing approa
 - Use data-testid attributes for reliable element selection
 
 **E2E Test Structure:**
+
 ```typescript
 // Example E2E test pattern
 test.describe('Feature Name', () => {
@@ -335,6 +337,7 @@ test.describe('Feature Name', () => {
   });
 });
 ```
+````
 
 ### Edge Cases
 
@@ -377,6 +380,7 @@ npm run e2e:headed
 ```
 
 **E2E Test Coverage Requirements:**
+
 - All new user flows must have E2E tests
 - Tests must pass with Firebase emulators running
 - Tests must be deterministic (no flaky tests)
@@ -425,6 +429,7 @@ npm run e2e:headed
 ## NOTES
 
 <Additional context, design decisions, trade-offs>
+
 ```
 
 ## Output Format
@@ -486,3 +491,4 @@ After creating the Plan, provide:
 - Complexity assessment
 - Key implementation risks or considerations
 - Estimated confidence score for one-pass success
+```

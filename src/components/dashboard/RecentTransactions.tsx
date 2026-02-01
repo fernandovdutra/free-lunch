@@ -11,7 +11,11 @@ interface RecentTransactionsProps {
   isLoading?: boolean;
 }
 
-export function RecentTransactions({ transactions, categories, isLoading }: RecentTransactionsProps) {
+export function RecentTransactions({
+  transactions,
+  categories,
+  isLoading,
+}: RecentTransactionsProps) {
   const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
   if (isLoading) {

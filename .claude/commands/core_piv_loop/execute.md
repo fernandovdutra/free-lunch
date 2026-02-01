@@ -114,6 +114,7 @@ npx playwright test --ui
 #### e. Fix Failing Tests
 
 Common issues and solutions:
+
 - **Strict mode violation**: Use `.first()` or `{ exact: true }` for ambiguous selectors
 - **Timeout on networkidle**: Replace with `await expect(element).toBeVisible()`
 - **Auth failures**: Ensure emulators are running and accessible

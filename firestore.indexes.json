@@ -3,9 +3,7 @@
     {
       "collectionGroup": "transactions",
       "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "date", "order": "DESCENDING" }
-      ]
+      "fields": [{ "fieldPath": "date", "order": "DESCENDING" }]
     },
     {
       "collectionGroup": "transactions",

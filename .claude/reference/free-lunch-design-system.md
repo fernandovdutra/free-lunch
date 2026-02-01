@@ -34,13 +34,13 @@ The name "Free Lunch" carries a playful, libertarian undertone. The design balan
 
 ### Core Design Principles
 
-| Principle | Description |
-|-----------|-------------|
-| **Clarity** | Financial data is complex; our UI makes it simple. Clear hierarchy, scannable layouts. |
-| **Calm** | Money can be stressful. Use soothing colors and generous whitespace to reduce anxiety. |
-| **Honesty** | Show real numbers. No gamification, no hidden fees, no dark patterns. |
-| **Efficiency** | Users check their finances quickly. Optimize for fast comprehension, not engagement. |
-| **Accessibility** | Everyone deserves financial clarity. WCAG AA compliant minimum. |
+| Principle         | Description                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------- |
+| **Clarity**       | Financial data is complex; our UI makes it simple. Clear hierarchy, scannable layouts. |
+| **Calm**          | Money can be stressful. Use soothing colors and generous whitespace to reduce anxiety. |
+| **Honesty**       | Show real numbers. No gamification, no hidden fees, no dark patterns.                  |
+| **Efficiency**    | Users check their finances quickly. Optimize for fast comprehension, not engagement.   |
+| **Accessibility** | Everyone deserves financial clarity. WCAG AA compliant minimum.                        |
 
 ### Brand Voice
 
@@ -53,11 +53,13 @@ The name "Free Lunch" carries a playful, libertarian undertone. The design balan
 **Logo Concept:** A simple, friendly wordmark with a subtle visual element suggesting growth or freedom.
 
 **Logo Variations:**
+
 - `free-lunch-logo.svg` - Full color for light backgrounds
 - `free-lunch-logo-dark.svg` - For dark backgrounds
 - `free-lunch-icon.svg` - App icon, favicon
 
 **Logo Sizing:**
+
 - Header: `h-6` (24px height)
 - Login/splash: `h-10` (40px height)
 - Favicon: 32x32px
@@ -74,48 +76,48 @@ Green is our primary color—it represents money, growth, and positive outcomes.
 
 ### Primary Palette
 
-| Color | Name | Hex | RGB | HSL | Usage |
-|-------|------|-----|-----|-----|-------|
-| ![#10B981](https://via.placeholder.com/20/10B981/10B981) | **Emerald 500** | `#10B981` | `rgb(16, 185, 129)` | `160 84% 39%` | Primary actions, positive indicators, brand accent |
-| ![#059669](https://via.placeholder.com/20/059669/059669) | **Emerald 600** | `#059669` | `rgb(5, 150, 105)` | `161 94% 30%` | Primary button hover, links |
-| ![#047857](https://via.placeholder.com/20/047857/047857) | **Emerald 700** | `#047857` | `rgb(4, 120, 87)` | `163 94% 24%` | Active states, focus rings |
-| ![#D1FAE5](https://via.placeholder.com/20/D1FAE5/D1FAE5) | **Emerald 100** | `#D1FAE5` | `rgb(209, 250, 229)` | `149 80% 90%` | Success backgrounds, positive highlights |
-| ![#ECFDF5](https://via.placeholder.com/20/ECFDF5/ECFDF5) | **Emerald 50** | `#ECFDF5` | `rgb(236, 253, 245)` | `152 81% 96%` | Subtle success backgrounds |
+| Color                                                    | Name            | Hex       | RGB                  | HSL           | Usage                                              |
+| -------------------------------------------------------- | --------------- | --------- | -------------------- | ------------- | -------------------------------------------------- |
+| ![#10B981](https://via.placeholder.com/20/10B981/10B981) | **Emerald 500** | `#10B981` | `rgb(16, 185, 129)`  | `160 84% 39%` | Primary actions, positive indicators, brand accent |
+| ![#059669](https://via.placeholder.com/20/059669/059669) | **Emerald 600** | `#059669` | `rgb(5, 150, 105)`   | `161 94% 30%` | Primary button hover, links                        |
+| ![#047857](https://via.placeholder.com/20/047857/047857) | **Emerald 700** | `#047857` | `rgb(4, 120, 87)`    | `163 94% 24%` | Active states, focus rings                         |
+| ![#D1FAE5](https://via.placeholder.com/20/D1FAE5/D1FAE5) | **Emerald 100** | `#D1FAE5` | `rgb(209, 250, 229)` | `149 80% 90%` | Success backgrounds, positive highlights           |
+| ![#ECFDF5](https://via.placeholder.com/20/ECFDF5/ECFDF5) | **Emerald 50**  | `#ECFDF5` | `rgb(236, 253, 245)` | `152 81% 96%` | Subtle success backgrounds                         |
 
 ### Neutral Palette
 
-| Color | Name | Hex | Usage |
-|-------|------|-----|-------|
-| ![#111827](https://via.placeholder.com/20/111827/111827) | **Gray 900** | `#111827` | Primary text, headings |
-| ![#374151](https://via.placeholder.com/20/374151/374151) | **Gray 700** | `#374151` | Secondary text, labels |
-| ![#6B7280](https://via.placeholder.com/20/6B7280/6B7280) | **Gray 500** | `#6B7280` | Muted text, placeholders |
-| ![#9CA3AF](https://via.placeholder.com/20/9CA3AF/9CA3AF) | **Gray 400** | `#9CA3AF` | Disabled text, borders |
-| ![#D1D5DB](https://via.placeholder.com/20/D1D5DB/D1D5DB) | **Gray 300** | `#D1D5DB` | Borders, dividers |
-| ![#E5E7EB](https://via.placeholder.com/20/E5E7EB/E5E7EB) | **Gray 200** | `#E5E7EB` | Light borders, backgrounds |
+| Color                                                    | Name         | Hex       | Usage                            |
+| -------------------------------------------------------- | ------------ | --------- | -------------------------------- |
+| ![#111827](https://via.placeholder.com/20/111827/111827) | **Gray 900** | `#111827` | Primary text, headings           |
+| ![#374151](https://via.placeholder.com/20/374151/374151) | **Gray 700** | `#374151` | Secondary text, labels           |
+| ![#6B7280](https://via.placeholder.com/20/6B7280/6B7280) | **Gray 500** | `#6B7280` | Muted text, placeholders         |
+| ![#9CA3AF](https://via.placeholder.com/20/9CA3AF/9CA3AF) | **Gray 400** | `#9CA3AF` | Disabled text, borders           |
+| ![#D1D5DB](https://via.placeholder.com/20/D1D5DB/D1D5DB) | **Gray 300** | `#D1D5DB` | Borders, dividers                |
+| ![#E5E7EB](https://via.placeholder.com/20/E5E7EB/E5E7EB) | **Gray 200** | `#E5E7EB` | Light borders, backgrounds       |
 | ![#F3F4F6](https://via.placeholder.com/20/F3F4F6/F3F4F6) | **Gray 100** | `#F3F4F6` | Subtle backgrounds, hover states |
-| ![#F9FAFB](https://via.placeholder.com/20/F9FAFB/F9FAFB) | **Gray 50** | `#F9FAFB` | Page background |
-| ![#FFFFFF](https://via.placeholder.com/20/FFFFFF/FFFFFF) | **White** | `#FFFFFF` | Card backgrounds, inputs |
+| ![#F9FAFB](https://via.placeholder.com/20/F9FAFB/F9FAFB) | **Gray 50**  | `#F9FAFB` | Page background                  |
+| ![#FFFFFF](https://via.placeholder.com/20/FFFFFF/FFFFFF) | **White**    | `#FFFFFF` | Card backgrounds, inputs         |
 
 ### Semantic Colors
 
-| Color | Name | Hex | Usage |
-|-------|------|-----|-------|
-| ![#10B981](https://via.placeholder.com/20/10B981/10B981) | **Success** | `#10B981` | Positive amounts, income, success states |
-| ![#EF4444](https://via.placeholder.com/20/EF4444/EF4444) | **Expense/Error** | `#EF4444` | Negative amounts, expenses, errors |
-| ![#F59E0B](https://via.placeholder.com/20/F59E0B/F59E0B) | **Warning** | `#F59E0B` | Pending items, warnings, reimbursables |
-| ![#3B82F6](https://via.placeholder.com/20/3B82F6/3B82F6) | **Info** | `#3B82F6` | Information, links, neutral indicators |
-| ![#8B5CF6](https://via.placeholder.com/20/8B5CF6/8B5CF6) | **Accent** | `#8B5CF6` | Special highlights, selected items |
+| Color                                                    | Name              | Hex       | Usage                                    |
+| -------------------------------------------------------- | ----------------- | --------- | ---------------------------------------- |
+| ![#10B981](https://via.placeholder.com/20/10B981/10B981) | **Success**       | `#10B981` | Positive amounts, income, success states |
+| ![#EF4444](https://via.placeholder.com/20/EF4444/EF4444) | **Expense/Error** | `#EF4444` | Negative amounts, expenses, errors       |
+| ![#F59E0B](https://via.placeholder.com/20/F59E0B/F59E0B) | **Warning**       | `#F59E0B` | Pending items, warnings, reimbursables   |
+| ![#3B82F6](https://via.placeholder.com/20/3B82F6/3B82F6) | **Info**          | `#3B82F6` | Information, links, neutral indicators   |
+| ![#8B5CF6](https://via.placeholder.com/20/8B5CF6/8B5CF6) | **Accent**        | `#8B5CF6` | Special highlights, selected items       |
 
 ### Amount Colors (Critical)
 
 These colors are specifically for displaying monetary amounts:
 
-| Context | Color | Example |
-|---------|-------|---------|
-| Income (positive) | `#10B981` (Emerald 500) | +€2,500.00 |
-| Expense (negative) | `#EF4444` (Red 500) | -€45.50 |
-| Neutral/Zero | `#6B7280` (Gray 500) | €0.00 |
-| Pending Reimbursement | `#F59E0B` (Amber 500) | -€125.00 (pending) |
+| Context               | Color                   | Example            |
+| --------------------- | ----------------------- | ------------------ |
+| Income (positive)     | `#10B981` (Emerald 500) | +€2,500.00         |
+| Expense (negative)    | `#EF4444` (Red 500)     | -€45.50            |
+| Neutral/Zero          | `#6B7280` (Gray 500)    | €0.00              |
+| Pending Reimbursement | `#F59E0B` (Amber 500)   | -€125.00 (pending) |
 
 ### Category Colors
 
@@ -123,16 +125,16 @@ Predefined colors for spending categories (ensure good contrast and distinguisha
 
 ```typescript
 export const CATEGORY_COLORS = {
-  income: '#10B981',        // Emerald - income
-  housing: '#6366F1',       // Indigo - housing
-  transport: '#3B82F6',     // Blue - transport
-  food: '#F59E0B',          // Amber - food & drink
-  shopping: '#EC4899',      // Pink - shopping
+  income: '#10B981', // Emerald - income
+  housing: '#6366F1', // Indigo - housing
+  transport: '#3B82F6', // Blue - transport
+  food: '#F59E0B', // Amber - food & drink
+  shopping: '#EC4899', // Pink - shopping
   entertainment: '#8B5CF6', // Violet - entertainment
-  health: '#14B8A6',        // Teal - health
-  personal: '#F97316',      // Orange - personal
-  utilities: '#64748B',     // Slate - utilities
-  other: '#9CA3AF',         // Gray - uncategorized
+  health: '#14B8A6', // Teal - health
+  personal: '#F97316', // Orange - personal
+  utilities: '#64748B', // Slate - utilities
+  other: '#9CA3AF', // Gray - uncategorized
 } as const;
 ```
 
@@ -141,34 +143,34 @@ export const CATEGORY_COLORS = {
 ```css
 :root {
   /* Brand Colors */
-  --color-primary: 160 84% 39%;           /* Emerald 500 */
-  --color-primary-hover: 161 94% 30%;     /* Emerald 600 */
-  --color-primary-active: 163 94% 24%;    /* Emerald 700 */
-  --color-primary-light: 149 80% 90%;     /* Emerald 100 */
+  --color-primary: 160 84% 39%; /* Emerald 500 */
+  --color-primary-hover: 161 94% 30%; /* Emerald 600 */
+  --color-primary-active: 163 94% 24%; /* Emerald 700 */
+  --color-primary-light: 149 80% 90%; /* Emerald 100 */
 
   /* Semantic Colors */
-  --color-success: 160 84% 39%;           /* Emerald 500 */
-  --color-error: 0 84% 60%;               /* Red 500 */
-  --color-warning: 38 92% 50%;            /* Amber 500 */
-  --color-info: 217 91% 60%;              /* Blue 500 */
+  --color-success: 160 84% 39%; /* Emerald 500 */
+  --color-error: 0 84% 60%; /* Red 500 */
+  --color-warning: 38 92% 50%; /* Amber 500 */
+  --color-info: 217 91% 60%; /* Blue 500 */
 
   /* Neutrals */
-  --color-background: 210 20% 98%;        /* Gray 50 */
-  --color-foreground: 221 39% 11%;        /* Gray 900 */
-  --color-muted: 220 14% 96%;             /* Gray 100 */
-  --color-muted-foreground: 220 9% 46%;   /* Gray 500 */
-  --color-border: 220 13% 91%;            /* Gray 200 */
-  --color-input: 220 13% 91%;             /* Gray 200 */
+  --color-background: 210 20% 98%; /* Gray 50 */
+  --color-foreground: 221 39% 11%; /* Gray 900 */
+  --color-muted: 220 14% 96%; /* Gray 100 */
+  --color-muted-foreground: 220 9% 46%; /* Gray 500 */
+  --color-border: 220 13% 91%; /* Gray 200 */
+  --color-input: 220 13% 91%; /* Gray 200 */
 
   /* Component Colors */
-  --color-card: 0 0% 100%;                /* White */
-  --color-card-foreground: 221 39% 11%;   /* Gray 900 */
+  --color-card: 0 0% 100%; /* White */
+  --color-card-foreground: 221 39% 11%; /* Gray 900 */
   --color-popover: 0 0% 100%;
   --color-popover-foreground: 221 39% 11%;
 
   /* Semantic Mappings */
   --primary: var(--color-primary);
-  --primary-foreground: 0 0% 100%;        /* White text on primary */
+  --primary-foreground: 0 0% 100%; /* White text on primary */
   --destructive: var(--color-error);
   --destructive-foreground: 0 0% 100%;
   --ring: var(--color-primary);
@@ -238,93 +240,101 @@ export function getAmountColor(amount: number, isPending = false): string {
 Inter is a highly legible, modern sans-serif designed for screens. It has excellent support for tabular numbers (critical for financial data).
 
 ```css
-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-font-feature-settings: "cv11" 1, "ss01" 1;  /* Stylistic alternates */
+font-family:
+  'Inter',
+  -apple-system,
+  BlinkMacSystemFont,
+  'Segoe UI',
+  Roboto,
+  sans-serif;
+font-feature-settings:
+  'cv11' 1,
+  'ss01' 1; /* Stylistic alternates */
 ```
 
 **Font Loading:**
+
 ```html
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+  rel="stylesheet"
+/>
 ```
 
 **Monospace Font (for amounts):**
+
 ```css
 font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
-font-feature-settings: "tnum" 1;  /* Tabular numbers */
+font-feature-settings: 'tnum' 1; /* Tabular numbers */
 ```
 
 ### Font Weights
 
-| Weight | Value | Usage |
-|--------|-------|-------|
-| Regular | 400 | Body text, descriptions |
-| Medium | 500 | Labels, emphasized text, table headers |
-| Semibold | 600 | Headings, card titles, buttons |
-| Bold | 700 | Page titles, key metrics |
+| Weight   | Value | Usage                                  |
+| -------- | ----- | -------------------------------------- |
+| Regular  | 400   | Body text, descriptions                |
+| Medium   | 500   | Labels, emphasized text, table headers |
+| Semibold | 600   | Headings, card titles, buttons         |
+| Bold     | 700   | Page titles, key metrics               |
 
 ### Type Scale
 
-| Name | Size | Tailwind | Weight | Line Height | Letter Spacing | Usage |
-|------|------|----------|--------|-------------|----------------|-------|
-| **H1** | 30px | `text-3xl` | 700 | 1.2 | -0.02em | Page titles |
-| **H2** | 24px | `text-2xl` | 600 | 1.25 | -0.01em | Section headings |
-| **H3** | 20px | `text-xl` | 600 | 1.3 | -0.01em | Card titles |
-| **H4** | 18px | `text-lg` | 600 | 1.4 | 0 | Subsections |
-| **Body Large** | 16px | `text-base` | 400 | 1.5 | 0 | Important body text |
-| **Body** | 14px | `text-sm` | 400 | 1.5 | 0 | Default text, forms |
-| **Small** | 12px | `text-xs` | 400 | 1.4 | 0 | Captions, timestamps |
-| **Amount Large** | 28px | `text-2xl` | 700 | 1.2 | -0.02em | Dashboard totals |
-| **Amount** | 16px | `text-base` | 500 | 1 | 0 | Transaction amounts |
+| Name             | Size | Tailwind    | Weight | Line Height | Letter Spacing | Usage                |
+| ---------------- | ---- | ----------- | ------ | ----------- | -------------- | -------------------- |
+| **H1**           | 30px | `text-3xl`  | 700    | 1.2         | -0.02em        | Page titles          |
+| **H2**           | 24px | `text-2xl`  | 600    | 1.25        | -0.01em        | Section headings     |
+| **H3**           | 20px | `text-xl`   | 600    | 1.3         | -0.01em        | Card titles          |
+| **H4**           | 18px | `text-lg`   | 600    | 1.4         | 0              | Subsections          |
+| **Body Large**   | 16px | `text-base` | 400    | 1.5         | 0              | Important body text  |
+| **Body**         | 14px | `text-sm`   | 400    | 1.5         | 0              | Default text, forms  |
+| **Small**        | 12px | `text-xs`   | 400    | 1.4         | 0              | Captions, timestamps |
+| **Amount Large** | 28px | `text-2xl`  | 700    | 1.2         | -0.02em        | Dashboard totals     |
+| **Amount**       | 16px | `text-base` | 500    | 1           | 0              | Transaction amounts  |
 
 ### Typography Components
 
 **Page Title:**
+
 ```jsx
-<h1 className="text-3xl font-bold tracking-tight text-gray-900">
-  Dashboard
-</h1>
+<h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
 ```
 
 **Section Heading:**
+
 ```jsx
-<h2 className="text-2xl font-semibold text-gray-900">
-  Recent Transactions
-</h2>
+<h2 className="text-2xl font-semibold text-gray-900">Recent Transactions</h2>
 ```
 
 **Card Title:**
+
 ```jsx
-<h3 className="text-lg font-semibold text-gray-900">
-  Spending by Category
-</h3>
+<h3 className="text-lg font-semibold text-gray-900">Spending by Category</h3>
 ```
 
 **Amount Display (Large):**
+
 ```jsx
-<span className="text-2xl font-bold tabular-nums tracking-tight text-emerald-600">
-  +€2,500.00
-</span>
+<span className="text-2xl font-bold tabular-nums tracking-tight text-emerald-600">+€2,500.00</span>
 ```
 
 **Amount Display (Inline):**
+
 ```jsx
-<span className="font-medium tabular-nums text-red-500">
-  -€45.50
-</span>
+<span className="font-medium tabular-nums text-red-500">-€45.50</span>
 ```
 
 **Muted Text:**
+
 ```jsx
-<p className="text-sm text-gray-500">
-  Last synced 5 minutes ago
-</p>
+<p className="text-sm text-gray-500">Last synced 5 minutes ago</p>
 ```
 
 ### Number Formatting
 
 **Currency Display Rules:**
+
 - Always show currency symbol: `€`
 - Use comma for thousands: `€1,234.56`
 - Always show 2 decimal places: `€45.00` not `€45`
@@ -356,63 +366,61 @@ export function formatAmount(amount: number, showSign = true): string {
 
 Based on 4px base unit (Tailwind default):
 
-| Scale | Pixels | Tailwind | Usage |
-|-------|--------|----------|-------|
-| 1 | 4px | `p-1` | Minimal spacing |
-| 2 | 8px | `p-2` | Tight spacing, icon gaps |
-| 3 | 12px | `p-3` | Compact padding |
-| 4 | 16px | `p-4` | Standard padding, form gaps |
-| 5 | 20px | `p-5` | Comfortable spacing |
-| 6 | 24px | `p-6` | Card padding, section gaps |
-| 8 | 32px | `p-8` | Large section spacing |
-| 10 | 40px | `p-10` | Major section breaks |
-| 12 | 48px | `p-12` | Page-level spacing |
+| Scale | Pixels | Tailwind | Usage                       |
+| ----- | ------ | -------- | --------------------------- |
+| 1     | 4px    | `p-1`    | Minimal spacing             |
+| 2     | 8px    | `p-2`    | Tight spacing, icon gaps    |
+| 3     | 12px   | `p-3`    | Compact padding             |
+| 4     | 16px   | `p-4`    | Standard padding, form gaps |
+| 5     | 20px   | `p-5`    | Comfortable spacing         |
+| 6     | 24px   | `p-6`    | Card padding, section gaps  |
+| 8     | 32px   | `p-8`    | Large section spacing       |
+| 10    | 40px   | `p-10`   | Major section breaks        |
+| 12    | 48px   | `p-12`   | Page-level spacing          |
 
 ### Component Spacing
 
-| Component | Padding | Gap |
-|-----------|---------|-----|
-| Page | `px-4 py-6` (mobile) / `px-8 py-8` (desktop) | - |
-| Card | `p-6` | - |
-| Card Header | `pb-4` | `space-y-1` |
-| Card Content | - | `space-y-4` |
-| Button (default) | `px-4 py-2` | - |
-| Button (sm) | `px-3 py-1.5` | - |
-| Input | `px-3 py-2` | - |
-| Form Groups | - | `space-y-4` |
-| List Items | `py-3 px-4` | - |
-| Transaction Row | `py-4 px-4` | - |
+| Component        | Padding                                      | Gap         |
+| ---------------- | -------------------------------------------- | ----------- |
+| Page             | `px-4 py-6` (mobile) / `px-8 py-8` (desktop) | -           |
+| Card             | `p-6`                                        | -           |
+| Card Header      | `pb-4`                                       | `space-y-1` |
+| Card Content     | -                                            | `space-y-4` |
+| Button (default) | `px-4 py-2`                                  | -           |
+| Button (sm)      | `px-3 py-1.5`                                | -           |
+| Input            | `px-3 py-2`                                  | -           |
+| Form Groups      | -                                            | `space-y-4` |
+| List Items       | `py-3 px-4`                                  | -           |
+| Transaction Row  | `py-4 px-4`                                  | -           |
 
 ### Container & Layout
 
 **Max Content Width:** 1280px
 
 ```jsx
-<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-  {/* Page content */}
-</div>
+<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">{/* Page content */}</div>
 ```
 
 **Dashboard Grid:**
+
 ```jsx
-<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-  {/* Summary cards */}
-</div>
+<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">{/* Summary cards */}</div>
 ```
 
 ### Responsive Breakpoints
 
-| Breakpoint | Min Width | Usage |
-|------------|-----------|-------|
-| `sm` | 640px | Large phones landscape |
-| `md` | 768px | Tablets |
-| `lg` | 1024px | Desktop |
-| `xl` | 1280px | Large desktop |
-| `2xl` | 1536px | Extra large screens |
+| Breakpoint | Min Width | Usage                  |
+| ---------- | --------- | ---------------------- |
+| `sm`       | 640px     | Large phones landscape |
+| `md`       | 768px     | Tablets                |
+| `lg`       | 1024px    | Desktop                |
+| `xl`       | 1280px    | Large desktop          |
+| `2xl`      | 1536px    | Extra large screens    |
 
 ### Layout Patterns
 
 **Sidebar Layout (Desktop):**
+
 ```
 ┌──────────────────────────────────────────────────────────┐
 │ Header (fixed)                                    [User] │
@@ -426,6 +434,7 @@ Based on 4px base unit (Tailwind default):
 ```
 
 **Mobile Layout:**
+
 ```
 ┌──────────────────────┐
 │ Header        [Menu] │
@@ -451,37 +460,43 @@ Based on 4px base unit (Tailwind default):
 --radius: 0.5rem;
 ```
 
-| Size | Value | Tailwind | Usage |
-|------|-------|----------|-------|
-| None | 0 | `rounded-none` | Tables, specific edges |
-| Small | 4px | `rounded` | Badges, small elements |
-| Medium | 6px | `rounded-md` | Buttons, inputs |
-| Large | 8px | `rounded-lg` | Cards, dialogs |
-| XL | 12px | `rounded-xl` | Large cards, modals |
-| Full | 9999px | `rounded-full` | Pills, avatars, circular buttons |
+| Size   | Value  | Tailwind       | Usage                            |
+| ------ | ------ | -------------- | -------------------------------- |
+| None   | 0      | `rounded-none` | Tables, specific edges           |
+| Small  | 4px    | `rounded`      | Badges, small elements           |
+| Medium | 6px    | `rounded-md`   | Buttons, inputs                  |
+| Large  | 8px    | `rounded-lg`   | Cards, dialogs                   |
+| XL     | 12px   | `rounded-xl`   | Large cards, modals              |
+| Full   | 9999px | `rounded-full` | Pills, avatars, circular buttons |
 
 ### Shadows
 
-| Level | Tailwind | CSS | Usage |
-|-------|----------|-----|-------|
-| None | `shadow-none` | - | Flat elements |
-| XS | `shadow-xs` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
-| Small | `shadow-sm` | `0 1px 3px rgba(0,0,0,0.1)` | Cards (default) |
-| Medium | `shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Dropdowns, popovers |
-| Large | `shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Dialogs, modals |
-| XL | `shadow-xl` | `0 20px 25px rgba(0,0,0,0.1)` | Elevated modals |
+| Level  | Tailwind      | CSS                           | Usage               |
+| ------ | ------------- | ----------------------------- | ------------------- |
+| None   | `shadow-none` | -                             | Flat elements       |
+| XS     | `shadow-xs`   | `0 1px 2px rgba(0,0,0,0.05)`  | Subtle lift         |
+| Small  | `shadow-sm`   | `0 1px 3px rgba(0,0,0,0.1)`   | Cards (default)     |
+| Medium | `shadow-md`   | `0 4px 6px rgba(0,0,0,0.1)`   | Dropdowns, popovers |
+| Large  | `shadow-lg`   | `0 10px 15px rgba(0,0,0,0.1)` | Dialogs, modals     |
+| XL     | `shadow-xl`   | `0 20px 25px rgba(0,0,0,0.1)` | Elevated modals     |
 
 **Card Shadow:**
+
 ```css
 .card {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.06);
 }
 ```
 
 **Elevated Card (hover):**
+
 ```css
 .card:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.06);
 }
 ```
 
@@ -493,25 +508,26 @@ Based on 4px base unit (Tailwind default):
 
 **Variants:**
 
-| Variant | Background | Text | Border | Usage |
-|---------|------------|------|--------|-------|
-| `default` | Emerald 500 | White | None | Primary actions |
-| `secondary` | Gray 100 | Gray 900 | None | Secondary actions |
-| `outline` | Transparent | Gray 700 | Gray 300 | Tertiary actions |
-| `ghost` | Transparent | Gray 700 | None | Minimal actions |
-| `destructive` | Red 500 | White | None | Delete, remove |
-| `link` | Transparent | Emerald 600 | None | Inline links |
+| Variant       | Background  | Text        | Border   | Usage             |
+| ------------- | ----------- | ----------- | -------- | ----------------- |
+| `default`     | Emerald 500 | White       | None     | Primary actions   |
+| `secondary`   | Gray 100    | Gray 900    | None     | Secondary actions |
+| `outline`     | Transparent | Gray 700    | Gray 300 | Tertiary actions  |
+| `ghost`       | Transparent | Gray 700    | None     | Minimal actions   |
+| `destructive` | Red 500     | White       | None     | Delete, remove    |
+| `link`        | Transparent | Emerald 600 | None     | Inline links      |
 
 **Sizes:**
 
-| Size | Height | Padding | Font |
-|------|--------|---------|------|
-| `sm` | 32px | `px-3 py-1.5` | 12px |
-| `default` | 40px | `px-4 py-2` | 14px |
-| `lg` | 48px | `px-6 py-3` | 16px |
-| `icon` | 40px | `p-2` | - |
+| Size      | Height | Padding       | Font |
+| --------- | ------ | ------------- | ---- |
+| `sm`      | 32px   | `px-3 py-1.5` | 12px |
+| `default` | 40px   | `px-4 py-2`   | 14px |
+| `lg`      | 48px   | `px-6 py-3`   | 16px |
+| `icon`    | 40px   | `p-2`         | -    |
 
 **States:**
+
 ```css
 /* Hover */
 .btn-primary:hover {
@@ -525,7 +541,7 @@ Based on 4px base unit (Tailwind default):
 
 /* Focus */
 .btn:focus-visible {
-  outline: 2px solid #10B981;
+  outline: 2px solid #10b981;
   outline-offset: 2px;
 }
 
@@ -537,29 +553,30 @@ Based on 4px base unit (Tailwind default):
 ```
 
 **Implementation:**
+
 ```jsx
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
+  'inline-flex items-center justify-center rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]',
   {
     variants: {
       variant: {
-        default: "bg-emerald-500 text-white hover:bg-emerald-600",
-        secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
-        outline: "border border-gray-300 bg-transparent hover:bg-gray-50",
-        ghost: "hover:bg-gray-100",
-        destructive: "bg-red-500 text-white hover:bg-red-600",
-        link: "text-emerald-600 underline-offset-4 hover:underline",
+        default: 'bg-emerald-500 text-white hover:bg-emerald-600',
+        secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200',
+        outline: 'border border-gray-300 bg-transparent hover:bg-gray-50',
+        ghost: 'hover:bg-gray-100',
+        destructive: 'bg-red-500 text-white hover:bg-red-600',
+        link: 'text-emerald-600 underline-offset-4 hover:underline',
       },
       size: {
-        sm: "h-8 px-3 text-xs",
-        default: "h-10 px-4",
-        lg: "h-12 px-6 text-base",
-        icon: "h-10 w-10",
+        sm: 'h-8 px-3 text-xs',
+        default: 'h-10 px-4',
+        lg: 'h-12 px-6 text-base',
+        icon: 'h-10 w-10',
       },
     },
     defaultVariants: {
-      variant: "default",
-      size: "default",
+      variant: 'default',
+      size: 'default',
     },
   }
 );
@@ -568,60 +585,60 @@ const buttonVariants = cva(
 ### Card
 
 **Structure:**
+
 ```jsx
 <Card>
   <CardHeader>
     <CardTitle>Spending This Month</CardTitle>
     <CardDescription>Your expenses by category</CardDescription>
   </CardHeader>
-  <CardContent>
-    {/* Content */}
-  </CardContent>
-  <CardFooter>
-    {/* Optional actions */}
-  </CardFooter>
+  <CardContent>{/* Content */}</CardContent>
+  <CardFooter>{/* Optional actions */}</CardFooter>
 </Card>
 ```
 
 **Styling:**
+
 ```jsx
 // Card container
-"rounded-lg border border-gray-200 bg-white shadow-sm"
+'rounded-lg border border-gray-200 bg-white shadow-sm';
 
 // CardHeader
-"flex flex-col space-y-1 p-6 pb-4"
+'flex flex-col space-y-1 p-6 pb-4';
 
 // CardTitle
-"text-lg font-semibold text-gray-900"
+'text-lg font-semibold text-gray-900';
 
 // CardDescription
-"text-sm text-gray-500"
+'text-sm text-gray-500';
 
 // CardContent
-"p-6 pt-0"
+'p-6 pt-0';
 
 // CardFooter
-"flex items-center p-6 pt-0"
+'flex items-center p-6 pt-0';
 ```
 
 ### Badge
 
 **Variants:**
 
-| Variant | Background | Text | Usage |
-|---------|------------|------|-------|
-| `default` | Emerald 100 | Emerald 700 | Default, positive |
-| `secondary` | Gray 100 | Gray 700 | Neutral |
-| `destructive` | Red 100 | Red 700 | Negative, error |
-| `warning` | Amber 100 | Amber 700 | Pending, warning |
-| `outline` | Transparent | Gray 700 | Minimal |
+| Variant       | Background  | Text        | Usage             |
+| ------------- | ----------- | ----------- | ----------------- |
+| `default`     | Emerald 100 | Emerald 700 | Default, positive |
+| `secondary`   | Gray 100    | Gray 700    | Neutral           |
+| `destructive` | Red 100     | Red 700     | Negative, error   |
+| `warning`     | Amber 100   | Amber 700   | Pending, warning  |
+| `outline`     | Transparent | Gray 700    | Minimal           |
 
 **Styling:**
+
 ```jsx
-"inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium';
 ```
 
 **Category Badge:**
+
 ```jsx
 function CategoryBadge({ category }: { category: Category }) {
   return (
@@ -642,6 +659,7 @@ function CategoryBadge({ category }: { category: Category }) {
 ### Dialog/Modal
 
 **Structure:**
+
 ```jsx
 <Dialog>
   <DialogTrigger asChild>
@@ -650,9 +668,7 @@ function CategoryBadge({ category }: { category: Category }) {
   <DialogContent>
     <DialogHeader>
       <DialogTitle>Split Transaction</DialogTitle>
-      <DialogDescription>
-        Divide this transaction across multiple categories.
-      </DialogDescription>
+      <DialogDescription>Divide this transaction across multiple categories.</DialogDescription>
     </DialogHeader>
     {/* Content */}
     <DialogFooter>
@@ -664,25 +680,27 @@ function CategoryBadge({ category }: { category: Category }) {
 ```
 
 **Overlay:**
+
 ```jsx
-"fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+'fixed inset-0 z-50 bg-black/50 backdrop-blur-sm';
 ```
 
 **Content:**
+
 ```jsx
-"fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-xl border border-gray-200 bg-white p-6 shadow-xl"
+'fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-xl border border-gray-200 bg-white p-6 shadow-xl';
 ```
 
 ### Toast/Notification
 
 **Types:**
 
-| Type | Background | Icon | Border |
-|------|------------|------|--------|
+| Type      | Background | Icon                  | Border      |
+| --------- | ---------- | --------------------- | ----------- |
 | `success` | Emerald 50 | CheckCircle (Emerald) | Emerald 200 |
-| `error` | Red 50 | XCircle (Red) | Red 200 |
-| `warning` | Amber 50 | AlertTriangle (Amber) | Amber 200 |
-| `info` | Blue 50 | Info (Blue) | Blue 200 |
+| `error`   | Red 50     | XCircle (Red)         | Red 200     |
+| `warning` | Amber 50   | AlertTriangle (Amber) | Amber 200   |
+| `info`    | Blue 50    | Info (Blue)           | Blue 200    |
 
 **Positioning:** Bottom-right, fixed
 
@@ -697,15 +715,14 @@ function CategoryBadge({ category }: { category: Category }) {
 ### Header
 
 **Desktop Header:**
+
 ```jsx
 <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
   <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
     {/* Logo */}
     <div className="flex items-center gap-8">
       <Logo />
-      <nav className="hidden md:flex items-center gap-1">
-        {/* Nav items */}
-      </nav>
+      <nav className="hidden items-center gap-1 md:flex">{/* Nav items */}</nav>
     </div>
 
     {/* Right side */}
@@ -731,10 +748,10 @@ function CategoryBadge({ category }: { category: Category }) {
         href={item.href}
         className={({ isActive }) =>
           cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
             isActive
-              ? "bg-emerald-50 text-emerald-700"
-              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              ? 'bg-emerald-50 text-emerald-700'
+              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
           )
         }
       >
@@ -749,7 +766,7 @@ function CategoryBadge({ category }: { category: Category }) {
 ### Bottom Navigation (Mobile)
 
 ```jsx
-<nav className="fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white md:hidden">
+<nav className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white md:hidden">
   <div className="flex h-16 items-center justify-around">
     {navItems.map((item) => (
       <NavLink
@@ -757,8 +774,8 @@ function CategoryBadge({ category }: { category: Category }) {
         href={item.href}
         className={({ isActive }) =>
           cn(
-            "flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium",
-            isActive ? "text-emerald-600" : "text-gray-500"
+            'flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium',
+            isActive ? 'text-emerald-600' : 'text-gray-500'
           )
         }
       >
@@ -772,13 +789,13 @@ function CategoryBadge({ category }: { category: Category }) {
 
 ### Navigation Items
 
-| Item | Icon | Path |
-|------|------|------|
-| Dashboard | `LayoutDashboard` | `/` |
-| Transactions | `ArrowLeftRight` | `/transactions` |
-| Categories | `Tags` | `/categories` |
-| Reimbursements | `Receipt` | `/reimbursements` |
-| Settings | `Settings` | `/settings` |
+| Item           | Icon              | Path              |
+| -------------- | ----------------- | ----------------- |
+| Dashboard      | `LayoutDashboard` | `/`               |
+| Transactions   | `ArrowLeftRight`  | `/transactions`   |
+| Categories     | `Tags`            | `/categories`     |
+| Reimbursements | `Receipt`         | `/reimbursements` |
+| Settings       | `Settings`        | `/settings`       |
 
 ### Active State
 
@@ -792,6 +809,7 @@ function CategoryBadge({ category }: { category: Category }) {
 ### Transaction List
 
 **Transaction Row:**
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  📅        Description                   Category           Amount     │
@@ -801,21 +819,16 @@ function CategoryBadge({ category }: { category: Category }) {
 ```
 
 **Row Structure:**
+
 ```jsx
-<div className="flex items-center gap-4 border-b border-gray-100 px-4 py-3 hover:bg-gray-50 transition-colors">
+<div className="flex items-center gap-4 border-b border-gray-100 px-4 py-3 transition-colors hover:bg-gray-50">
   {/* Date */}
-  <div className="w-16 flex-shrink-0 text-sm text-gray-500">
-    Jan 15
-  </div>
+  <div className="w-16 flex-shrink-0 text-sm text-gray-500">Jan 15</div>
 
   {/* Description */}
-  <div className="flex-1 min-w-0">
-    <p className="truncate font-medium text-gray-900">
-      Albert Heijn 1234
-    </p>
-    <p className="truncate text-sm text-gray-500">
-      Amsterdam
-    </p>
+  <div className="min-w-0 flex-1">
+    <p className="truncate font-medium text-gray-900">Albert Heijn 1234</p>
+    <p className="truncate text-sm text-gray-500">Amsterdam</p>
   </div>
 
   {/* Category */}
@@ -825,9 +838,7 @@ function CategoryBadge({ category }: { category: Category }) {
 
   {/* Amount */}
   <div className="w-24 flex-shrink-0 text-right">
-    <span className="font-medium tabular-nums text-red-500">
-      -€45.50
-    </span>
+    <span className="font-medium tabular-nums text-red-500">-€45.50</span>
   </div>
 
   {/* Actions (on hover) */}
@@ -840,15 +851,14 @@ function CategoryBadge({ category }: { category: Category }) {
 ### Summary Cards
 
 **Metric Card:**
+
 ```jsx
 <Card>
   <CardContent className="p-6">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium text-gray-500">Total Expenses</p>
-        <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">
-          €1,234.56
-        </p>
+        <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">€1,234.56</p>
         <p className="mt-1 text-sm text-gray-500">
           <span className="text-red-500">+12%</span> vs last month
         </p>
@@ -864,26 +874,24 @@ function CategoryBadge({ category }: { category: Category }) {
 ### Empty States
 
 **No Transactions:**
+
 ```jsx
 <div className="flex flex-col items-center justify-center py-12 text-center">
   <div className="rounded-full bg-gray-100 p-4">
     <Receipt className="h-8 w-8 text-gray-400" />
   </div>
-  <h3 className="mt-4 text-lg font-medium text-gray-900">
-    No transactions yet
-  </h3>
+  <h3 className="mt-4 text-lg font-medium text-gray-900">No transactions yet</h3>
   <p className="mt-2 max-w-sm text-sm text-gray-500">
     Connect your bank account to start seeing your transactions automatically.
   </p>
-  <Button className="mt-6">
-    Connect Bank Account
-  </Button>
+  <Button className="mt-6">Connect Bank Account</Button>
 </div>
 ```
 
 ### Loading States
 
 **Skeleton for Transaction Row:**
+
 ```jsx
 <div className="flex items-center gap-4 px-4 py-3">
   <div className="h-4 w-12 animate-pulse rounded bg-gray-200" />
@@ -903,9 +911,7 @@ function CategoryBadge({ category }: { category: Category }) {
 ### Input
 
 ```jsx
-<input
-  className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-50"
-/>
+<input className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-50" />
 ```
 
 ### Select
@@ -925,9 +931,7 @@ function CategoryBadge({ category }: { category: Category }) {
 ### Label
 
 ```jsx
-<label className="text-sm font-medium text-gray-700">
-  Category
-</label>
+<label className="text-sm font-medium text-gray-700">Category</label>
 ```
 
 ### Form Group Pattern
@@ -937,9 +941,7 @@ function CategoryBadge({ category }: { category: Category }) {
   <div className="space-y-2">
     <Label htmlFor="amount">Amount</Label>
     <div className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-        €
-      </span>
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
       <Input
         id="amount"
         type="number"
@@ -982,7 +984,7 @@ function CategoryBadge({ category }: { category: Category }) {
     type="number"
     step="0.01"
     min="0"
-    className="h-10 w-full rounded-md border border-gray-300 bg-white pl-7 pr-3 text-right tabular-nums focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+    className="h-10 w-full rounded-md border border-gray-300 bg-white pl-7 pr-3 text-right tabular-nums [appearance:textfield] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
     placeholder="0.00"
   />
 </div>
@@ -1034,17 +1036,18 @@ function CategoryBadge({ category }: { category: Category }) {
 
 ### Icon Sizes
 
-| Size | Class | Pixels | Usage |
-|------|-------|--------|-------|
-| XS | `h-3 w-3` | 12px | Inline with small text |
-| SM | `h-4 w-4` | 16px | Buttons, inputs |
-| MD | `h-5 w-5` | 20px | Navigation, list items |
-| LG | `h-6 w-6` | 24px | Cards, headers |
-| XL | `h-8 w-8` | 32px | Empty states |
+| Size | Class     | Pixels | Usage                  |
+| ---- | --------- | ------ | ---------------------- |
+| XS   | `h-3 w-3` | 12px   | Inline with small text |
+| SM   | `h-4 w-4` | 16px   | Buttons, inputs        |
+| MD   | `h-5 w-5` | 20px   | Navigation, list items |
+| LG   | `h-6 w-6` | 24px   | Cards, headers         |
+| XL   | `h-8 w-8` | 32px   | Empty states           |
 
 ### Icon Categories
 
 **Navigation:**
+
 - `LayoutDashboard` - Dashboard
 - `ArrowLeftRight` - Transactions
 - `Tags` - Categories
@@ -1052,6 +1055,7 @@ function CategoryBadge({ category }: { category: Category }) {
 - `Settings` - Settings
 
 **Actions:**
+
 - `Plus` - Add
 - `Pencil` - Edit
 - `Trash2` - Delete
@@ -1063,6 +1067,7 @@ function CategoryBadge({ category }: { category: Category }) {
 - `RefreshCw` - Sync/Refresh
 
 **Finance:**
+
 - `Wallet` - Account
 - `CreditCard` - Card
 - `Banknote` - Cash
@@ -1073,6 +1078,7 @@ function CategoryBadge({ category }: { category: Category }) {
 - `ArrowDownRight` - Expense
 
 **Status:**
+
 - `CheckCircle` - Success
 - `XCircle` - Error
 - `AlertTriangle` - Warning
@@ -1081,6 +1087,7 @@ function CategoryBadge({ category }: { category: Category }) {
 - `Clock` - Pending
 
 **UI:**
+
 - `ChevronDown` / `ChevronUp` / `ChevronLeft` / `ChevronRight`
 - `Search` - Search
 - `Filter` - Filter
@@ -1150,21 +1157,14 @@ export const CHART_COLORS = [
       dataKey="value"
     >
       {categoryData.map((entry, index) => (
-        <Cell
-          key={entry.name}
-          fill={entry.color}
-          stroke="white"
-          strokeWidth={2}
-        />
+        <Cell key={entry.name} fill={entry.color} stroke="white" strokeWidth={2} />
       ))}
     </Pie>
     <Tooltip
       content={({ payload }) => (
         <div className="rounded-lg border bg-white p-3 shadow-lg">
           <p className="font-medium">{payload?.[0]?.name}</p>
-          <p className="text-lg font-bold tabular-nums">
-            {formatAmount(payload?.[0]?.value)}
-          </p>
+          <p className="text-lg font-bold tabular-nums">{formatAmount(payload?.[0]?.value)}</p>
         </div>
       )}
     />
@@ -1200,11 +1200,7 @@ export const CHART_COLORS = [
         </div>
       )}
     />
-    <Bar
-      dataKey="expenses"
-      fill="#EF4444"
-      radius={[4, 4, 0, 0]}
-    />
+    <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} />
   </BarChart>
 </ResponsiveContainer>
 ```
@@ -1250,13 +1246,13 @@ export const CHART_COLORS = [
 
 ### Durations
 
-| Speed | Duration | Usage |
-|-------|----------|-------|
-| Instant | 75ms | Micro-feedback (button press) |
-| Fast | 150ms | Hover states, small transitions |
-| Normal | 200ms | Most transitions |
-| Slow | 300ms | Modals, page transitions |
-| Deliberate | 500ms | Complex animations |
+| Speed      | Duration | Usage                           |
+| ---------- | -------- | ------------------------------- |
+| Instant    | 75ms     | Micro-feedback (button press)   |
+| Fast       | 150ms    | Hover states, small transitions |
+| Normal     | 200ms    | Most transitions                |
+| Slow       | 300ms    | Modals, page transitions        |
+| Deliberate | 500ms    | Complex animations              |
 
 ### Easing Functions
 
@@ -1277,9 +1273,13 @@ transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
 ### Common Animations
 
 **Hover Transitions:**
+
 ```css
 .interactive {
-  transition: background-color 150ms, color 150ms, transform 75ms;
+  transition:
+    background-color 150ms,
+    color 150ms,
+    transform 75ms;
 }
 
 .interactive:hover {
@@ -1292,6 +1292,7 @@ transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
 ```
 
 **Fade In:**
+
 ```css
 @keyframes fadeIn {
   from {
@@ -1308,6 +1309,7 @@ transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
 ```
 
 **Slide Up (for toasts, modals):**
+
 ```css
 @keyframes slideUp {
   from {
@@ -1326,14 +1328,17 @@ transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
 ```
 
 **Loading Spinner:**
+
 ```jsx
 <Loader2 className="h-5 w-5 animate-spin" />
 ```
 
 **Skeleton Pulse:**
+
 ```css
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -1370,14 +1375,14 @@ Always respect user preferences:
 
 All text meets WCAG AA standards (4.5:1 for normal text, 3:1 for large text):
 
-| Combination | Contrast Ratio |
-|-------------|----------------|
-| Gray 900 on White | 16:1 |
-| Gray 700 on White | 8.5:1 |
-| Gray 500 on White | 4.6:1 |
-| Emerald 600 on White | 4.5:1 |
-| Red 500 on White | 4.5:1 |
-| White on Emerald 500 | 4.5:1 |
+| Combination          | Contrast Ratio |
+| -------------------- | -------------- |
+| Gray 900 on White    | 16:1           |
+| Gray 700 on White    | 8.5:1          |
+| Gray 500 on White    | 4.6:1          |
+| Emerald 600 on White | 4.5:1          |
+| Red 500 on White     | 4.5:1          |
+| White on Emerald 500 | 4.5:1          |
 
 ### Focus States
 
@@ -1385,7 +1390,7 @@ All interactive elements have visible focus indicators:
 
 ```css
 :focus-visible {
-  outline: 2px solid #10B981;
+  outline: 2px solid #10b981;
   outline-offset: 2px;
 }
 ```
@@ -1425,6 +1430,7 @@ All interactive elements have visible focus indicators:
 ### ARIA Patterns
 
 **Dialog:**
+
 ```jsx
 <div
   role="dialog"
@@ -1435,6 +1441,7 @@ All interactive elements have visible focus indicators:
 ```
 
 **Navigation:**
+
 ```jsx
 <nav aria-label="Main navigation">
   <ul role="list">
@@ -1448,6 +1455,7 @@ All interactive elements have visible focus indicators:
 ```
 
 **Loading States:**
+
 ```jsx
 <div aria-busy="true" aria-label="Loading transactions">
   <Loader2 className="animate-spin" aria-hidden="true" />
@@ -1463,9 +1471,9 @@ All interactive elements have visible focus indicators:
 ```css
 .dark {
   /* Backgrounds */
-  --color-background: 220 14% 10%;        /* Near black */
-  --color-foreground: 210 20% 98%;        /* Off white */
-  --color-card: 220 14% 14%;              /* Slightly lighter */
+  --color-background: 220 14% 10%; /* Near black */
+  --color-foreground: 210 20% 98%; /* Off white */
+  --color-card: 220 14% 14%; /* Slightly lighter */
   --color-muted: 220 14% 18%;
 
   /* Text */
@@ -1489,24 +1497,27 @@ All interactive elements have visible focus indicators:
 ### Component Adjustments
 
 **Cards:**
+
 ```jsx
 // Light
-"border-gray-200 bg-white"
+'border-gray-200 bg-white';
 // Dark
-"dark:border-gray-800 dark:bg-gray-900"
+'dark:border-gray-800 dark:bg-gray-900';
 ```
 
 **Text:**
+
 ```jsx
 // Primary text
-"text-gray-900 dark:text-gray-100"
+'text-gray-900 dark:text-gray-100';
 // Secondary text
-"text-gray-500 dark:text-gray-400"
+'text-gray-500 dark:text-gray-400';
 ```
 
 **Shadows (reduce in dark mode):**
+
 ```jsx
-"shadow-sm dark:shadow-none dark:ring-1 dark:ring-gray-800"
+'shadow-sm dark:shadow-none dark:ring-1 dark:ring-gray-800';
 ```
 
 ### Implementation
@@ -1704,45 +1715,45 @@ src/
 
 ### Colors (Hex)
 
-| Name | Hex | Usage |
-|------|-----|-------|
+| Name        | Hex       | Usage                    |
+| ----------- | --------- | ------------------------ |
 | Emerald 500 | `#10B981` | Primary, success, income |
-| Emerald 600 | `#059669` | Primary hover |
-| Red 500 | `#EF4444` | Expenses, errors |
-| Amber 500 | `#F59E0B` | Warnings, pending |
-| Gray 900 | `#111827` | Primary text |
-| Gray 500 | `#6B7280` | Muted text |
-| Gray 200 | `#E5E7EB` | Borders |
-| Gray 50 | `#F9FAFB` | Page background |
+| Emerald 600 | `#059669` | Primary hover            |
+| Red 500     | `#EF4444` | Expenses, errors         |
+| Amber 500   | `#F59E0B` | Warnings, pending        |
+| Gray 900    | `#111827` | Primary text             |
+| Gray 500    | `#6B7280` | Muted text               |
+| Gray 200    | `#E5E7EB` | Borders                  |
+| Gray 50     | `#F9FAFB` | Page background          |
 
 ### Spacing
 
-| Value | Pixels | Usage |
-|-------|--------|-------|
-| 2 | 8px | Tight spacing |
-| 4 | 16px | Standard |
-| 6 | 24px | Card padding |
-| 8 | 32px | Section spacing |
+| Value | Pixels | Usage           |
+| ----- | ------ | --------------- |
+| 2     | 8px    | Tight spacing   |
+| 4     | 16px   | Standard        |
+| 6     | 24px   | Card padding    |
+| 8     | 32px   | Section spacing |
 
 ### Typography
 
 | Style | Size | Weight |
-|-------|------|--------|
-| H1 | 30px | 700 |
-| H2 | 24px | 600 |
-| Body | 14px | 400 |
-| Small | 12px | 400 |
+| ----- | ---- | ------ |
+| H1    | 30px | 700    |
+| H2    | 24px | 600    |
+| Body  | 14px | 400    |
+| Small | 12px | 400    |
 
 ### Radius
 
-| Size | Value |
-|------|-------|
-| Default | 8px (`rounded-lg`) |
-| Buttons | 6px (`rounded-md`) |
-| Badges | 9999px (`rounded-full`) |
+| Size    | Value                   |
+| ------- | ----------------------- |
+| Default | 8px (`rounded-lg`)      |
+| Buttons | 6px (`rounded-md`)      |
+| Badges  | 9999px (`rounded-full`) |
 
 ---
 
-*Document Version: 1.0*
-*Created: January 2026*
-*Last Updated: January 2026*
+_Document Version: 1.0_
+_Created: January 2026_
+_Last Updated: January 2026_

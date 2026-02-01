@@ -7,6 +7,7 @@ A concise reference guide for structured logging with structlog and comprehensiv
 ## Table of Contents
 
 **Part 1: Logging with structlog**
+
 1. [Why structlog](#1-why-structlog)
 2. [Configuration](#2-configuration)
 3. [FastAPI Integration](#3-fastapi-integration)
@@ -14,13 +15,7 @@ A concise reference guide for structured logging with structlog and comprehensiv
 5. [Exception Logging](#5-exception-logging)
 6. [Testing with structlog](#6-testing-with-structlog)
 
-**Part 2: Testing Strategy**
-7. [Testing Pyramid](#7-testing-pyramid)
-8. [Unit Testing (Python)](#8-unit-testing-python)
-9. [Integration Testing (FastAPI)](#9-integration-testing-fastapi)
-10. [React Component Testing](#10-react-component-testing)
-11. [E2E Testing with Playwright](#11-e2e-testing-with-playwright)
-12. [Test Organization](#12-test-organization)
+**Part 2: Testing Strategy** 7. [Testing Pyramid](#7-testing-pyramid) 8. [Unit Testing (Python)](#8-unit-testing-python) 9. [Integration Testing (FastAPI)](#9-integration-testing-fastapi) 10. [React Component Testing](#10-react-component-testing) 11. [E2E Testing with Playwright](#11-e2e-testing-with-playwright) 12. [Test Organization](#12-test-organization)
 
 ---
 
@@ -30,13 +25,13 @@ A concise reference guide for structured logging with structlog and comprehensiv
 
 ### Advantages Over Standard Logging
 
-| Feature | Standard logging | structlog |
-|---------|------------------|-----------|
-| Output format | Plain text | Structured key-value pairs |
-| Context | Manual per-call | Bound loggers carry context |
-| Configuration | Complex hierarchy | Declarative processor chains |
-| JSON output | Requires custom formatter | Built-in |
-| Performance | Good | Excellent with caching |
+| Feature       | Standard logging          | structlog                    |
+| ------------- | ------------------------- | ---------------------------- |
+| Output format | Plain text                | Structured key-value pairs   |
+| Context       | Manual per-call           | Bound loggers carry context  |
+| Configuration | Complex hierarchy         | Declarative processor chains |
+| JSON output   | Requires custom formatter | Built-in                     |
+| Performance   | Good                      | Excellent with caching       |
 
 ### Key Benefits
 
@@ -317,25 +312,28 @@ def test_service_logs_correctly(log_output):
 
 ### Distribution
 
-| Layer | Percentage | Speed | Scope |
-|-------|------------|-------|-------|
-| Unit | 70% | ms | Single function/class |
-| Integration | 20% | seconds | Multiple components |
-| E2E | 10% | minutes | Full system |
+| Layer       | Percentage | Speed   | Scope                 |
+| ----------- | ---------- | ------- | --------------------- |
+| Unit        | 70%        | ms      | Single function/class |
+| Integration | 20%        | seconds | Multiple components   |
+| E2E         | 10%        | minutes | Full system           |
 
 ### What Belongs Where
 
 **Unit Tests:**
+
 - Pure functions (streak calculation, date utilities)
 - Pydantic validators
 - Business logic with mocked dependencies
 
 **Integration Tests:**
+
 - API endpoints with real database
 - Repository operations
 - Service layer with real dependencies
 
 **E2E Tests:**
+
 - Critical user journeys only
 - Full frontend + backend interaction
 - Visual regression testing
@@ -592,9 +590,7 @@ export function renderWithProviders(ui) {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        {ui}
-      </BrowserRouter>
+      <BrowserRouter>{ui}</BrowserRouter>
     </QueryClientProvider>
   );
 }
@@ -613,7 +609,7 @@ screen.getByRole('button', { name: /submit/i });
 screen.getByLabelText('Email');
 
 // Avoid
-screen.getByTestId('submit-button');  // Only when necessary
+screen.getByTestId('submit-button'); // Only when necessary
 ```
 
 ---
@@ -726,7 +722,7 @@ test('dashboard matches snapshot', async ({ page }) => {
 
   // Compare screenshot
   await expect(page).toHaveScreenshot('dashboard.png', {
-    mask: [page.locator('.timestamp')],  // Mask dynamic content
+    mask: [page.locator('.timestamp')], // Mask dynamic content
   });
 });
 ```

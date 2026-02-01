@@ -7,6 +7,7 @@ Pay special attention to naming of existing utils, types, and models. Import fro
 ## Feature Description
 
 Complete the reimbursement tracking workflow and data export functionality for Free Lunch. This enables users to:
+
 1. Mark expenses as reimbursable (work expenses or personal IOUs)
 2. Clear/match reimbursements when money is received back
 3. View pending and cleared reimbursements on a dedicated page
@@ -27,6 +28,7 @@ So that I own my data and can use it elsewhere
 ## Problem Statement
 
 Currently, the Reimbursements page is a placeholder with no functionality. Users cannot:
+
 - Mark transactions as reimbursable
 - Clear reimbursements when money comes back
 - See a list of pending/cleared reimbursements
@@ -37,6 +39,7 @@ The Settings page has placeholder export buttons that don't work.
 ## Solution Statement
 
 Implement the complete reimbursement workflow:
+
 1. Add "Mark as Reimbursable" action to transactions
 2. Add "Contains Reimbursement" action to income transactions
 3. Build out the Reimbursements page with pending/cleared lists
@@ -47,6 +50,7 @@ Implement the complete reimbursement workflow:
 **Feature Type**: New Capability
 **Estimated Complexity**: Medium
 **Primary Systems Affected**:
+
 - `src/pages/Reimbursements.tsx` - Complete reimbursement page
 - `src/pages/Transactions.tsx` - Add reimbursement actions
 - `src/pages/Settings.tsx` - Add working export
@@ -55,6 +59,7 @@ Implement the complete reimbursement workflow:
 - New components for reimbursement dialogs and lists
 
 **Dependencies**:
+
 - Existing transaction CRUD (already implemented)
 - Existing types for `ReimbursementInfo` (already defined in `src/types/index.ts`)
 - date-fns for date formatting
@@ -66,37 +71,45 @@ Implement the complete reimbursement workflow:
 ### Relevant Codebase Files - MUST READ BEFORE IMPLEMENTING
 
 **Core Types & Data Model:**
+
 - `src/types/index.ts` (lines 78-99) - `ReimbursementInfo` type definition with `type`, `status`, `note`, `linkedTransactionId`, `clearedAt`
 - `src/types/index.ts` (lines 60-85) - Full `Transaction` type with `reimbursement` field
 
 **Existing Transaction Patterns:**
+
 - `src/hooks/useTransactions.ts` (full file) - Transaction CRUD hooks pattern, especially `useUpdateTransaction` (lines 171-203)
 - `src/hooks/useDashboardData.ts` (lines 130-152) - `calculateSummary` already handles pending reimbursements correctly
 - `src/components/transactions/TransactionRow.tsx` (full file) - Transaction row UI with category picker pattern
 
 **Page Patterns:**
+
 - `src/pages/Transactions.tsx` (full file) - Page structure, dialog patterns, mutation handling
 - `src/pages/Settings.tsx` (lines 47-61) - Placeholder export buttons to replace
 - `src/pages/Reimbursements.tsx` (full file) - Current placeholder to replace
 
 **Dialog Component Pattern:**
+
 - `src/components/transactions/TransactionForm.tsx` - Dialog with form pattern
 - `src/components/ui/dialog.tsx` - shadcn/ui Dialog components
 
 **Utility Functions:**
+
 - `src/lib/utils.ts` (full file) - `formatAmount`, `formatDate`, `getAmountColor` utilities
 - `src/lib/firebase.ts` - Firebase/Firestore initialization
 
 **E2E Test Pattern:**
+
 - `e2e/transactions.spec.ts` (full file) - Test structure, auth fixture usage, dialog testing
 - `e2e/fixtures/auth.ts` - Auth helper functions
 
 **Design System:**
+
 - `.claude/reference/free-lunch-design-system.md` (lines 103-119) - Semantic colors including amber for pending reimbursements
 
 ### New Files to Create
 
 **Reimbursement Components:**
+
 - `src/components/reimbursements/MarkReimbursableDialog.tsx` - Dialog to mark expense as reimbursable
 - `src/components/reimbursements/ClearReimbursementDialog.tsx` - Dialog to match incoming transfer with pending expenses
 - `src/components/reimbursements/PendingReimbursementList.tsx` - List of pending reimbursements
@@ -105,12 +118,15 @@ Implement the complete reimbursement workflow:
 - `src/components/reimbursements/index.ts` - Barrel export
 
 **Export Utilities:**
+
 - `src/lib/export.ts` - CSV and JSON export functions
 
 **Hooks:**
+
 - `src/hooks/useReimbursements.ts` - Reimbursement-specific queries and mutations
 
 **Tests:**
+
 - `src/hooks/__tests__/useReimbursements.test.ts` - Unit tests for reimbursement logic
 - `src/lib/__tests__/export.test.ts` - Unit tests for export functions
 - `e2e/reimbursements.spec.ts` - E2E tests for reimbursement workflow
@@ -124,6 +140,7 @@ Implement the complete reimbursement workflow:
 ### Patterns to Follow
 
 **Mutation Pattern (from useTransactions.ts):**
+
 ```typescript
 export function useMarkAsReimbursable() {
   const queryClient = useQueryClient();
@@ -148,6 +165,7 @@ export function useMarkAsReimbursable() {
 ```
 
 **Dialog Pattern (from TransactionForm.tsx):**
+
 ```typescript
 interface MarkReimbursableDialogProps {
   open: boolean;
@@ -159,12 +177,14 @@ interface MarkReimbursableDialogProps {
 ```
 
 **Amount Color Pattern (from utils.ts):**
+
 ```typescript
 // Use getAmountColor(amount, isPending) for reimbursement amounts
 // isPending=true returns 'text-amber-500'
 ```
 
 **E2E Test Pattern:**
+
 ```typescript
 test.describe('Reimbursements Page', () => {
   test.describe.configure({ mode: 'serial' });
@@ -181,6 +201,7 @@ test.describe('Reimbursements Page', () => {
 Add reimbursement-specific hooks for marking, clearing, and querying reimbursements.
 
 **Tasks:**
+
 - Create `useReimbursements.ts` hook with mutations
 - Add `useMarkAsReimbursable` mutation
 - Add `useClearReimbursement` mutation
@@ -192,6 +213,7 @@ Add reimbursement-specific hooks for marking, clearing, and querying reimburseme
 Build the dialog components for marking and clearing reimbursements.
 
 **Tasks:**
+
 - Create `MarkReimbursableDialog` component
 - Create `ClearReimbursementDialog` component
 - Create `PendingReimbursementList` component
@@ -203,6 +225,7 @@ Build the dialog components for marking and clearing reimbursements.
 Add reimbursement actions to the transaction list.
 
 **Tasks:**
+
 - Update `TransactionRow` with "Mark as Reimbursable" action
 - Add visual indicator for reimbursable transactions
 - Add "Contains Reimbursement" action for income
@@ -213,6 +236,7 @@ Add reimbursement actions to the transaction list.
 Build out the complete Reimbursements page.
 
 **Tasks:**
+
 - Replace placeholder with real implementation
 - Add pending reimbursements section
 - Add summary statistics
@@ -224,6 +248,7 @@ Build out the complete Reimbursements page.
 Implement CSV and JSON export functionality.
 
 **Tasks:**
+
 - Create export utility functions
 - Implement CSV export with proper formatting
 - Implement JSON export with full data
@@ -235,6 +260,7 @@ Implement CSV and JSON export functionality.
 Write comprehensive tests for all new functionality.
 
 **Tasks:**
+
 - Unit tests for reimbursement hooks
 - Unit tests for export utilities
 - E2E tests for reimbursement workflow
@@ -261,11 +287,11 @@ Write comprehensive tests for all new functionality.
 
 ```typescript
 // Key functions to implement:
-export function usePendingReimbursements()
-export function useClearedReimbursements(options?: { limit?: number })
-export function useMarkAsReimbursable()
-export function useClearReimbursement()
-export function useUnmarkReimbursement()
+export function usePendingReimbursements();
+export function useClearedReimbursements(options?: { limit?: number });
+export function useMarkAsReimbursable();
+export function useClearReimbursement();
+export function useUnmarkReimbursement();
 ```
 
 #### Task 1.2: ADD reimbursement filter to useTransactions
@@ -407,9 +433,9 @@ export function useUnmarkReimbursement()
 - **IMPLEMENT**: Export utility functions
 - **FUNCTIONS**:
   ```typescript
-  export function transactionsToCSV(transactions: Transaction[], categories: Category[]): string
-  export function transactionsToJSON(transactions: Transaction[], categories: Category[]): string
-  export function downloadFile(content: string, filename: string, mimeType: string): void
+  export function transactionsToCSV(transactions: Transaction[], categories: Category[]): string;
+  export function transactionsToJSON(transactions: Transaction[], categories: Category[]): string;
+  export function downloadFile(content: string, filename: string, mimeType: string): void;
   ```
 - **CSV FORMAT**:
   - Headers: Date, Description, Amount, Category, Counterparty, Reimbursement Status, Reimbursement Type, Note
@@ -490,11 +516,13 @@ export function useUnmarkReimbursement()
 ### Unit Tests
 
 **Reimbursement Logic (`src/hooks/__tests__/useReimbursements.test.ts`):**
+
 - Test filtering functions for pending/cleared
 - Test summary calculation (totals by type)
 - Test edge cases: empty lists, all pending, all cleared
 
 **Export Functions (`src/lib/__tests__/export.test.ts`):**
+
 - Test CSV generation with special characters
 - Test JSON structure completeness
 - Test date and amount formatting
@@ -503,6 +531,7 @@ export function useUnmarkReimbursement()
 ### Integration Tests
 
 Use Firebase emulators with seeded test data:
+
 - Create transactions with various reimbursement states
 - Verify queries return correct data
 - Verify mutations update data correctly
@@ -512,6 +541,7 @@ Use Firebase emulators with seeded test data:
 **CRITICAL: E2E tests are REQUIRED for this user-facing feature.**
 
 **Reimbursement Workflow (`e2e/reimbursements.spec.ts`):**
+
 ```typescript
 test.describe('Reimbursement Workflow', () => {
   test.beforeEach(async ({ page }) => {
@@ -551,6 +581,7 @@ test.describe('Reimbursement Workflow', () => {
 ```
 
 **Export Tests:**
+
 ```typescript
 test('should download CSV export', async ({ page }) => {
   await page.goto('/settings');
@@ -620,6 +651,7 @@ npm run e2e:headed
 ```
 
 **E2E Test Coverage Requirements:**
+
 - All new user flows must have E2E tests
 - Tests must pass with Firebase emulators running
 - Tests must be deterministic (no flaky tests)

@@ -56,13 +56,13 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 
 ### Core Principles
 
-| Principle | Description |
-|-----------|-------------|
-| **Freedom** | Open source, free forever, no vendor lock-in. Users own their data. |
-| **Clarity** | Information hierarchy is clear; users can scan and understand quickly. |
-| **Simplicity** | Do one thing well. Avoid feature bloat. Every feature must earn its place. |
-| **Privacy** | Minimal data collection. No selling user data. EU data protection compliant. |
-| **Flexibility** | What Grip lacked—custom categories, split transactions, works your way. |
+| Principle       | Description                                                                  |
+| --------------- | ---------------------------------------------------------------------------- |
+| **Freedom**     | Open source, free forever, no vendor lock-in. Users own their data.          |
+| **Clarity**     | Information hierarchy is clear; users can scan and understand quickly.       |
+| **Simplicity**  | Do one thing well. Avoid feature bloat. Every feature must earn its place.   |
+| **Privacy**     | Minimal data collection. No selling user data. EU data protection compliant. |
+| **Flexibility** | What Grip lacked—custom categories, split transactions, works your way.      |
 
 ---
 
@@ -76,18 +76,21 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 **Technical Comfort:** High - comfortable with web apps, understands APIs
 
 **Context:**
+
 - Former Grip user who misses the app's simplicity and multi-bank support
 - Has work expenses that get reimbursed, needs to track these separately
 - Occasionally pays for friends/family and gets paid back
 - Wants to understand spending patterns without manual spreadsheet work
 
 **Pain Points:**
+
 - ABN AMRO's built-in tools lack Grip's elegance and are ABN-only
 - Existing alternatives (Dyme, iBilly) are paid or limited
 - Can't create custom categories that match his mental model
 - Reimbursable expenses pollute his personal spending view
 
 **Needs:**
+
 - Automatic transaction import (no manual CSV uploads)
 - Categories that make sense for his life (not generic banking categories)
 - Clear separation of personal vs. reimbursable expenses
@@ -101,16 +104,19 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 **Technical Comfort:** Medium - uses apps daily, not technical
 
 **Context:**
+
 - Moved to Netherlands 2 years ago, still learning Dutch financial systems
 - Wants to understand where her money goes each month
 - Heard about Grip from Dutch colleagues but it was already discontinued
 
 **Pain Points:**
+
 - Dutch bank apps are confusing, partly in Dutch
 - Doesn't know if her spending is "normal" for Netherlands
 - Subscriptions pile up without her noticing
 
 **Needs:**
+
 - Clean English interface
 - Easy-to-understand spending breakdowns
 - Visual charts and dashboards
@@ -122,6 +128,7 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 ### In Scope (MVP v1.0)
 
 **Core Functionality**
+
 - ✅ User authentication (Email + Password, Google Sign-in)
 - ✅ ABN AMRO bank account connection via Enable Banking API
 - ✅ Automatic transaction import (as far back as API allows)
@@ -135,6 +142,7 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 - ✅ Monthly/weekly/custom date range views
 
 **Technical**
+
 - ✅ Web application (responsive, works on mobile browsers)
 - ✅ Firebase Firestore database
 - ✅ Firebase Cloud Functions backend
@@ -142,6 +150,7 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 - ✅ Firebase Hosting
 
 **User Experience**
+
 - ✅ Clean, minimal design (green color palette)
 - ✅ Fast, responsive interactions
 - ✅ Dutch and English language support
@@ -149,6 +158,7 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 ### Out of Scope (Post-MVP)
 
 **Features Deferred**
+
 - ❌ Native mobile apps (iOS/Android)
 - ❌ Budget setting and alerts
 - ❌ Fixed costs / subscription tracking
@@ -164,6 +174,7 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 - ❌ Savings goals
 
 **Technical Deferred**
+
 - ❌ Offline support / PWA
 - ❌ Public API for third-party integrations
 - ❌ Self-hosting option (Docker)
@@ -176,9 +187,11 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 ### Primary User Stories
 
 #### US-1: Bank Connection
+
 > As a user, I want to connect my ABN AMRO account securely, so that my transactions are automatically imported without manual work.
 
 **Acceptance Criteria:**
+
 - User can initiate bank connection from settings
 - Redirected to ABN AMRO's secure authentication (via Enable Banking)
 - After auth, transactions start importing automatically
@@ -186,6 +199,7 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 - Connection status visible in app
 
 **Example Flow:**
+
 1. User clicks "Connect Bank Account"
 2. Selects "ABN AMRO" from bank list
 3. Redirected to ABN AMRO login page
@@ -197,9 +211,11 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 ---
 
 #### US-2: Automatic Categorization
+
 > As a user, I want my transactions to be automatically categorized, so that I don't have to manually organize hundreds of transactions.
 
 **Acceptance Criteria:**
+
 - New transactions receive automatic category suggestions
 - Categorization based on merchant name recognition
 - Common Dutch merchants pre-mapped (Albert Heijn → Groceries, NS → Transport, etc.)
@@ -207,15 +223,18 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 - Uncategorizable transactions flagged for manual review
 
 **Example:**
+
 - Transaction: "Albert Heijn 1234 Amsterdam" → Auto-categorized as "Groceries"
 - Transaction: "TIKKIE VAN PIETER" → Flagged as "Uncategorized" (needs manual input)
 
 ---
 
 #### US-3: Custom Categories
+
 > As a user, I want to create my own category hierarchy, so that I can organize spending in a way that makes sense for my life.
 
 **Acceptance Criteria:**
+
 - User can create parent categories (e.g., "Transport")
 - User can create sub-categories under parents (e.g., "Transport > Fuel", "Transport > Public Transit")
 - Default category set provided on first use
@@ -223,6 +242,7 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 - Deleting a category prompts to reassign transactions
 
 **Example Category Structure:**
+
 ```
 📁 Housing
    ├── Rent/Mortgage
@@ -241,9 +261,11 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 ---
 
 #### US-4: Transaction Splitting
+
 > As a user, I want to split a single transaction across multiple categories, so that I can accurately track mixed purchases.
 
 **Acceptance Criteria:**
+
 - Any transaction can be split into 2+ parts
 - Each part has: amount, category, optional note
 - Split amounts must equal original transaction amount
@@ -251,6 +273,7 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 - Category totals reflect split allocations
 
 **Example:**
+
 - Original: "Albert Heijn €85.50"
 - Split into:
   - €65.00 → Groceries
@@ -259,9 +282,11 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 ---
 
 #### US-5: Reimbursement Tracking
+
 > As a user, I want to track expenses that will be reimbursed (work or personal), so that they don't distort my personal spending view.
 
 **Acceptance Criteria:**
+
 - Any expense can be marked as "Reimbursable"
 - Reimbursable types: "Work Expense" or "Paid for Someone"
 - Optional note field (e.g., "Train to client meeting" or "Dinner for John")
@@ -271,6 +296,7 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 - Dashboard shows: Personal Expenses | Pending Reimbursements | Net Total
 
 **Example Workflow:**
+
 1. User sees transaction: "NS Business Travel €45.00"
 2. Marks as "Reimbursable" → Type: "Work Expense" → Note: "Client visit Amsterdam"
 3. Transaction moves to "Pending Reimbursements" section
@@ -282,9 +308,11 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 ---
 
 #### US-6: Spending Dashboard
+
 > As a user, I want to see a clear dashboard of my spending, so that I can quickly understand my financial situation.
 
 **Acceptance Criteria:**
+
 - Overview shows total income and expenses for selected period
 - Pie/donut chart showing spending by category
 - Bar chart showing spending over time (daily/weekly/monthly)
@@ -295,9 +323,11 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 ---
 
 #### US-7: Category Correction & Learning
+
 > As a user, I want to correct mis-categorized transactions, and have the app learn from my corrections.
 
 **Acceptance Criteria:**
+
 - Easy one-click category change on any transaction
 - When correcting, option to "Apply to all similar transactions"
 - App learns: "JUMBO 1234" should always be "Groceries"
@@ -307,9 +337,11 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 ---
 
 #### US-8: Data Export
+
 > As a user, I want to export my transaction data, so that I own my data and can use it elsewhere.
 
 **Acceptance Criteria:**
+
 - Export to CSV format
 - Export to JSON format
 - Selectable date range
@@ -441,14 +473,14 @@ free-lunch/
 
 ### Key Design Patterns
 
-| Pattern | Usage |
-|---------|-------|
-| **Context API** | Global state for auth, transactions, categories |
-| **Custom Hooks** | Encapsulate Firebase queries and business logic |
-| **Optimistic Updates** | Update UI immediately, sync with Firestore in background |
-| **Rule-based + ML Categorization** | Merchant rules first, ML fallback for unknowns |
-| **Hierarchical Data** | Categories stored with parent references, queried with compound queries |
-| **Soft Delete** | Transactions/categories marked deleted, not removed (for audit) |
+| Pattern                            | Usage                                                                   |
+| ---------------------------------- | ----------------------------------------------------------------------- |
+| **Context API**                    | Global state for auth, transactions, categories                         |
+| **Custom Hooks**                   | Encapsulate Firebase queries and business logic                         |
+| **Optimistic Updates**             | Update UI immediately, sync with Firestore in background                |
+| **Rule-based + ML Categorization** | Merchant rules first, ML fallback for unknowns                          |
+| **Hierarchical Data**              | Categories stored with parent references, queried with compound queries |
+| **Soft Delete**                    | Transactions/categories marked deleted, not removed (for audit)         |
 
 ### Firestore Data Model
 
@@ -479,11 +511,11 @@ interface BankConnection {
 interface Category {
   id: string;
   name: string;
-  icon: string;                    // Emoji or icon name
-  color: string;                   // Hex color
-  parentId: string | null;         // null for root categories
-  order: number;                   // For sorting
-  isSystem: boolean;               // true for default categories
+  icon: string; // Emoji or icon name
+  color: string; // Hex color
+  parentId: string | null; // null for root categories
+  order: number; // For sorting
+  isSystem: boolean; // true for default categories
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -491,16 +523,16 @@ interface Category {
 // Collection: users/{userId}/transactions/{transactionId}
 interface Transaction {
   id: string;
-  externalId: string;              // Bank's transaction ID
+  externalId: string; // Bank's transaction ID
   date: Timestamp;
-  description: string;             // Original bank description
-  amount: number;                  // Negative for expenses
+  description: string; // Original bank description
+  amount: number; // Negative for expenses
   currency: 'EUR';
-  counterparty: string | null;     // Merchant/person name
+  counterparty: string | null; // Merchant/person name
 
   // Categorization
   categoryId: string | null;
-  categoryConfidence: number;      // 0-1, how confident auto-categorization was
+  categoryConfidence: number; // 0-1, how confident auto-categorization was
   categorySource: 'auto' | 'manual' | 'rule';
 
   // Splitting
@@ -526,18 +558,18 @@ interface ReimbursementInfo {
   type: 'work' | 'personal';
   note: string | null;
   status: 'pending' | 'cleared';
-  linkedTransactionId: string | null;  // The reimbursement transfer
+  linkedTransactionId: string | null; // The reimbursement transfer
   clearedAt: Timestamp | null;
 }
 
 // Collection: users/{userId}/rules/{ruleId}
 interface CategorizationRule {
   id: string;
-  pattern: string;                 // Regex or exact match
+  pattern: string; // Regex or exact match
   matchType: 'contains' | 'exact' | 'regex';
   categoryId: string;
   priority: number;
-  isLearned: boolean;              // Auto-created from user corrections
+  isLearned: boolean; // Auto-created from user corrections
   createdAt: Timestamp;
 }
 ```
@@ -551,6 +583,7 @@ interface CategorizationRule {
 **Purpose:** Provide at-a-glance understanding of financial situation.
 
 **Components:**
+
 - **Summary Cards:** Total income, total expenses, net change for period
 - **Spending by Category:** Donut/pie chart with clickable segments
 - **Spending Over Time:** Bar chart (daily/weekly/monthly granularity)
@@ -558,6 +591,7 @@ interface CategorizationRule {
 - **Pending Reimbursements:** Count and total of outstanding reimbursables
 
 **Interactions:**
+
 - Click category in chart → Filter transactions to that category
 - Date range picker in header → Updates all charts
 - Quick period buttons: "This Month", "Last Month", "This Year"
@@ -569,6 +603,7 @@ interface CategorizationRule {
 **Purpose:** Browse, search, and manage all transactions.
 
 **Features:**
+
 - Infinite scroll with virtualization (for performance)
 - Search by description, amount, category
 - Filter by: category, date range, reimbursement status
@@ -576,6 +611,7 @@ interface CategorizationRule {
 - Bulk actions: categorize multiple, mark as reimbursable
 
 **Transaction Row:**
+
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │ 📅 Jan 15  │ Albert Heijn 1234      │ Groceries 🍎 │  -€45.50 │
@@ -593,6 +629,7 @@ interface CategorizationRule {
 **Purpose:** Create and organize personal category hierarchy.
 
 **Features:**
+
 - Tree view of categories with drag-and-drop reordering
 - Add/edit/delete categories
 - Color and icon picker for each category
@@ -601,6 +638,7 @@ interface CategorizationRule {
 - Default categories provided on signup
 
 **Default Category Set:**
+
 ```
 📁 Income
    ├── 💰 Salary
@@ -644,6 +682,7 @@ interface CategorizationRule {
 **Purpose:** Divide single transactions across multiple categories.
 
 **Flow:**
+
 1. Click "Split" on any transaction
 2. Dialog opens with original amount shown
 3. Add split rows: amount + category + optional note
@@ -651,6 +690,7 @@ interface CategorizationRule {
 5. Save → Transaction shows as expandable in list
 
 **UI Mockup:**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ Split Transaction                                      [X]  │
@@ -672,6 +712,7 @@ interface CategorizationRule {
 **Purpose:** Separate work/personal reimbursable expenses from true personal spending.
 
 **Mark as Reimbursable Flow:**
+
 1. On transaction, click "Mark as Reimbursable"
 2. Select type: "Work Expense" or "Paid for Someone"
 3. Add optional note
@@ -679,6 +720,7 @@ interface CategorizationRule {
 5. Personal expense totals update to exclude this
 
 **Clear Reimbursement Flow:**
+
 1. When incoming transfer arrives (salary + expenses, Tikkie, etc.)
 2. User opens the incoming transaction
 3. Clicks "Contains Reimbursement"
@@ -687,6 +729,7 @@ interface CategorizationRule {
 6. Matched transactions are "cleared"
 
 **Dashboard Impact:**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ January 2026                                                │
@@ -703,6 +746,7 @@ interface CategorizationRule {
 **Purpose:** Minimize manual work for users.
 
 **Approach:**
+
 1. **Rule Matching (First):** Check user-defined and system rules
 2. **Merchant Database:** Pre-populated Dutch merchant → category mappings
 3. **ML Fallback:** For unknown merchants, use transaction description patterns
@@ -732,6 +776,7 @@ interface CategorizationRule {
 **Technology:** Enable Banking API
 
 **Flow:**
+
 1. User initiates connection in Settings
 2. Redirect to Enable Banking → ABN AMRO OAuth
 3. User authenticates with bank
@@ -741,6 +786,7 @@ interface CategorizationRule {
 7. Re-auth flow when consent expires
 
 **Sync Behavior:**
+
 - On initial connect: Fetch all available history (typically 90+ days)
 - Daily: Fetch new transactions
 - On user request: Manual "Sync Now" button
@@ -753,10 +799,12 @@ interface CategorizationRule {
 **Purpose:** User data ownership and interoperability.
 
 **Formats:**
+
 - **CSV:** Excel-compatible, human-readable
 - **JSON:** Full data with nested structures
 
 **Fields Included:**
+
 - Date, Description, Amount, Currency
 - Category (full path for hierarchical)
 - Notes
@@ -769,46 +817,46 @@ interface CategorizationRule {
 
 ### Frontend
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| React | 19.x | UI framework |
-| TypeScript | 5.x | Type safety |
-| Vite | 6.x | Build tool, dev server |
-| Tailwind CSS | 3.4+ | Utility-first styling |
-| shadcn/ui | latest | Component library |
-| React Router | 7.x | Client-side routing |
-| TanStack Query | 5.x | Server state management |
-| Recharts | 2.x | Charts and visualizations |
-| date-fns | 3.x | Date manipulation |
-| Lucide React | latest | Icons |
-| React Hook Form | 7.x | Form handling |
-| Zod | 3.x | Schema validation |
+| Technology      | Version | Purpose                   |
+| --------------- | ------- | ------------------------- |
+| React           | 19.x    | UI framework              |
+| TypeScript      | 5.x     | Type safety               |
+| Vite            | 6.x     | Build tool, dev server    |
+| Tailwind CSS    | 3.4+    | Utility-first styling     |
+| shadcn/ui       | latest  | Component library         |
+| React Router    | 7.x     | Client-side routing       |
+| TanStack Query  | 5.x     | Server state management   |
+| Recharts        | 2.x     | Charts and visualizations |
+| date-fns        | 3.x     | Date manipulation         |
+| Lucide React    | latest  | Icons                     |
+| React Hook Form | 7.x     | Form handling             |
+| Zod             | 3.x     | Schema validation         |
 
 ### Backend (Firebase)
 
-| Service | Purpose |
-|---------|---------|
-| Firebase Authentication | User auth (Email, Google) |
-| Cloud Firestore | NoSQL database |
-| Cloud Functions (Node.js 20) | Serverless backend logic |
-| Firebase Hosting | Web app hosting with CDN |
-| Cloud Scheduler | Daily sync jobs |
+| Service                      | Purpose                   |
+| ---------------------------- | ------------------------- |
+| Firebase Authentication      | User auth (Email, Google) |
+| Cloud Firestore              | NoSQL database            |
+| Cloud Functions (Node.js 20) | Serverless backend logic  |
+| Firebase Hosting             | Web app hosting with CDN  |
+| Cloud Scheduler              | Daily sync jobs           |
 
 ### External Services
 
-| Service | Purpose |
-|---------|---------|
+| Service        | Purpose                  |
+| -------------- | ------------------------ |
 | Enable Banking | PSD2 bank connection API |
 
 ### Development Tools
 
-| Tool | Purpose |
-|------|---------|
-| ESLint | Code linting |
-| Prettier | Code formatting |
-| Vitest | Unit testing |
-| Playwright | E2E testing |
-| GitHub Actions | CI/CD |
+| Tool           | Purpose         |
+| -------------- | --------------- |
+| ESLint         | Code linting    |
+| Prettier       | Code formatting |
+| Vitest         | Unit testing    |
+| Playwright     | E2E testing     |
+| GitHub Actions | CI/CD           |
 
 ---
 
@@ -817,10 +865,12 @@ interface CategorizationRule {
 ### Authentication
 
 **Supported Methods:**
+
 - Email + Password (Firebase Auth)
 - Google Sign-In (Firebase Auth)
 
 **Session Management:**
+
 - Firebase handles session tokens
 - Auto-refresh of tokens
 - Logout clears all local state
@@ -871,6 +921,7 @@ ENABLE_BANKING_REDIRECT_URI=https://app.freelunch.app/callback
 ### Security Scope
 
 **In Scope (MVP):**
+
 - ✅ User authentication required for all features
 - ✅ Users can only access their own data (Firestore rules)
 - ✅ HTTPS only (Firebase Hosting enforced)
@@ -879,6 +930,7 @@ ENABLE_BANKING_REDIRECT_URI=https://app.freelunch.app/callback
 - ✅ Input validation on all forms
 
 **Out of Scope (MVP):**
+
 - ❌ Two-factor authentication
 - ❌ Account recovery via SMS
 - ❌ Audit logging
@@ -938,16 +990,17 @@ The app integrates with Enable Banking's Accounts API for PSD2-compliant bank co
 
 **Key Endpoints (Enable Banking):**
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/sessions` | POST | Create auth session |
-| `/sessions/{id}/authorize` | GET | Get bank auth URL |
-| `/sessions/{id}/accounts` | GET | List connected accounts |
-| `/accounts/{id}/transactions` | GET | Fetch transactions |
+| Endpoint                      | Method | Purpose                 |
+| ----------------------------- | ------ | ----------------------- |
+| `/sessions`                   | POST   | Create auth session     |
+| `/sessions/{id}/authorize`    | GET    | Get bank auth URL       |
+| `/sessions/{id}/accounts`     | GET    | List connected accounts |
+| `/accounts/{id}/transactions` | GET    | Fetch transactions      |
 
 ### Internal Cloud Functions API
 
 **Sync Transactions:**
+
 ```typescript
 // POST /syncTransactions
 // Called by scheduler or manual trigger
@@ -965,6 +1018,7 @@ The app integrates with Enable Banking's Accounts API for PSD2-compliant bank co
 ```
 
 **Categorize Transaction:**
+
 ```typescript
 // POST /categorize
 // Called after transaction import
@@ -1014,6 +1068,7 @@ We follow the **Testing Trophy** approach (Kent C. Dodds): prioritize integratio
 **Scope:** Pure functions, utilities, business logic with no side effects.
 
 **What to Test:**
+
 - Categorization matching algorithm
 - Amount formatting and currency utilities
 - Date range calculations
@@ -1022,6 +1077,7 @@ We follow the **Testing Trophy** approach (Kent C. Dodds): prioritize integratio
 - Firestore data transformations
 
 **Example:**
+
 ```typescript
 // src/lib/__tests__/categorizer.test.ts
 import { describe, it, expect } from 'vitest';
@@ -1043,27 +1099,29 @@ describe('matchMerchant', () => {
 describe('splitValidation', () => {
   it('validates splits equal original amount', () => {
     const splits = [
-      { amount: 65.00, categoryId: 'groceries' },
-      { amount: 20.50, categoryId: 'household' },
+      { amount: 65.0, categoryId: 'groceries' },
+      { amount: 20.5, categoryId: 'household' },
     ];
-    expect(validateSplits(85.50, splits)).toBe(true);
+    expect(validateSplits(85.5, splits)).toBe(true);
   });
 
   it('rejects splits that do not sum correctly', () => {
     const splits = [
-      { amount: 50.00, categoryId: 'groceries' },
-      { amount: 20.00, categoryId: 'household' },
+      { amount: 50.0, categoryId: 'groceries' },
+      { amount: 20.0, categoryId: 'household' },
     ];
-    expect(validateSplits(85.50, splits)).toBe(false);
+    expect(validateSplits(85.5, splits)).toBe(false);
   });
 });
 ```
 
 **Tools:**
+
 - `vitest` - Test runner
 - `@vitest/coverage-v8` - Coverage reporting
 
 **Commands:**
+
 ```bash
 npm run test           # Run all unit tests
 npm run test:watch     # Watch mode during development
@@ -1077,6 +1135,7 @@ npm run test:coverage  # Generate coverage report
 **Scope:** React components, hooks, and their interactions with mocked services.
 
 **What to Test:**
+
 - Component rendering and user interactions
 - Form submissions and validation
 - State management (contexts, hooks)
@@ -1084,6 +1143,7 @@ npm run test:coverage  # Generate coverage report
 - Error states and loading states
 
 **Example:**
+
 ```typescript
 // src/components/transactions/__tests__/TransactionList.test.tsx
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -1156,11 +1216,13 @@ describe('TransactionList', () => {
 ```
 
 **Tools:**
+
 - `@testing-library/react` - Component testing
 - `@testing-library/user-event` - User interaction simulation
 - `msw` (Mock Service Worker) - API mocking
 
 **Firebase Mocking Strategy:**
+
 ```typescript
 // src/test/mocks/firebase.ts
 import { vi } from 'vitest';
@@ -1189,6 +1251,7 @@ vi.mock('firebase/firestore', () => mockFirestore);
 **Scope:** Critical user journeys through the real application.
 
 **What to Test:**
+
 - User registration and login
 - Bank connection flow (mocked Enable Banking)
 - Transaction categorization workflow
@@ -1199,18 +1262,19 @@ vi.mock('firebase/firestore', () => mockFirestore);
 
 **Test Scenarios:**
 
-| Scenario | Priority | Description |
-|----------|----------|-------------|
-| `auth.spec.ts` | P0 | Register, login, logout, password reset |
-| `bank-connection.spec.ts` | P0 | Connect bank, sync transactions |
-| `transactions.spec.ts` | P0 | View, filter, search, categorize |
-| `split-transaction.spec.ts` | P1 | Split and verify totals |
-| `reimbursement.spec.ts` | P1 | Mark, clear, verify exclusion |
-| `dashboard.spec.ts` | P1 | Charts render, totals correct |
-| `categories.spec.ts` | P2 | Create, edit, delete, reassign |
-| `export.spec.ts` | P2 | CSV and JSON export |
+| Scenario                    | Priority | Description                             |
+| --------------------------- | -------- | --------------------------------------- |
+| `auth.spec.ts`              | P0       | Register, login, logout, password reset |
+| `bank-connection.spec.ts`   | P0       | Connect bank, sync transactions         |
+| `transactions.spec.ts`      | P0       | View, filter, search, categorize        |
+| `split-transaction.spec.ts` | P1       | Split and verify totals                 |
+| `reimbursement.spec.ts`     | P1       | Mark, clear, verify exclusion           |
+| `dashboard.spec.ts`         | P1       | Charts render, totals correct           |
+| `categories.spec.ts`        | P2       | Create, edit, delete, reassign          |
+| `export.spec.ts`            | P2       | CSV and JSON export                     |
 
 **Example:**
+
 ```typescript
 // e2e/transactions.spec.ts
 import { test, expect } from '@playwright/test';
@@ -1284,6 +1348,7 @@ test.describe('Transaction Management', () => {
 ```
 
 **Playwright Configuration:**
+
 ```typescript
 // playwright.config.ts
 import { defineConfig, devices } from '@playwright/test';
@@ -1331,6 +1396,7 @@ export default defineConfig({
 ```
 
 **Commands:**
+
 ```bash
 npm run e2e              # Run all E2E tests
 npm run e2e:headed       # Run with browser visible
@@ -1343,6 +1409,7 @@ npm run e2e:report       # Open HTML report
 ### Test Data Management
 
 **Firebase Emulator for Testing:**
+
 ```bash
 # Start Firebase emulators for local testing
 firebase emulators:start --only auth,firestore,functions
@@ -1352,6 +1419,7 @@ FIRESTORE_EMULATOR_HOST=localhost:8080 npm run test
 ```
 
 **Test Fixtures:**
+
 ```typescript
 // src/test/fixtures/transactions.ts
 export const testTransactions = [
@@ -1359,7 +1427,7 @@ export const testTransactions = [
     id: 'tx-001',
     externalId: 'abn-12345',
     description: 'ALBERT HEIJN 1234 AMSTERDAM',
-    amount: -85.50,
+    amount: -85.5,
     date: new Date('2026-01-15'),
     categoryId: 'groceries',
     categorySource: 'auto',
@@ -1369,7 +1437,7 @@ export const testTransactions = [
     id: 'tx-002',
     externalId: 'abn-12346',
     description: 'NS TREINREIS',
-    amount: -25.00,
+    amount: -25.0,
     date: new Date('2026-01-14'),
     categoryId: 'transport.public',
     categorySource: 'auto',
@@ -1380,6 +1448,7 @@ export const testTransactions = [
 ```
 
 **Seeding Test Database:**
+
 ```typescript
 // e2e/setup/seed-database.ts
 import { initializeApp } from 'firebase-admin/app';
@@ -1413,13 +1482,13 @@ export async function seedTestUser(userId: string) {
 
 ### Coverage Requirements
 
-| Area | Target Coverage | Rationale |
-|------|-----------------|-----------|
-| Categorization logic | > 90% | Core business logic, critical |
-| Utility functions | > 80% | Reused across app |
-| React components | > 60% | Integration tests cover behavior |
-| API/Firebase code | > 50% | Mocked in most tests |
-| Overall | > 70% | Balance of coverage and velocity |
+| Area                 | Target Coverage | Rationale                        |
+| -------------------- | --------------- | -------------------------------- |
+| Categorization logic | > 90%           | Core business logic, critical    |
+| Utility functions    | > 80%           | Reused across app                |
+| React components     | > 60%           | Integration tests cover behavior |
+| API/Firebase code    | > 50%           | Mocked in most tests             |
+| Overall              | > 70%           | Balance of coverage and velocity |
 
 ---
 
@@ -1480,24 +1549,26 @@ jobs:
 
 ### Environment Overview
 
-| Environment | Purpose | URL | Firebase Project |
-|-------------|---------|-----|------------------|
-| **Local** | Development | `localhost:5173` | Emulators |
-| **Preview** | PR previews | `pr-123--free-lunch.web.app` | `free-lunch-dev` |
-| **Staging** | Pre-production testing | `staging.freelunch.app` | `free-lunch-staging` |
-| **Production** | Live users | `app.freelunch.app` | `free-lunch-prod` |
+| Environment    | Purpose                | URL                          | Firebase Project     |
+| -------------- | ---------------------- | ---------------------------- | -------------------- |
+| **Local**      | Development            | `localhost:5173`             | Emulators            |
+| **Preview**    | PR previews            | `pr-123--free-lunch.web.app` | `free-lunch-dev`     |
+| **Staging**    | Pre-production testing | `staging.freelunch.app`      | `free-lunch-staging` |
+| **Production** | Live users             | `app.freelunch.app`          | `free-lunch-prod`    |
 
 ---
 
 ### Local Development
 
 **Prerequisites:**
+
 - Node.js 20.x
 - npm 10.x
 - Firebase CLI (`npm install -g firebase-tools`)
 - Java 11+ (for Firebase Emulators)
 
 **Setup:**
+
 ```bash
 # Clone repository
 git clone https://github.com/your-username/free-lunch.git
@@ -1518,6 +1589,7 @@ npm run dev
 ```
 
 **Environment Variables (Local):**
+
 ```bash
 # .env.local
 VITE_FIREBASE_API_KEY=demo-api-key
@@ -1535,6 +1607,7 @@ VITE_EMULATOR_FUNCTIONS_URL=http://localhost:5001
 ```
 
 **Emulator Configuration:**
+
 ```json
 // firebase.json
 {
@@ -1563,6 +1636,7 @@ VITE_EMULATOR_FUNCTIONS_URL=http://localhost:5001
 **Trigger:** Every pull request automatically gets a preview deployment.
 
 **Configuration:**
+
 ```yaml
 # .github/workflows/preview.yml
 name: Preview Deployment
@@ -1593,6 +1667,7 @@ jobs:
 ```
 
 **Features:**
+
 - Unique URL per PR (e.g., `pr-42--free-lunch.web.app`)
 - Uses dev Firebase project (separate data)
 - Auto-deletes when PR is merged/closed
@@ -1605,12 +1680,14 @@ jobs:
 **Purpose:** Final testing before production release.
 
 **Differences from Production:**
+
 - Uses `free-lunch-staging` Firebase project
 - Enable Banking in sandbox mode
 - Test bank accounts available
 - Synthetic test data for demos
 
 **Deployment:**
+
 ```bash
 # Deploy to staging (manual)
 npm run deploy:staging
@@ -1619,6 +1696,7 @@ npm run deploy:staging
 ```
 
 **Staging-Specific Config:**
+
 ```bash
 # .env.staging
 VITE_FIREBASE_PROJECT_ID=free-lunch-staging
@@ -1633,6 +1711,7 @@ VITE_SENTRY_ENVIRONMENT=staging
 **Deployment Strategy:** Continuous Deployment from `main` branch.
 
 **Deployment Pipeline:**
+
 ```yaml
 # .github/workflows/deploy-production.yml
 name: Deploy to Production
@@ -1676,6 +1755,7 @@ jobs:
 ```
 
 **Production Environment Variables:**
+
 ```bash
 # Set via Firebase Functions config (secrets)
 firebase functions:secrets:set ENABLE_BANKING_CLIENT_ID
@@ -1689,6 +1769,7 @@ firebase functions:secrets:set ENABLE_BANKING_CLIENT_SECRET
 ### Firebase Project Setup
 
 **Create Projects:**
+
 ```bash
 # Development
 firebase projects:create free-lunch-dev
@@ -1701,6 +1782,7 @@ firebase projects:create free-lunch-prod
 ```
 
 **Firestore Indexes:**
+
 ```json
 // firestore.indexes.json
 {
@@ -1726,6 +1808,7 @@ firebase projects:create free-lunch-prod
 ```
 
 **Firestore Security Rules Deployment:**
+
 ```bash
 firebase deploy --only firestore:rules --project free-lunch-prod
 ```
@@ -1735,6 +1818,7 @@ firebase deploy --only firestore:rules --project free-lunch-prod
 ### Monitoring & Observability
 
 **Error Tracking (Sentry):**
+
 ```typescript
 // src/lib/sentry.ts
 import * as Sentry from '@sentry/react';
@@ -1742,14 +1826,13 @@ import * as Sentry from '@sentry/react';
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || 'development',
-  integrations: [
-    Sentry.browserTracingIntegration(),
-  ],
+  integrations: [Sentry.browserTracingIntegration()],
   tracesSampleRate: 0.1,
 });
 ```
 
 **Firebase Performance Monitoring:**
+
 ```typescript
 // src/lib/firebase.ts
 import { getPerformance } from 'firebase/performance';
@@ -1758,6 +1841,7 @@ const perf = getPerformance(app);
 ```
 
 **Uptime Monitoring:**
+
 - Use Firebase Hosting built-in metrics
 - Optional: UptimeRobot or similar for external monitoring
 
@@ -1766,6 +1850,7 @@ const perf = getPerformance(app);
 ### Rollback Procedure
 
 **Quick Rollback (Firebase Hosting):**
+
 ```bash
 # List recent deployments
 firebase hosting:channel:list --project free-lunch-prod
@@ -1775,6 +1860,7 @@ firebase hosting:rollback --project free-lunch-prod
 ```
 
 **Full Rollback (including Functions):**
+
 ```bash
 # Revert to previous git tag
 git checkout v1.0.0
@@ -1788,12 +1874,14 @@ firebase deploy --project free-lunch-prod
 ### Domain & SSL
 
 **Custom Domain Setup:**
+
 1. Add domain in Firebase Console → Hosting → Custom domains
 2. Verify ownership via DNS TXT record
 3. Update DNS A/AAAA records to Firebase IPs
 4. SSL certificate auto-provisioned by Firebase
 
 **DNS Configuration:**
+
 ```
 app.freelunch.app    A      199.36.158.100
 app.freelunch.app    AAAA   2607:f8b0:4004:800::2004
@@ -1806,6 +1894,7 @@ app.freelunch.app    AAAA   2607:f8b0:4004:800::2004
 ### MVP Success Definition
 
 The MVP is successful when:
+
 1. A user can connect their ABN AMRO account
 2. Transactions are automatically imported and categorized
 3. User can create custom categories and re-categorize transactions
@@ -1816,6 +1905,7 @@ The MVP is successful when:
 ### Functional Requirements
 
 **Bank Connection:**
+
 - ✅ User can connect ABN AMRO account via OAuth flow
 - ✅ Connection status visible in settings
 - ✅ Manual "Sync Now" button works
@@ -1823,6 +1913,7 @@ The MVP is successful when:
 - ✅ Handles expired consent gracefully (prompts re-auth)
 
 **Transaction Management:**
+
 - ✅ All transactions display with date, description, amount
 - ✅ Search and filter works across all transactions
 - ✅ Category assignment persists correctly
@@ -1830,12 +1921,14 @@ The MVP is successful when:
 - ✅ Reimbursement workflow completes end-to-end
 
 **Categories:**
+
 - ✅ User can create, edit, delete categories
 - ✅ Hierarchical categories display correctly
 - ✅ Default categories provided on signup
 - ✅ Deleting category prompts for transaction reassignment
 
 **Dashboard:**
+
 - ✅ Summary shows correct totals for selected period
 - ✅ Charts render without errors
 - ✅ Date range changes update all components
@@ -1843,14 +1936,14 @@ The MVP is successful when:
 
 ### Quality Indicators
 
-| Metric | Target |
-|--------|--------|
-| Initial page load | < 2 seconds |
-| Interaction response | < 500ms |
-| Lighthouse Performance | > 80 |
-| Lighthouse Accessibility | > 90 |
-| Test coverage | > 70% |
-| Uptime | > 99% |
+| Metric                   | Target      |
+| ------------------------ | ----------- |
+| Initial page load        | < 2 seconds |
+| Interaction response     | < 500ms     |
+| Lighthouse Performance   | > 80        |
+| Lighthouse Accessibility | > 90        |
+| Test coverage            | > 70%       |
+| Uptime                   | > 99%       |
 
 ### User Experience Goals
 
@@ -1868,6 +1961,7 @@ The MVP is successful when:
 **Goal:** Set up project infrastructure and basic app shell.
 
 **Deliverables:**
+
 - ✅ Repository setup with Vite + React + TypeScript
 - ✅ Tailwind CSS and shadcn/ui configured
 - ✅ Firebase project created (Auth, Firestore, Functions, Hosting)
@@ -1877,6 +1971,7 @@ The MVP is successful when:
 - ✅ CI/CD pipeline with GitHub Actions
 
 **Validation:**
+
 - User can register, login, and logout
 - App deploys to Firebase Hosting
 - All pages render with placeholder content
@@ -1888,6 +1983,7 @@ The MVP is successful when:
 **Goal:** Implement transaction management and categorization.
 
 **Deliverables:**
+
 - ✅ Firestore data models implemented
 - ✅ Category management (CRUD, hierarchy)
 - ✅ Manual transaction entry (for testing without bank)
@@ -1898,6 +1994,7 @@ The MVP is successful when:
 - ✅ Default category set on user creation
 
 **Validation:**
+
 - User can create custom category hierarchy
 - Transactions can be categorized and split
 - Auto-categorization works for common Dutch merchants
@@ -1909,6 +2006,7 @@ The MVP is successful when:
 **Goal:** Connect to ABN AMRO via Enable Banking.
 
 **Deliverables:**
+
 - ✅ Enable Banking account setup and API integration
 - ✅ OAuth flow for bank connection
 - ✅ Transaction import from bank
@@ -1918,6 +2016,7 @@ The MVP is successful when:
 - ✅ Consent expiry handling and re-auth flow
 
 **Validation:**
+
 - User can connect real ABN AMRO account
 - Historical transactions import correctly
 - Daily sync brings in new transactions
@@ -1930,6 +2029,7 @@ The MVP is successful when:
 **Goal:** Complete dashboard and reimbursement tracking.
 
 **Deliverables:**
+
 - ✅ Dashboard summary cards
 - ✅ Spending by category chart
 - ✅ Spending over time chart
@@ -1940,6 +2040,7 @@ The MVP is successful when:
 - ✅ Data export (CSV, JSON)
 
 **Validation:**
+
 - Dashboard accurately reflects transaction data
 - Reimbursement workflow works end-to-end
 - Export produces valid, complete files
@@ -1951,6 +2052,7 @@ The MVP is successful when:
 **Goal:** Bug fixes, performance optimization, launch preparation.
 
 **Deliverables:**
+
 - ✅ Performance optimization (lazy loading, virtualization)
 - ✅ Error handling and user feedback
 - ✅ Empty states and onboarding
@@ -1963,6 +2065,7 @@ The MVP is successful when:
 - ✅ Production deployment
 
 **Validation:**
+
 - Lighthouse scores meet targets
 - No critical bugs from beta testing
 - App works on Chrome, Firefox, Safari, Edge
@@ -1974,18 +2077,18 @@ The MVP is successful when:
 
 ### Post-MVP Enhancements (v2.0)
 
-| Feature | Priority | Complexity |
-|---------|----------|------------|
-| Budget setting and alerts | High | Medium |
-| Fixed costs / subscription tracking | High | Medium |
-| ICS credit card support | High | Low |
-| Additional Dutch banks (ING, Rabobank) | High | Medium |
-| Native mobile app (React Native) | Medium | High |
-| Predictions / forecasting | Medium | High |
-| Tags system (in addition to categories) | Medium | Low |
-| Recurring transaction detection | Medium | Medium |
-| Dark mode | Low | Low |
-| Multi-currency | Low | Medium |
+| Feature                                 | Priority | Complexity |
+| --------------------------------------- | -------- | ---------- |
+| Budget setting and alerts               | High     | Medium     |
+| Fixed costs / subscription tracking     | High     | Medium     |
+| ICS credit card support                 | High     | Low        |
+| Additional Dutch banks (ING, Rabobank)  | High     | Medium     |
+| Native mobile app (React Native)        | Medium   | High       |
+| Predictions / forecasting               | Medium   | High       |
+| Tags system (in addition to categories) | Medium   | Low        |
+| Recurring transaction detection         | Medium   | Medium     |
+| Dark mode                               | Low      | Low        |
+| Multi-currency                          | Low      | Medium     |
 
 ### Integration Opportunities
 
@@ -2013,6 +2116,7 @@ The MVP is successful when:
 **Impact:** High - Core functionality depends on bank sync
 
 **Mitigation:**
+
 - Design with abstraction layer for bank providers
 - Document alternative providers (GoCardless if existing account, Tink trial)
 - Implement robust CSV import as fallback
@@ -2027,6 +2131,7 @@ The MVP is successful when:
 **Impact:** Medium - UX friction
 
 **Mitigation:**
+
 - Send email reminder 7 days before expiry
 - Make re-auth flow as smooth as possible
 - Clearly explain why re-auth is needed (EU regulation)
@@ -2041,6 +2146,7 @@ The MVP is successful when:
 **Impact:** Medium - Core value proposition affected
 
 **Mitigation:**
+
 - Start with curated Dutch merchant database (high confidence)
 - Make correction flow very easy (one click)
 - Learn from corrections immediately
@@ -2056,6 +2162,7 @@ The MVP is successful when:
 **Impact:** Medium - Sustainability concern
 
 **Mitigation:**
+
 - Optimize Firestore reads with caching
 - Use Firebase Blaze plan only when needed
 - Set up billing alerts
@@ -2071,6 +2178,7 @@ The MVP is successful when:
 **Impact:** Low - Banks are slow, we offer cross-bank view
 
 **Mitigation:**
+
 - Differentiate on custom categories and reimbursements
 - Focus on features banks won't build (open source, export)
 - Build community around project
@@ -2082,20 +2190,20 @@ The MVP is successful when:
 
 ### A. Related Documents
 
-| Document | Location |
-|----------|----------|
-| Design System | `.claude/reference/free-lunch-design-system.md` |
-| Research Notes | (Grip app research from PRD creation) |
+| Document       | Location                                        |
+| -------------- | ----------------------------------------------- |
+| Design System  | `.claude/reference/free-lunch-design-system.md` |
+| Research Notes | (Grip app research from PRD creation)           |
 
 ### B. Key Dependencies
 
-| Dependency | Documentation |
-|------------|---------------|
-| Enable Banking | https://enablebanking.com/docs/ |
-| Firebase | https://firebase.google.com/docs |
-| shadcn/ui | https://ui.shadcn.com/ |
-| Recharts | https://recharts.org/ |
-| TanStack Query | https://tanstack.com/query/ |
+| Dependency     | Documentation                    |
+| -------------- | -------------------------------- |
+| Enable Banking | https://enablebanking.com/docs/  |
+| Firebase       | https://firebase.google.com/docs |
+| shadcn/ui      | https://ui.shadcn.com/           |
+| Recharts       | https://recharts.org/            |
+| TanStack Query | https://tanstack.com/query/      |
 
 ### C. Dutch Merchant Database (Initial)
 
@@ -2103,72 +2211,72 @@ The MVP is successful when:
 const DUTCH_MERCHANTS: Record<string, string> = {
   // Groceries
   'ALBERT HEIJN': 'groceries',
-  'JUMBO': 'groceries',
-  'LIDL': 'groceries',
-  'ALDI': 'groceries',
-  'PLUS': 'groceries',
-  'DIRK': 'groceries',
-  'COOP': 'groceries',
+  JUMBO: 'groceries',
+  LIDL: 'groceries',
+  ALDI: 'groceries',
+  PLUS: 'groceries',
+  DIRK: 'groceries',
+  COOP: 'groceries',
 
   // Transport
   'NS ': 'transport.public',
-  'GVB': 'transport.public',
-  'RET': 'transport.public',
-  'HTM': 'transport.public',
-  'SHELL': 'transport.fuel',
+  GVB: 'transport.public',
+  RET: 'transport.public',
+  HTM: 'transport.public',
+  SHELL: 'transport.fuel',
   'BP ': 'transport.fuel',
-  'ESSO': 'transport.fuel',
-  'TINQ': 'transport.fuel',
-  'TANGO': 'transport.fuel',
+  ESSO: 'transport.fuel',
+  TINQ: 'transport.fuel',
+  TANGO: 'transport.fuel',
 
   // Shopping
   'BOL.COM': 'shopping.general',
-  'HEMA': 'shopping.general',
-  'IKEA': 'shopping.home',
-  'ACTION': 'shopping.general',
-  'COOLBLUE': 'shopping.electronics',
-  'MEDIAMARKT': 'shopping.electronics',
+  HEMA: 'shopping.general',
+  IKEA: 'shopping.home',
+  ACTION: 'shopping.general',
+  COOLBLUE: 'shopping.electronics',
+  MEDIAMARKT: 'shopping.electronics',
 
   // Food & Drink
-  'THUISBEZORGD': 'food.restaurants',
+  THUISBEZORGD: 'food.restaurants',
   'UBER EATS': 'food.restaurants',
-  'DELIVEROO': 'food.restaurants',
-  'MCDONALDS': 'food.restaurants',
-  'STARBUCKS': 'food.coffee',
+  DELIVEROO: 'food.restaurants',
+  MCDONALDS: 'food.restaurants',
+  STARBUCKS: 'food.coffee',
 
   // Health
-  'KRUIDVAT': 'health.pharmacy',
-  'ETOS': 'health.pharmacy',
-  'APOTHEEK': 'health.pharmacy',
+  KRUIDVAT: 'health.pharmacy',
+  ETOS: 'health.pharmacy',
+  APOTHEEK: 'health.pharmacy',
 
   // Entertainment
-  'NETFLIX': 'entertainment',
-  'SPOTIFY': 'entertainment',
-  'PATHE': 'entertainment',
+  NETFLIX: 'entertainment',
+  SPOTIFY: 'entertainment',
+  PATHE: 'entertainment',
 
   // Utilities
-  'VATTENFALL': 'housing.utilities',
-  'ENECO': 'housing.utilities',
-  'ESSENT': 'housing.utilities',
-  'KPN': 'housing.utilities',
-  'VODAFONE': 'housing.utilities',
+  VATTENFALL: 'housing.utilities',
+  ENECO: 'housing.utilities',
+  ESSENT: 'housing.utilities',
+  KPN: 'housing.utilities',
+  VODAFONE: 'housing.utilities',
   'T-MOBILE': 'housing.utilities',
-  'ZIGGO': 'housing.utilities',
+  ZIGGO: 'housing.utilities',
 };
 ```
 
 ### D. Glossary
 
-| Term | Definition |
-|------|------------|
-| **PSD2** | EU Payment Services Directive 2 - regulation enabling open banking |
-| **AISP** | Account Information Service Provider - licensed to access bank data |
-| **Reimbursable** | Expense paid by user that will be paid back by employer or other person |
-| **Split Transaction** | Single bank transaction divided into multiple category allocations |
-| **Consent** | User authorization for app to access bank data (expires per PSD2) |
+| Term                  | Definition                                                              |
+| --------------------- | ----------------------------------------------------------------------- |
+| **PSD2**              | EU Payment Services Directive 2 - regulation enabling open banking      |
+| **AISP**              | Account Information Service Provider - licensed to access bank data     |
+| **Reimbursable**      | Expense paid by user that will be paid back by employer or other person |
+| **Split Transaction** | Single bank transaction divided into multiple category allocations      |
+| **Consent**           | User authorization for app to access bank data (expires per PSD2)       |
 
 ---
 
-*Document Version: 1.0*
-*Created: January 2026*
-*Last Updated: January 2026*
+_Document Version: 1.0_
+_Created: January 2026_
+_Last Updated: January 2026_

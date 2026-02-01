@@ -86,9 +86,7 @@ export function usePendingReimbursements() {
       const transactions = snapshot.docs.map(transformTransaction);
 
       // Filter for pending reimbursements (expenses with reimbursement.status === 'pending')
-      return transactions.filter(
-        (t) => t.reimbursement?.status === 'pending' && t.amount < 0
-      );
+      return transactions.filter((t) => t.reimbursement?.status === 'pending' && t.amount < 0);
     },
     enabled: !!user?.id,
   });

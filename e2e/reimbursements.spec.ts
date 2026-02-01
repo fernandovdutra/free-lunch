@@ -114,14 +114,19 @@ test.describe('Reimbursement Workflow', () => {
 
     await page.getByLabel(/description/i).fill(testExpenseDescription);
     await page.getByLabel(/amount/i).fill('-75.50');
-    await page.getByRole('button', { name: /add transaction/i }).last().click();
+    await page
+      .getByRole('button', { name: /add transaction/i })
+      .last()
+      .click();
 
     await expect(page.getByRole('dialog')).not.toBeVisible();
     await expect(page.getByText(testExpenseDescription)).toBeVisible({ timeout: 10000 });
 
     // Find the transaction row with the expense (look for the specific description text)
     const transactionText = page.getByText(testExpenseDescription, { exact: true });
-    const transactionRow = transactionText.locator('xpath=ancestor::div[contains(@class, "group")]').first();
+    const transactionRow = transactionText
+      .locator('xpath=ancestor::div[contains(@class, "group")]')
+      .first();
     await transactionRow.hover();
 
     // Open the action menu
@@ -139,7 +144,10 @@ test.describe('Reimbursement Workflow', () => {
 
     // Select type (Work Expense is default)
     await page.getByLabel(/note/i).fill('E2E test work expense');
-    await page.getByRole('button', { name: /mark as reimbursable/i }).last().click();
+    await page
+      .getByRole('button', { name: /mark as reimbursable/i })
+      .last()
+      .click();
 
     await expect(page.getByRole('dialog')).not.toBeVisible();
 
@@ -158,7 +166,10 @@ test.describe('Reimbursement Workflow', () => {
 
     // The previously marked transaction should appear in pending list
     // Check for amber-colored items (pending reimbursements use amber styling)
-    const pendingSection = page.locator('div').filter({ hasText: /pending reimbursements/i }).first();
+    const pendingSection = page
+      .locator('div')
+      .filter({ hasText: /pending reimbursements/i })
+      .first();
     await expect(pendingSection).toBeVisible();
   });
 
@@ -174,7 +185,10 @@ test.describe('Reimbursement Workflow', () => {
 
     await page.getByLabel(/description/i).fill(testIncomeDescription);
     await page.getByLabel(/amount/i).fill('100');
-    await page.getByRole('button', { name: /add transaction/i }).last().click();
+    await page
+      .getByRole('button', { name: /add transaction/i })
+      .last()
+      .click();
 
     await expect(page.getByRole('dialog')).not.toBeVisible();
     await expect(page.getByText(testIncomeDescription)).toBeVisible({ timeout: 10000 });
@@ -182,7 +196,10 @@ test.describe('Reimbursement Workflow', () => {
     // Find the income transaction and open action menu
     const incomeRow = page.locator('div').filter({ hasText: testIncomeDescription }).first();
     await incomeRow.hover();
-    await incomeRow.getByRole('button', { name: /actions/i }).first().click();
+    await incomeRow
+      .getByRole('button', { name: /actions/i })
+      .first()
+      .click();
 
     // Click "Contains Reimbursement"
     await page.getByRole('button', { name: /contains reimbursement/i }).click();
@@ -192,7 +209,10 @@ test.describe('Reimbursement Workflow', () => {
     await expect(page.getByRole('heading', { name: /clear reimbursements/i })).toBeVisible();
 
     // If there are pending reimbursements, select one and clear
-    const selectableItems = page.locator('[role="dialog"]').locator('button').filter({ hasText: /-€/ });
+    const selectableItems = page
+      .locator('[role="dialog"]')
+      .locator('button')
+      .filter({ hasText: /-€/ });
     const itemCount = await selectableItems.count();
 
     if (itemCount > 0) {

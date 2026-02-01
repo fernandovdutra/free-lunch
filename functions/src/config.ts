@@ -43,7 +43,9 @@ export const config = {
       }
     }
 
-    throw new Error('ENABLE_BANKING_PRIVATE_KEY not configured. Set the environment variable or ENABLE_BANKING_KEY_PATH to point to a .pem file.');
+    throw new Error(
+      'ENABLE_BANKING_PRIVATE_KEY not configured. Set the environment variable or ENABLE_BANKING_KEY_PATH to point to a .pem file.'
+    );
   },
   get enableBankingAppId(): string {
     const id = process.env.ENABLE_BANKING_APP_ID;
@@ -56,6 +58,9 @@ export const config = {
     return getEnvOrDefault('ENABLE_BANKING_API_URL', 'https://api.enablebanking.com').trim();
   },
   get appUrl(): string {
-    return getEnvOrDefault('APP_URL', isEmulator ? 'http://localhost:5173' : 'https://free-lunch-85447.web.app');
+    return getEnvOrDefault(
+      'APP_URL',
+      isEmulator ? 'http://localhost:5173' : 'https://free-lunch-85447.web.app'
+    );
   },
 };

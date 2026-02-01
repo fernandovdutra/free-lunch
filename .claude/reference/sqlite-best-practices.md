@@ -43,14 +43,14 @@ A concise reference guide for working with SQLite databases in Python applicatio
 
 ### Key Characteristics
 
-| Feature | Value |
-|---------|-------|
-| Library size | <600KB |
-| Max database size | 281 TB |
-| Max row size | 1 GB |
+| Feature            | Value     |
+| ------------------ | --------- |
+| Library size       | <600KB    |
+| Max database size  | 281 TB    |
+| Max row size       | 1 GB      |
 | Concurrent readers | Unlimited |
-| Concurrent writers | 1 |
-| ACID compliant | Yes |
+| Concurrent writers | 1         |
+| ACID compliant     | Yes       |
 
 ---
 
@@ -97,13 +97,13 @@ CREATE TABLE completions (
 
 **Cascading actions**:
 
-| Action | Behavior |
-|--------|----------|
-| `NO ACTION` | Reject if child rows exist (default) |
-| `CASCADE` | Delete/update child rows |
-| `SET NULL` | Set foreign key to NULL |
-| `SET DEFAULT` | Set foreign key to default value |
-| `RESTRICT` | Like NO ACTION but immediate |
+| Action        | Behavior                             |
+| ------------- | ------------------------------------ |
+| `NO ACTION`   | Reject if child rows exist (default) |
+| `CASCADE`     | Delete/update child rows             |
+| `SET NULL`    | Set foreign key to NULL              |
+| `SET DEFAULT` | Set foreign key to default value     |
+| `RESTRICT`    | Like NO ACTION but immediate         |
 
 ### Table Constraints
 
@@ -143,12 +143,14 @@ CREATE TABLE settings (
 ```
 
 **When to use**:
+
 - Non-integer primary keys
 - Composite primary keys
 - Small row sizes
 - Frequent primary key lookups
 
 **When to avoid**:
+
 - Large primary keys (duplicated in all indexes)
 - Many secondary indexes
 - Large row sizes
@@ -163,15 +165,16 @@ SQLite uses dynamic typing - the type is associated with values, not columns.
 
 **Five storage classes**:
 
-| Class | Description |
-|-------|-------------|
-| `NULL` | NULL value |
+| Class     | Description                |
+| --------- | -------------------------- |
+| `NULL`    | NULL value                 |
 | `INTEGER` | Signed integer (1-8 bytes) |
-| `REAL` | 8-byte IEEE float |
-| `TEXT` | UTF-8/UTF-16 string |
-| `BLOB` | Binary data |
+| `REAL`    | 8-byte IEEE float          |
+| `TEXT`    | UTF-8/UTF-16 string        |
+| `BLOB`    | Binary data                |
 
 **Type affinity rules** (based on declared type name):
+
 1. Contains "INT" → INTEGER
 2. Contains "CHAR", "CLOB", "TEXT" → TEXT
 3. Contains "BLOB" or no type → BLOB
@@ -320,11 +323,11 @@ SELECT completed_date, status FROM completions WHERE habit_id = 1;
 
 ### Index Trade-offs
 
-| Benefit | Cost |
-|---------|------|
-| Faster reads | Slower writes |
+| Benefit         | Cost            |
+| --------------- | --------------- |
+| Faster reads    | Slower writes   |
 | Faster ORDER BY | More disk space |
-| Faster JOINs | Memory overhead |
+| Faster JOINs    | Memory overhead |
 
 **Rule of thumb**: Expect ~5x slower INSERTs per secondary index.
 
@@ -482,12 +485,12 @@ class Completion(Base):
 
 ### Relationship Loading Strategies
 
-| Strategy | Use Case |
-|----------|----------|
-| `lazy="select"` | Default, N+1 if accessed |
-| `lazy="joined"` | Many-to-one relationships |
-| `lazy="selectin"` | One-to-many collections |
-| `lazy="raise"` | Prevent accidental lazy loads |
+| Strategy          | Use Case                      |
+| ----------------- | ----------------------------- |
+| `lazy="select"`   | Default, N+1 if accessed      |
+| `lazy="joined"`   | Many-to-one relationships     |
+| `lazy="selectin"` | One-to-many collections       |
+| `lazy="raise"`    | Prevent accidental lazy loads |
 
 ```python
 from sqlalchemy.orm import joinedload, selectinload
@@ -711,14 +714,14 @@ PRAGMA optimize;                   -- Optimize query planner statistics
 
 ### PRAGMA Reference
 
-| PRAGMA | Purpose | Recommended |
-|--------|---------|-------------|
-| `journal_mode` | Transaction journaling | `WAL` |
-| `synchronous` | Disk sync frequency | `NORMAL` (with WAL) |
-| `foreign_keys` | FK enforcement | `ON` |
-| `cache_size` | Page cache size | `-64000` (64MB) |
-| `temp_store` | Temp table location | `MEMORY` |
-| `busy_timeout` | Lock wait time (ms) | `5000` |
+| PRAGMA         | Purpose                | Recommended         |
+| -------------- | ---------------------- | ------------------- |
+| `journal_mode` | Transaction journaling | `WAL`               |
+| `synchronous`  | Disk sync frequency    | `NORMAL` (with WAL) |
+| `foreign_keys` | FK enforcement         | `ON`                |
+| `cache_size`   | Page cache size        | `-64000` (64MB)     |
+| `temp_store`   | Temp table location    | `MEMORY`            |
+| `busy_timeout` | Lock wait time (ms)    | `5000`              |
 
 ### WAL Mode
 
@@ -727,12 +730,14 @@ PRAGMA journal_mode = WAL;
 ```
 
 **Benefits**:
+
 - Readers don't block writers
 - Writers don't block readers
 - Better crash recovery
 - Faster for most workloads
 
 **Limitations**:
+
 - Doesn't work on network filesystems
 - Creates `-wal` and `-shm` files alongside database
 
@@ -814,38 +819,38 @@ PRAGMA quick_check;
 
 ### Configuration Mistakes
 
-| Mistake | Solution |
-|---------|----------|
-| Not enabling foreign keys | `PRAGMA foreign_keys=ON` per connection |
-| Using default journal mode | Enable WAL: `PRAGMA journal_mode=WAL` |
-| SQLite on network filesystem | Use local filesystem only |
+| Mistake                      | Solution                                |
+| ---------------------------- | --------------------------------------- |
+| Not enabling foreign keys    | `PRAGMA foreign_keys=ON` per connection |
+| Using default journal mode   | Enable WAL: `PRAGMA journal_mode=WAL`   |
+| SQLite on network filesystem | Use local filesystem only               |
 
 ### Schema Mistakes
 
-| Mistake | Solution |
-|---------|----------|
-| Storing comma-separated lists | Use proper junction tables |
-| Not indexing foreign keys | Always index FK columns |
-| Over-indexing | Only index frequently queried columns |
-| Using wrong date format | Use ISO 8601: `YYYY-MM-DD` |
+| Mistake                       | Solution                              |
+| ----------------------------- | ------------------------------------- |
+| Storing comma-separated lists | Use proper junction tables            |
+| Not indexing foreign keys     | Always index FK columns               |
+| Over-indexing                 | Only index frequently queried columns |
+| Using wrong date format       | Use ISO 8601: `YYYY-MM-DD`            |
 
 ### Query Mistakes
 
-| Mistake | Solution |
-|---------|----------|
-| `SELECT *` | Select only needed columns |
-| LIKE for date queries | Use date comparisons |
-| Functions on indexed columns | Create expression indexes |
-| Not using EXPLAIN | Analyze slow queries |
+| Mistake                      | Solution                   |
+| ---------------------------- | -------------------------- |
+| `SELECT *`                   | Select only needed columns |
+| LIKE for date queries        | Use date comparisons       |
+| Functions on indexed columns | Create expression indexes  |
+| Not using EXPLAIN            | Analyze slow queries       |
 
 ### Python Mistakes
 
-| Mistake | Solution |
-|---------|----------|
-| String formatting SQL | Use parameterized queries |
-| Not closing connections | Use context managers |
-| Creating engine per request | Create once, reuse |
-| Ignoring N+1 queries | Use eager loading |
+| Mistake                     | Solution                  |
+| --------------------------- | ------------------------- |
+| String formatting SQL       | Use parameterized queries |
+| Not closing connections     | Use context managers      |
+| Creating engine per request | Create once, reuse        |
+| Ignoring N+1 queries        | Use eager loading         |
 
 ---
 

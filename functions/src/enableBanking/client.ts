@@ -1,10 +1,5 @@
 import { generateJWT, type JWTConfig } from './auth.js';
-import type {
-  ASPSP,
-  AuthResponse,
-  SessionResponse,
-  TransactionResponse,
-} from './types.js';
+import type { ASPSP, AuthResponse, SessionResponse, TransactionResponse } from './types.js';
 
 export class EnableBankingClient {
   private baseUrl: string;
@@ -15,11 +10,7 @@ export class EnableBankingClient {
     this.jwtConfig = { ...jwtConfig, apiUrl: baseUrl };
   }
 
-  private async request<T>(
-    method: string,
-    path: string,
-    body?: unknown
-  ): Promise<T> {
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const token = generateJWT(this.jwtConfig);
 
     const response = await fetch(`${this.baseUrl}${path}`, {
@@ -41,10 +32,7 @@ export class EnableBankingClient {
 
   async getASPSPs(country: string): Promise<ASPSP[]> {
     // Enable Banking API returns { aspsps: ASPSP[] }
-    const response = await this.request<{ aspsps: ASPSP[] }>(
-      'GET',
-      `/aspsps?country=${country}`
-    );
+    const response = await this.request<{ aspsps: ASPSP[] }>('GET', `/aspsps?country=${country}`);
     return response.aspsps;
   }
 

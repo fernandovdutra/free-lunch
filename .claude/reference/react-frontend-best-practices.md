@@ -66,13 +66,13 @@ src/
 
 ### File Naming Conventions
 
-| Type | Convention | Example |
-|------|------------|---------|
-| Components | PascalCase | `HabitCard.jsx` |
-| Hooks | camelCase, `use` prefix | `useHabits.js` |
-| Utilities | camelCase | `formatDate.js` |
-| Constants | SCREAMING_SNAKE_CASE | `API_BASE_URL` |
-| CSS/styles | kebab-case | `habit-card.css` |
+| Type       | Convention              | Example          |
+| ---------- | ----------------------- | ---------------- |
+| Components | PascalCase              | `HabitCard.jsx`  |
+| Hooks      | camelCase, `use` prefix | `useHabits.js`   |
+| Utilities  | camelCase               | `formatDate.js`  |
+| Constants  | SCREAMING_SNAKE_CASE    | `API_BASE_URL`   |
+| CSS/styles | kebab-case              | `habit-card.css` |
 
 ### Barrel Exports
 
@@ -98,7 +98,7 @@ import { HabitCard, useHabits } from '@/features/habits';
 // Simple component
 function HabitCard({ habit, onComplete }) {
   return (
-    <div className="p-4 border rounded">
+    <div className="rounded border p-4">
       <h3>{habit.name}</h3>
       <button onClick={() => onComplete(habit.id)}>Complete</button>
     </div>
@@ -121,11 +121,11 @@ function HabitCard({ habit: { id, name, streak }, onComplete }) {
 ```jsx
 // Compound components pattern
 function Card({ children, className }) {
-  return <div className={`border rounded ${className}`}>{children}</div>;
+  return <div className={`rounded border ${className}`}>{children}</div>;
 }
 
 Card.Header = function CardHeader({ children }) {
-  return <div className="p-4 border-b font-bold">{children}</div>;
+  return <div className="border-b p-4 font-bold">{children}</div>;
 };
 
 Card.Body = function CardBody({ children }) {
@@ -136,7 +136,7 @@ Card.Body = function CardBody({ children }) {
 <Card>
   <Card.Header>Habit Details</Card.Header>
   <Card.Body>Content here</Card.Body>
-</Card>
+</Card>;
 ```
 
 ### Props Design
@@ -145,7 +145,11 @@ Card.Body = function CardBody({ children }) {
 // Prefer specific props over spreading
 // Good
 function Button({ onClick, disabled, children, variant = 'primary' }) {
-  return <button onClick={onClick} disabled={disabled}>{children}</button>;
+  return (
+    <button onClick={onClick} disabled={disabled}>
+      {children}
+    </button>
+  );
 }
 
 // Avoid excessive spreading
@@ -178,7 +182,7 @@ function Layout({ children }) {
 function HabitList({ habits, renderItem }) {
   return (
     <ul>
-      {habits.map(habit => (
+      {habits.map((habit) => (
         <li key={habit.id}>{renderItem(habit)}</li>
       ))}
     </ul>
@@ -186,10 +190,7 @@ function HabitList({ habits, renderItem }) {
 }
 
 // Usage
-<HabitList
-  habits={habits}
-  renderItem={(habit) => <HabitCard habit={habit} />}
-/>
+<HabitList habits={habits} renderItem={(habit) => <HabitCard habit={habit} />} />;
 ```
 
 ---
@@ -198,13 +199,13 @@ function HabitList({ habits, renderItem }) {
 
 ### When to Use What
 
-| State Type | Solution |
-|------------|----------|
-| Server/async data | TanStack Query |
-| Form state | react-hook-form or useState |
-| Local UI state | useState |
-| Shared UI state | Context or Zustand |
-| URL state | React Router |
+| State Type        | Solution                    |
+| ----------------- | --------------------------- |
+| Server/async data | TanStack Query              |
+| Form state        | react-hook-form or useState |
+| Local UI state    | useState                    |
+| Shared UI state   | Context or Zustand          |
+| URL state         | React Router                |
 
 ### useState Best Practices
 
@@ -217,7 +218,7 @@ const [name, setName] = useState('');
 const [isOpen, setIsOpen] = useState(false);
 
 // Functional updates for state based on previous value
-setCount(prev => prev + 1);
+setCount((prev) => prev + 1);
 
 // Initialize expensive state lazily
 const [data, setData] = useState(() => expensiveComputation());
@@ -252,15 +253,11 @@ function HabitProvider({ children }) {
 
   const value = {
     habits,
-    addHabit: (habit) => setHabits(prev => [...prev, habit]),
-    removeHabit: (id) => setHabits(prev => prev.filter(h => h.id !== id)),
+    addHabit: (habit) => setHabits((prev) => [...prev, habit]),
+    removeHabit: (id) => setHabits((prev) => prev.filter((h) => h.id !== id)),
   };
 
-  return (
-    <HabitContext.Provider value={value}>
-      {children}
-    </HabitContext.Provider>
-  );
+  return <HabitContext.Provider value={value}>{children}</HabitContext.Provider>;
 }
 
 // Custom hook for consuming context
@@ -350,7 +347,9 @@ function HabitList() {
 
   return (
     <ul>
-      {habits.map(habit => <HabitCard key={habit.id} habit={habit} />)}
+      {habits.map((habit) => (
+        <HabitCard key={habit.id} habit={habit} />
+      ))}
     </ul>
   );
 }
@@ -409,10 +408,7 @@ function HabitCard({ habit }) {
   const { mutate: complete, isPending } = useCompleteHabit();
 
   return (
-    <button
-      onClick={() => complete({ habitId: habit.id, date: today })}
-      disabled={isPending}
-    >
+    <button onClick={() => complete({ habitId: habit.id, date: today })} disabled={isPending}>
       {isPending ? 'Saving...' : 'Complete'}
     </button>
   );
@@ -436,9 +432,8 @@ export function useCompleteHabit() {
 
       // Optimistically update
       queryClient.setQueryData(['habits'], (old) =>
-        old.map(h => h.id === habitId
-          ? { ...h, completedToday: true, currentStreak: h.currentStreak + 1 }
-          : h
+        old.map((h) =>
+          h.id === habitId ? { ...h, completedToday: true, currentStreak: h.currentStreak + 1 } : h
         )
       );
 
@@ -482,8 +477,10 @@ async function request(endpoint, options = {}) {
 // api/habits.js
 export const fetchHabits = () => request('/habits');
 export const fetchHabit = (id) => request(`/habits/${id}`);
-export const createHabit = (data) => request('/habits', { method: 'POST', body: JSON.stringify(data) });
-export const completeHabit = (id, date) => request(`/habits/${id}/complete`, { method: 'POST', body: JSON.stringify({ date }) });
+export const createHabit = (data) =>
+  request('/habits', { method: 'POST', body: JSON.stringify(data) });
+export const completeHabit = (id, date) =>
+  request(`/habits/${id}/complete`, { method: 'POST', body: JSON.stringify({ date }) });
 ```
 
 ---
@@ -500,7 +497,10 @@ import { z } from 'zod';
 const habitSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   description: z.string().max(500).optional(),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color').default('#10B981'),
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color')
+    .default('#10B981'),
 });
 
 function HabitForm({ onSubmit, defaultValues }) {
@@ -523,11 +523,7 @@ function HabitForm({ onSubmit, defaultValues }) {
     <form onSubmit={handleSubmit(handleFormSubmit)}>
       <div>
         <label htmlFor="name">Name</label>
-        <input
-          id="name"
-          {...register('name')}
-          className={errors.name ? 'border-red-500' : ''}
-        />
+        <input id="name" {...register('name')} className={errors.name ? 'border-red-500' : ''} />
         {errors.name && <span className="text-red-500">{errors.name.message}</span>}
       </div>
 
@@ -565,11 +561,7 @@ function SimpleForm({ onSubmit }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Habit name"
-      />
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Habit name" />
       {error && <span className="text-red-500">{error}</span>}
       <button type="submit">Add</button>
     </form>
@@ -623,11 +615,7 @@ function Button({ children, variant = 'primary' }) {
     danger: 'bg-red-500 text-white hover:bg-red-600',
   };
 
-  return (
-    <button className={`${baseClasses} ${variantClasses[variant]}`}>
-      {children}
-    </button>
-  );
+  return <button className={`${baseClasses} ${variantClasses[variant]}`}>{children}</button>;
 }
 
 // Using clsx for conditional classes
@@ -635,11 +623,13 @@ import clsx from 'clsx';
 
 function HabitCard({ habit, isCompleted }) {
   return (
-    <div className={clsx(
-      'p-4 border rounded',
-      isCompleted && 'bg-green-50 border-green-200',
-      !isCompleted && 'bg-white border-gray-200'
-    )}>
+    <div
+      className={clsx(
+        'rounded border p-4',
+        isCompleted && 'border-green-200 bg-green-50',
+        !isCompleted && 'border-gray-200 bg-white'
+      )}
+    >
       {habit.name}
     </div>
   );
@@ -650,11 +640,7 @@ function HabitCard({ habit, isCompleted }) {
 
 ```jsx
 // Mobile-first approach
-<div className="
-  p-2 md:p-4 lg:p-6
-  grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4
-  text-sm md:text-base
-">
+<div className="grid grid-cols-1 gap-4 p-2 text-sm md:grid-cols-2 md:p-4 md:text-base lg:grid-cols-3 lg:p-6">
   {/* Content */}
 </div>
 
@@ -701,12 +687,17 @@ const HabitCard = memo(function HabitCard({ habit, onComplete }) {
 });
 
 // Custom comparison
-const HabitCard = memo(function HabitCard({ habit, onComplete }) {
-  // ...
-}, (prevProps, nextProps) => {
-  return prevProps.habit.id === nextProps.habit.id &&
-         prevProps.habit.completedToday === nextProps.habit.completedToday;
-});
+const HabitCard = memo(
+  function HabitCard({ habit, onComplete }) {
+    // ...
+  },
+  (prevProps, nextProps) => {
+    return (
+      prevProps.habit.id === nextProps.habit.id &&
+      prevProps.habit.completedToday === nextProps.habit.completedToday
+    );
+  }
+);
 ```
 
 ### useCallback and useMemo
@@ -718,9 +709,7 @@ function HabitList({ habits }) {
     // ...
   }, []); // Empty deps = stable reference
 
-  return habits.map(h => (
-    <HabitCard key={h.id} habit={h} onComplete={handleComplete} />
-  ));
+  return habits.map((h) => <HabitCard key={h.id} habit={h} onComplete={handleComplete} />);
 }
 
 // useMemo - memoize expensive calculations
@@ -734,10 +723,12 @@ function Stats({ completions }) {
 ```
 
 **When to use**:
+
 - `useCallback`: Functions passed to memoized children
 - `useMemo`: Expensive calculations, referential equality for deps
 
 **When NOT to use**:
+
 - Simple calculations
 - Primitive values
 - Functions not passed to children
@@ -772,15 +763,8 @@ import { FixedSizeList } from 'react-window';
 
 function VirtualizedList({ items }) {
   return (
-    <FixedSizeList
-      height={400}
-      width="100%"
-      itemCount={items.length}
-      itemSize={50}
-    >
-      {({ index, style }) => (
-        <div style={style}>{items[index].name}</div>
-      )}
+    <FixedSizeList height={400} width="100%" itemCount={items.length} itemSize={50}>
+      {({ index, style }) => <div style={style}>{items[index].name}</div>}
     </FixedSizeList>
   );
 }
@@ -822,7 +806,7 @@ function useDebounce(value, delay) {
 // useToggle
 function useToggle(initialValue = false) {
   const [value, setValue] = useState(initialValue);
-  const toggle = useCallback(() => setValue(v => !v), []);
+  const toggle = useCallback(() => setValue((v) => !v), []);
   return [value, toggle];
 }
 ```
@@ -835,7 +819,7 @@ useEffect(() => {
   const controller = new AbortController();
 
   fetch('/api/data', { signal: controller.signal })
-    .then(res => res.json())
+    .then((res) => res.json())
     .then(setData);
 
   return () => controller.abort(); // Cleanup on unmount
@@ -942,9 +926,7 @@ function HabitDetail() {
   return (
     <div>
       <button onClick={() => navigate('/')}>Back</button>
-      <button onClick={() => setSearchParams({ month: 'next' })}>
-        Next Month
-      </button>
+      <button onClick={() => setSearchParams({ month: 'next' })}>Next Month</button>
     </div>
   );
 }
@@ -996,13 +978,13 @@ class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback || (
-        <div className="p-4 text-red-500">
-          <h2>Something went wrong</h2>
-          <button onClick={() => this.setState({ hasError: false })}>
-            Try again
-          </button>
-        </div>
+      return (
+        this.props.fallback || (
+          <div className="p-4 text-red-500">
+            <h2>Something went wrong</h2>
+            <button onClick={() => this.setState({ hasError: false })}>Try again</button>
+          </div>
+        )
       );
     }
     return this.props.children;
@@ -1012,7 +994,7 @@ class ErrorBoundary extends Component {
 // Usage
 <ErrorBoundary fallback={<ErrorPage />}>
   <App />
-</ErrorBoundary>
+</ErrorBoundary>;
 ```
 
 ### Async Error Handling
@@ -1023,7 +1005,7 @@ function HabitList() {
 
   if (isError) {
     return (
-      <div className="p-4 bg-red-50 text-red-700 rounded">
+      <div className="rounded bg-red-50 p-4 text-red-700">
         <p>Failed to load habits: {error.message}</p>
         <button onClick={() => refetch()}>Retry</button>
       </div>
@@ -1116,9 +1098,7 @@ export function renderWithProviders(ui) {
   const queryClient = createTestQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        {ui}
-      </BrowserRouter>
+      <BrowserRouter>{ui}</BrowserRouter>
     </QueryClientProvider>
   );
 }
@@ -1133,9 +1113,7 @@ import * as api from '../api/habits';
 vi.mock('../api/habits');
 
 it('loads and displays habits', async () => {
-  api.fetchHabits.mockResolvedValue([
-    { id: 1, name: 'Exercise' },
-  ]);
+  api.fetchHabits.mockResolvedValue([{ id: 1, name: 'Exercise' }]);
 
   renderWithProviders(<HabitList />);
 
@@ -1226,12 +1204,7 @@ function ListItem({ onSelect }) {
   };
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={handleKeyDown}
-    >
+    <div role="button" tabIndex={0} onClick={onSelect} onKeyDown={handleKeyDown}>
       Item
     </div>
   );
@@ -1244,13 +1217,13 @@ function ListItem({ onSelect }) {
 
 ### Common Mistakes
 
-| Anti-Pattern | Problem | Solution |
-|--------------|---------|----------|
-| Props drilling | Hard to maintain | Context or composition |
-| Huge components | Hard to test/maintain | Split into smaller components |
-| useEffect for derived state | Unnecessary complexity | Compute during render |
-| Index as key | Bugs with reordering | Use stable unique IDs |
-| Direct DOM manipulation | Conflicts with React | Use refs sparingly |
+| Anti-Pattern                | Problem                | Solution                      |
+| --------------------------- | ---------------------- | ----------------------------- |
+| Props drilling              | Hard to maintain       | Context or composition        |
+| Huge components             | Hard to test/maintain  | Split into smaller components |
+| useEffect for derived state | Unnecessary complexity | Compute during render         |
+| Index as key                | Bugs with reordering   | Use stable unique IDs         |
+| Direct DOM manipulation     | Conflicts with React   | Use refs sparingly            |
 
 ### Code Examples
 
@@ -1265,23 +1238,33 @@ useEffect(() => {
 const fullName = `${firstName} ${lastName}`;
 
 // BAD: Index as key (causes bugs when list changes)
-{items.map((item, index) => <Item key={index} item={item} />)}
+{
+  items.map((item, index) => <Item key={index} item={item} />);
+}
 
 // GOOD: Stable unique ID
-{items.map(item => <Item key={item.id} item={item} />)}
+{
+  items.map((item) => <Item key={item.id} item={item} />);
+}
 
 // BAD: Fetching in useEffect without cleanup
 useEffect(() => {
-  fetch('/api/data').then(res => res.json()).then(setData);
+  fetch('/api/data')
+    .then((res) => res.json())
+    .then(setData);
 }, []);
 
 // GOOD: Use TanStack Query or add cleanup
 useEffect(() => {
   let cancelled = false;
   fetch('/api/data')
-    .then(res => res.json())
-    .then(data => { if (!cancelled) setData(data); });
-  return () => { cancelled = true; };
+    .then((res) => res.json())
+    .then((data) => {
+      if (!cancelled) setData(data);
+    });
+  return () => {
+    cancelled = true;
+  };
 }, []);
 ```
 
@@ -1293,7 +1276,16 @@ useEffect(() => {
 
 ```jsx
 // React
-import { useState, useEffect, useCallback, useMemo, useRef, memo, createContext, useContext } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  memo,
+  createContext,
+  useContext,
+} from 'react';
 
 // React Router
 import { BrowserRouter, Routes, Route, Link, useParams, useNavigate } from 'react-router-dom';

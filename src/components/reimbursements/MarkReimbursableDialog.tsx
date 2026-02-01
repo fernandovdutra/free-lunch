@@ -66,22 +66,30 @@ export function MarkReimbursableDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            void handleSubmit(e);
+          }}
+          className="space-y-4"
+        >
           {/* Transaction details */}
           <div className="rounded-lg border bg-muted/50 p-3">
             <p className="font-medium">{transaction.description}</p>
             <div className="mt-1 flex items-center justify-between text-sm text-muted-foreground">
               <span>{formatDate(transaction.date)}</span>
-              <span className="font-medium text-red-500">
-                {formatAmount(transaction.amount)}
-              </span>
+              <span className="font-medium text-red-500">{formatAmount(transaction.amount)}</span>
             </div>
           </div>
 
           {/* Type selector */}
           <div className="space-y-2">
             <Label htmlFor="reimbursement-type">Type</Label>
-            <Select value={type} onValueChange={(v) => { setType(v as 'work' | 'personal'); }}>
+            <Select
+              value={type}
+              onValueChange={(v) => {
+                setType(v as 'work' | 'personal');
+              }}
+            >
               <SelectTrigger id="reimbursement-type">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
@@ -104,7 +112,9 @@ export function MarkReimbursableDialog({
               id="reimbursement-note"
               placeholder="e.g., Team dinner, Train ticket to client"
               value={note}
-              onChange={(e) => { setNote(e.target.value); }}
+              onChange={(e) => {
+                setNote(e.target.value);
+              }}
             />
           </div>
 
@@ -112,7 +122,9 @@ export function MarkReimbursableDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => { onOpenChange(false); }}
+              onClick={() => {
+                onOpenChange(false);
+              }}
               disabled={isSubmitting}
             >
               Cancel

@@ -14,10 +14,7 @@ export const getBankStatus = onCall(
     const userId = request.auth.uid;
     const db = getFirestore();
 
-    const connectionsRef = db
-      .collection('users')
-      .doc(userId)
-      .collection('bankConnections');
+    const connectionsRef = db.collection('users').doc(userId).collection('bankConnections');
 
     const snapshot = await connectionsRef.get();
 

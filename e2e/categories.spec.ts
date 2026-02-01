@@ -47,7 +47,9 @@ test.describe('Categories Page', () => {
     // Navigate to categories page
     await page.goto('/categories');
     // Wait for the page content to load (not networkidle - Firestore listeners keep network active)
-    await expect(page.getByRole('heading', { name: /categories/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /categories/i })).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('should display the categories page header', async ({ page }) => {

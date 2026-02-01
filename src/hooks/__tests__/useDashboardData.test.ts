@@ -159,7 +159,12 @@ describe('calculateSummary', () => {
 describe('calculateCategorySpending', () => {
   it('groups expenses by category', () => {
     const transactions = [
-      createMockTransaction({ id: '1', amount: -100, description: 'Groceries', categoryId: 'food' }),
+      createMockTransaction({
+        id: '1',
+        amount: -100,
+        description: 'Groceries',
+        categoryId: 'food',
+      }),
       createMockTransaction({ id: '2', amount: -50, description: 'Coffee', categoryId: 'food' }),
       createMockTransaction({ id: '3', amount: -30, description: 'Bus', categoryId: 'transport' }),
     ];
@@ -183,7 +188,12 @@ describe('calculateCategorySpending', () => {
         description: 'Salary',
         categoryId: 'income-salary',
       }),
-      createMockTransaction({ id: '2', amount: -100, description: 'Groceries', categoryId: 'food' }),
+      createMockTransaction({
+        id: '2',
+        amount: -100,
+        description: 'Groceries',
+        categoryId: 'food',
+      }),
     ];
 
     const spending = calculateCategorySpending(transactions, mockCategories);
@@ -194,7 +204,12 @@ describe('calculateCategorySpending', () => {
 
   it('excludes pending reimbursements from spending', () => {
     const transactions = [
-      createMockTransaction({ id: '1', amount: -100, description: 'Groceries', categoryId: 'food' }),
+      createMockTransaction({
+        id: '1',
+        amount: -100,
+        description: 'Groceries',
+        categoryId: 'food',
+      }),
       createMockTransaction({
         id: '2',
         amount: -25,
@@ -248,7 +263,12 @@ describe('calculateCategorySpending', () => {
   it('sorts by amount descending', () => {
     const transactions = [
       createMockTransaction({ id: '1', amount: -30, description: 'Bus', categoryId: 'transport' }),
-      createMockTransaction({ id: '2', amount: -100, description: 'Groceries', categoryId: 'food' }),
+      createMockTransaction({
+        id: '2',
+        amount: -100,
+        description: 'Groceries',
+        categoryId: 'food',
+      }),
     ];
 
     const spending = calculateCategorySpending(transactions, mockCategories);
@@ -258,9 +278,7 @@ describe('calculateCategorySpending', () => {
   });
 
   it('returns empty array for no expenses', () => {
-    const transactions = [
-      createMockTransaction({ id: '1', amount: 3000, description: 'Salary' }),
-    ];
+    const transactions = [createMockTransaction({ id: '1', amount: 3000, description: 'Salary' })];
 
     const spending = calculateCategorySpending(transactions, mockCategories);
 
@@ -269,7 +287,12 @@ describe('calculateCategorySpending', () => {
 
   it('uses category color from categories list', () => {
     const transactions = [
-      createMockTransaction({ id: '1', amount: -100, description: 'Groceries', categoryId: 'food' }),
+      createMockTransaction({
+        id: '1',
+        amount: -100,
+        description: 'Groceries',
+        categoryId: 'food',
+      }),
     ];
 
     const spending = calculateCategorySpending(transactions, mockCategories);

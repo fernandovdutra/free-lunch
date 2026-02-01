@@ -39,7 +39,9 @@ test.describe('Transactions Page', () => {
     await login(page, TEST_USER.email, TEST_USER.password);
     await page.goto('/transactions');
     // Wait for the page content to load (not networkidle - Firestore listeners keep network active)
-    await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('should display the transactions page header', async ({ page }) => {
@@ -65,7 +67,10 @@ test.describe('Transactions Page', () => {
 
   test('should display category filter dropdown', async ({ page }) => {
     await expect(
-      page.getByRole('combobox').filter({ hasText: /all categories|uncategorized/i }).first()
+      page
+        .getByRole('combobox')
+        .filter({ hasText: /all categories|uncategorized/i })
+        .first()
     ).toBeVisible();
   });
 
@@ -92,10 +97,15 @@ test.describe('Transactions Page', () => {
 
     await page.getByLabel(/description/i).fill('');
     await page.getByLabel(/amount/i).fill('0');
-    await page.getByRole('button', { name: /add transaction/i }).last().click();
+    await page
+      .getByRole('button', { name: /add transaction/i })
+      .last()
+      .click();
 
     // Check that at least one validation error appears
-    await expect(page.getByText(/description must be at least 2 characters/i).first()).toBeVisible();
+    await expect(
+      page.getByText(/description must be at least 2 characters/i).first()
+    ).toBeVisible();
   });
 
   test('should close dialog when clicking Cancel', async ({ page }) => {
@@ -114,7 +124,10 @@ test.describe('Transactions Page', () => {
 
     await page.getByLabel(/description/i).fill(uniqueDescription);
     await page.getByLabel(/amount/i).fill('-25.50');
-    await page.getByRole('button', { name: /add transaction/i }).last().click();
+    await page
+      .getByRole('button', { name: /add transaction/i })
+      .last()
+      .click();
 
     await expect(page.getByRole('dialog')).not.toBeVisible();
     await expect(page.getByText(uniqueDescription)).toBeVisible({ timeout: 10000 });
@@ -132,7 +145,10 @@ test.describe('Transactions Page', () => {
     await page.getByRole('button', { name: /add transaction/i }).click();
     await page.getByLabel(/description/i).fill(searchTerm);
     await page.getByLabel(/amount/i).fill('-10');
-    await page.getByRole('button', { name: /add transaction/i }).last().click();
+    await page
+      .getByRole('button', { name: /add transaction/i })
+      .last()
+      .click();
     await expect(page.getByRole('dialog')).not.toBeVisible();
 
     await expect(page.getByText(searchTerm)).toBeVisible({ timeout: 10000 });
@@ -146,7 +162,10 @@ test.describe('Transactions Page', () => {
     await page.getByRole('button', { name: /add transaction/i }).click();
     await page.getByLabel(/description/i).fill('Summary Test');
     await page.getByLabel(/amount/i).fill('-50');
-    await page.getByRole('button', { name: /add transaction/i }).last().click();
+    await page
+      .getByRole('button', { name: /add transaction/i })
+      .last()
+      .click();
     await expect(page.getByRole('dialog')).not.toBeVisible();
 
     await page.waitForTimeout(1000);

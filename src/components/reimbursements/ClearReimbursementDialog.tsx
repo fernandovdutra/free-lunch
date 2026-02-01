@@ -73,7 +73,12 @@ export function ClearReimbursementDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            void handleSubmit(e);
+          }}
+          className="space-y-4"
+        >
           {/* Income transaction details */}
           <div className="rounded-lg border bg-emerald-50 p-3 dark:bg-emerald-950/20">
             <p className="text-sm font-medium text-muted-foreground">Incoming Payment</p>
@@ -99,7 +104,9 @@ export function ClearReimbursementDialog({
                   <button
                     key={expense.id}
                     type="button"
-                    onClick={() => { toggleSelection(expense.id); }}
+                    onClick={() => {
+                      toggleSelection(expense.id);
+                    }}
                     className={cn(
                       'flex w-full items-center gap-3 rounded-md p-2 text-left transition-colors',
                       selectedIds.has(expense.id)
@@ -155,14 +162,19 @@ export function ClearReimbursementDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => { onOpenChange(false); }}
+              onClick={() => {
+                onOpenChange(false);
+              }}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || selectedIds.size === 0}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Clear {selectedIds.size > 0 ? `${selectedIds.size} Expense${selectedIds.size > 1 ? 's' : ''}` : 'Selected'}
+              Clear{' '}
+              {selectedIds.size > 0
+                ? `${selectedIds.size} Expense${selectedIds.size > 1 ? 's' : ''}`
+                : 'Selected'}
             </Button>
           </DialogFooter>
         </form>
