@@ -7,6 +7,7 @@ interface SpendingByCategoryChartProps {
   data: CategorySpending[];
   isLoading?: boolean;
   className?: string;
+  onCategoryClick?: (categoryId: string) => void;
 }
 
 interface ChartDataEntry {
@@ -16,10 +17,43 @@ interface ChartDataEntry {
   percentage: number;
 }
 
+const RADIAN = Math.PI / 180;
+
+interface CustomLabelProps {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  outerRadius: number;
+  name: string;
+  percentage: number;
+}
+
+function renderCustomLabel({ cx, cy, midAngle, outerRadius, name, percentage }: CustomLabelProps) {
+  if (percentage < 5) return null;
+
+  const radius = outerRadius + 25;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#374151"
+      textAnchor={x > cx ? 'start' : 'end'}
+      dominantBaseline="central"
+      className="text-xs"
+    >
+      {name} {percentage.toFixed(0)}%
+    </text>
+  );
+}
+
 export function SpendingByCategoryChart({
   data,
   isLoading,
   className,
+  onCategoryClick,
 }: SpendingByCategoryChartProps) {
   if (isLoading) {
     return <Skeleton className={cn('h-[300px] w-full', className)} />;
@@ -36,6 +70,15 @@ export function SpendingByCategoryChart({
   // Prepare data for Recharts (top 7 categories, rest grouped as "Other")
   const chartData = prepareChartData(data);
 
+  const handleClick = (_: unknown, index: number) => {
+    const entry = chartData[index];
+    if (!entry || !onCategoryClick) return;
+    const category = data.find((d) => d.categoryName === entry.name);
+    if (category) {
+      onCategoryClick(category.categoryId);
+    }
+  };
+
   return (
     <div className={className}>
       <ResponsiveContainer width="100%" height={300}>
@@ -49,6 +92,10 @@ export function SpendingByCategoryChart({
             paddingAngle={2}
             dataKey="value"
             nameKey="name"
+            label={renderCustomLabel}
+            labelLine={false}
+            onClick={handleClick}
+            style={{ cursor: onCategoryClick ? 'pointer' : 'default' }}
           >
             {chartData.map((entry) => (
               <Cell key={entry.name} fill={entry.color} stroke="white" strokeWidth={2} />

@@ -14,7 +14,7 @@ interface CategoryItemProps {
 export function CategoryItem({ category, level, onEdit, onDelete }: CategoryItemProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const hasChildren = category.children.length > 0;
-  const canDelete = !category.isSystem && !hasChildren;
+  const canDelete = !category.isSystem;
 
   return (
     <div>

@@ -7,9 +7,10 @@ interface SpendingOverTimeChartProps {
   data: TimelineData[];
   isLoading?: boolean;
   className?: string;
+  onDateClick?: (date: string) => void;
 }
 
-export function SpendingOverTimeChart({ data, isLoading, className }: SpendingOverTimeChartProps) {
+export function SpendingOverTimeChart({ data, isLoading, className, onDateClick }: SpendingOverTimeChartProps) {
   if (isLoading) {
     return <Skeleton className={cn('h-[300px] w-full', className)} />;
   }
@@ -47,7 +48,14 @@ export function SpendingOverTimeChart({ data, isLoading, className }: SpendingOv
             width={60}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }} />
-          <Bar dataKey="expenses" fill="#C45C4A" radius={[4, 4, 0, 0]} isAnimationActive={true} />
+          <Bar
+            dataKey="expenses"
+            fill="#C45C4A"
+            radius={[4, 4, 0, 0]}
+            isAnimationActive={true}
+            onClick={(barData: Record<string, unknown>) => onDateClick?.(barData.date as string)}
+            style={{ cursor: onDateClick ? 'pointer' : 'default' }}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>

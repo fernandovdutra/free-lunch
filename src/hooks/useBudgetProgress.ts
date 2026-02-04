@@ -93,14 +93,13 @@ function calculateSpendingByCategory(
 /**
  * Hook to get current month's budget progress
  */
-export function useBudgetProgress() {
+export function useBudgetProgress(dateRange?: { startDate: Date; endDate: Date }) {
   const { user } = useAuth();
   const { data: budgets = [] } = useBudgets();
   const { data: categories = [] } = useCategories();
 
-  const now = new Date();
-  const startDate = startOfMonth(now);
-  const endDate = endOfMonth(now);
+  const startDate = dateRange?.startDate ?? startOfMonth(new Date());
+  const endDate = dateRange?.endDate ?? endOfMonth(new Date());
 
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['transactions', user?.id, startDate.toISOString(), endDate.toISOString()],

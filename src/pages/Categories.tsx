@@ -138,8 +138,19 @@ export function Categories() {
           <DialogHeader>
             <DialogTitle>Delete Category</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{deleteCategory?.name}&quot;? This action cannot
-              be undone.
+              {deleteCategory && deleteCategory.children.length > 0 ? (
+                <>
+                  Are you sure you want to delete &quot;{deleteCategory.name}&quot; and its{' '}
+                  <strong>{deleteCategory.children.length}</strong> sub-categor
+                  {deleteCategory.children.length === 1 ? 'y' : 'ies'}? Transactions in these
+                  categories will become uncategorized. This action cannot be undone.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to delete &quot;{deleteCategory?.name}&quot;? Transactions in
+                  this category will become uncategorized. This action cannot be undone.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

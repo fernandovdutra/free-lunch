@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { useNavigate, createSearchParams } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -13,6 +14,7 @@ import {
 } from '@/components/dashboard';
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const { dateRange, selectedMonth } = useMonth();
 
   const { data: categories = [] } = useCategories();
@@ -31,6 +33,20 @@ export function Dashboard() {
   }
 
   const periodLabel = format(selectedMonth, 'MMMM yyyy');
+
+  const handleCategoryClick = (categoryId: string) => {
+    void navigate({
+      pathname: '/transactions',
+      search: createSearchParams({ category: categoryId }).toString(),
+    });
+  };
+
+  const handleDateClick = (date: string) => {
+    void navigate({
+      pathname: '/transactions',
+      search: createSearchParams({ date }).toString(),
+    });
+  };
 
   // Count pending reimbursements
   const pendingCount =
@@ -70,6 +86,7 @@ export function Dashboard() {
             <SpendingByCategoryChart
               data={dashboardData?.categorySpending ?? []}
               isLoading={isLoading}
+              onCategoryClick={handleCategoryClick}
             />
           </CardContent>
         </Card>
@@ -79,7 +96,11 @@ export function Dashboard() {
             <CardTitle>Spending Over Time</CardTitle>
           </CardHeader>
           <CardContent>
-            <SpendingOverTimeChart data={dashboardData?.timeline ?? []} isLoading={isLoading} />
+            <SpendingOverTimeChart
+              data={dashboardData?.timeline ?? []}
+              isLoading={isLoading}
+              onDateClick={handleDateClick}
+            />
           </CardContent>
         </Card>
       </div>

@@ -7,7 +7,7 @@ import {
   doc,
   setDoc,
   updateDoc,
-  deleteDoc,
+  writeBatch,
   serverTimestamp,
   Timestamp,
   type QueryDocumentSnapshot,
@@ -159,12 +159,32 @@ export function useUpdateCategory() {
 export function useDeleteCategory() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { data: categories = [] } = useCategories();
 
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user?.id) throw new Error('Not authenticated');
-      const categoryRef = doc(db, 'users', user.id, 'categories', id);
-      await deleteDoc(categoryRef);
+
+      // Find all children recursively
+      const idsToDelete = [id];
+      const findChildren = (parentId: string) => {
+        categories
+          .filter((c) => c.parentId === parentId)
+          .forEach((child) => {
+            idsToDelete.push(child.id);
+            findChildren(child.id);
+          });
+      };
+      findChildren(id);
+
+      // Delete all in batch
+      const batch = writeBatch(db);
+      idsToDelete.forEach((catId) => {
+        const categoryRef = doc(db, 'users', user.id, 'categories', catId);
+        batch.delete(categoryRef);
+      });
+      await batch.commit();
+
       return id;
     },
     onSuccess: () => {
