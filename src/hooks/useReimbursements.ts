@@ -49,7 +49,16 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
     categorySource: data.categorySource ?? 'manual',
     isSplit: data.isSplit ?? false,
     splits: data.splits ?? null,
-    reimbursement: data.reimbursement ?? null,
+    reimbursement: data.reimbursement
+      ? {
+          ...data.reimbursement,
+          clearedAt: data.reimbursement.clearedAt
+            ? data.reimbursement.clearedAt instanceof Timestamp
+              ? data.reimbursement.clearedAt.toDate()
+              : new Date(data.reimbursement.clearedAt as unknown as string)
+            : null,
+        }
+      : null,
     bankAccountId: data.bankAccountId ?? null,
     importedAt:
       data.importedAt instanceof Timestamp
@@ -66,6 +75,7 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
 export const reimbursementKeys = {
   pending: (userId: string) => ['reimbursements', 'pending', userId] as const,
   cleared: (userId: string) => ['reimbursements', 'cleared', userId] as const,
+  incomeForClearing: (userId: string) => ['reimbursements', 'income-for-clearing', userId] as const,
 };
 
 /**
@@ -119,6 +129,46 @@ export function useClearedReimbursements(options?: { limit?: number }) {
       }
 
       return cleared;
+    },
+    enabled: !!user?.id,
+  });
+}
+
+/**
+ * Query for recent income transactions that can be used to clear reimbursements.
+ * Filters to transactions with amount > 0 that are not already linked to cleared reimbursements.
+ * Supports optional search text for filtering by description/counterparty.
+ */
+export function useRecentIncomeTransactions(searchText?: string) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: [...reimbursementKeys.incomeForClearing(user?.id ?? ''), searchText ?? ''],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      const q = query(transactionsRef, orderBy('date', 'desc'));
+      const snapshot = await getDocs(q);
+      const transactions = snapshot.docs.map(transformTransaction);
+
+      // Filter for income transactions not already used for clearing
+      let income = transactions.filter(
+        (t) => t.amount > 0 && t.reimbursement?.status !== 'cleared'
+      );
+
+      // Apply search filter
+      if (searchText) {
+        const lower = searchText.toLowerCase();
+        income = income.filter(
+          (t) =>
+            t.description.toLowerCase().includes(lower) ||
+            (t.counterparty && t.counterparty.toLowerCase().includes(lower))
+        );
+      }
+
+      // Return the most recent 50
+      return income.slice(0, 50);
     },
     enabled: !!user?.id,
   });

@@ -12,7 +12,7 @@ import {
 import { CategoryPicker } from './CategoryPicker';
 import type { TransactionFilters as Filters } from '@/hooks/useTransactions';
 import type { Category } from '@/types';
-import { startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, format } from 'date-fns';
+import { format } from 'date-fns';
 
 interface TransactionFiltersProps {
   filters: Filters;
@@ -20,11 +20,8 @@ interface TransactionFiltersProps {
   categories: Category[];
 }
 
-type DatePreset = 'this-month' | 'last-month' | 'this-year' | 'all';
-
 export function TransactionFilters({ filters, onChange, categories }: TransactionFiltersProps) {
   const [searchValue, setSearchValue] = useState(filters.searchText ?? '');
-  const [activePreset, setActivePreset] = useState<DatePreset>('this-month');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounced search
@@ -49,34 +46,6 @@ export function TransactionFilters({ filters, onChange, categories }: Transactio
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchValue]);
 
-  const handleDatePreset = (preset: DatePreset) => {
-    setActivePreset(preset);
-    const now = new Date();
-    const newFilters = { ...filters };
-
-    switch (preset) {
-      case 'this-month':
-        newFilters.startDate = startOfMonth(now);
-        newFilters.endDate = endOfMonth(now);
-        break;
-      case 'last-month': {
-        const lastMonth = subMonths(now, 1);
-        newFilters.startDate = startOfMonth(lastMonth);
-        newFilters.endDate = endOfMonth(lastMonth);
-        break;
-      }
-      case 'this-year':
-        newFilters.startDate = startOfYear(now);
-        newFilters.endDate = endOfYear(now);
-        break;
-      case 'all':
-        delete newFilters.startDate;
-        delete newFilters.endDate;
-        break;
-    }
-    onChange(newFilters);
-  };
-
   const handleCategoryChange = (categoryId: string | null) => {
     const newFilters = { ...filters };
     if (categoryId) {
@@ -89,12 +58,10 @@ export function TransactionFilters({ filters, onChange, categories }: Transactio
 
   const clearFilters = () => {
     setSearchValue('');
-    setActivePreset('this-month');
-    const now = new Date();
-    onChange({
-      startDate: startOfMonth(now),
-      endDate: endOfMonth(now),
-    });
+    const dateOnly: Filters = {};
+    if (filters.startDate) dateOnly.startDate = filters.startDate;
+    if (filters.endDate) dateOnly.endDate = filters.endDate;
+    onChange(dateOnly);
   };
 
   const hasActiveFilters =
@@ -102,8 +69,7 @@ export function TransactionFilters({ filters, onChange, categories }: Transactio
     !!filters.categoryId ||
     !!filters.direction ||
     !!filters.categorizationStatus ||
-    !!filters.reimbursementStatus ||
-    activePreset !== 'this-month';
+    !!filters.reimbursementStatus;
 
   const getDateRangeText = () => {
     if (!filters.startDate || !filters.endDate) return 'All time';
@@ -113,6 +79,12 @@ export function TransactionFilters({ filters, onChange, categories }: Transactio
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
+        {/* Date range indicator */}
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Calendar className="h-4 w-4" />
+          <span>{getDateRangeText()}</span>
+        </div>
+
         {/* Search */}
         <div className="relative min-w-[200px] flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -223,50 +195,6 @@ export function TransactionFilters({ filters, onChange, categories }: Transactio
             Clear
           </Button>
         )}
-      </div>
-
-      {/* Date presets */}
-      <div className="flex items-center gap-2">
-        <Calendar className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">{getDateRangeText()}</span>
-        <div className="ml-2 flex gap-1">
-          <Button
-            variant={activePreset === 'this-month' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => {
-              handleDatePreset('this-month');
-            }}
-          >
-            This Month
-          </Button>
-          <Button
-            variant={activePreset === 'last-month' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => {
-              handleDatePreset('last-month');
-            }}
-          >
-            Last Month
-          </Button>
-          <Button
-            variant={activePreset === 'this-year' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => {
-              handleDatePreset('this-year');
-            }}
-          >
-            This Year
-          </Button>
-          <Button
-            variant={activePreset === 'all' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => {
-              handleDatePreset('all');
-            }}
-          >
-            All Time
-          </Button>
-        </div>
       </div>
     </div>
   );
