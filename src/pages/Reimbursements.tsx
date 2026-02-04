@@ -1,14 +1,18 @@
-import { AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, ArrowLeftRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   PendingReimbursementList,
   ClearedReimbursementList,
   ReimbursementSummary,
+  ClearFromReimbursementsDialog,
 } from '@/components/reimbursements';
 import {
   usePendingReimbursements,
   useClearedReimbursements,
   useUnmarkReimbursement,
+  useClearReimbursement,
   calculateReimbursementSummary,
 } from '@/hooks/useReimbursements';
 import type { Transaction } from '@/types';
@@ -27,11 +31,20 @@ export function Reimbursements() {
   } = useClearedReimbursements({ limit: 10 });
 
   const unmarkMutation = useUnmarkReimbursement();
+  const clearMutation = useClearReimbursement();
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
 
   const summaryData = calculateReimbursementSummary(pendingReimbursements, clearedReimbursements);
 
   const handleUnmark = (transaction: Transaction) => {
     unmarkMutation.mutate(transaction.id);
+  };
+
+  const handleClearWithIncome = async (incomeId: string, expenseIds: string[]) => {
+    await clearMutation.mutateAsync({
+      incomeTransactionId: incomeId,
+      expenseTransactionIds: expenseIds,
+    });
   };
 
   const hasError = pendingError || clearedError;
@@ -59,14 +72,27 @@ export function Reimbursements() {
         {/* Pending Reimbursements */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Pending Reimbursements
-              {pendingReimbursements.length > 0 && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                  {pendingReimbursements.length}
-                </span>
-              )}
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                Pending Reimbursements
+                {pendingReimbursements.length > 0 && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                    {pendingReimbursements.length}
+                  </span>
+                )}
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pendingReimbursements.length === 0}
+                onClick={() => {
+                  setClearDialogOpen(true);
+                }}
+              >
+                <ArrowLeftRight className="mr-1.5 h-4 w-4" />
+                Clear with Income
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <PendingReimbursementList
@@ -103,6 +129,14 @@ export function Reimbursements() {
           />
         </CardContent>
       </Card>
+
+      <ClearFromReimbursementsDialog
+        open={clearDialogOpen}
+        onOpenChange={setClearDialogOpen}
+        pendingReimbursements={pendingReimbursements}
+        onSubmit={handleClearWithIncome}
+        isSubmitting={clearMutation.isPending}
+      />
     </div>
   );
 }
