@@ -85,7 +85,21 @@ export function useCounterpartyAnalytics(counterparty: string | null) {
       // Filter to only expenses (negative amounts)
       const expenses = transactions.filter((t) => t.amount < 0);
 
-      if (expenses.length === 0) return null;
+      if (expenses.length === 0) {
+        // Transactions exist but all are income - return basic info
+        return {
+          counterparty,
+          currentMonthSpending: 0,
+          currentMonthTransactions: 0,
+          last3Months: [],
+          last12Months: [],
+          totalSpent: 0,
+          totalTransactions: 0,
+          averagePerMonth: 0,
+          firstTransactionDate: null,
+          lastTransactionDate: null,
+        };
+      }
 
       // Calculate monthly aggregates
       const monthlyMap = new Map<string, { amount: number; count: number }>();

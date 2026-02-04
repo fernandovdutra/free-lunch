@@ -91,7 +91,16 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
     categorySource: data.categorySource ?? 'manual',
     isSplit: data.isSplit ?? false,
     splits: data.splits ?? null,
-    reimbursement: data.reimbursement ?? null,
+    reimbursement: data.reimbursement
+      ? {
+          ...data.reimbursement,
+          clearedAt: data.reimbursement.clearedAt
+            ? data.reimbursement.clearedAt instanceof Timestamp
+              ? data.reimbursement.clearedAt.toDate()
+              : new Date(data.reimbursement.clearedAt as unknown as string)
+            : null,
+        }
+      : null,
     bankAccountId: data.bankAccountId ?? null,
     importedAt:
       data.importedAt instanceof Timestamp

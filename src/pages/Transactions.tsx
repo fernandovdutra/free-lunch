@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,6 @@ import { TransactionList } from '@/components/transactions/TransactionList';
 import { TransactionFilters } from '@/components/transactions/TransactionFilters';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { ApplyToSimilarDialog } from '@/components/transactions/ApplyToSimilarDialog';
-import { CounterpartyDialog } from '@/components/transactions/CounterpartyDialog';
 import { MarkReimbursableDialog, ClearReimbursementDialog } from '@/components/reimbursements';
 import { useCategories } from '@/hooks/useCategories';
 import {
@@ -38,19 +38,49 @@ import type { Transaction, TransactionFormData } from '@/types';
 
 export function Transactions() {
   const { dateRange: monthDateRange } = useMonth();
-  const [filters, setFilters] = useState<Filters>({
-    startDate: monthDateRange.startDate,
-    endDate: monthDateRange.endDate,
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Sync filters when global month changes
-  useEffect(() => {
-    setFilters((prev) => ({
-      ...prev,
+  // Parse filters from URL, falling back to month context for dates
+  const filters: Filters = useMemo(() => {
+    const categoryId = searchParams.get('category');
+    const searchText = searchParams.get('search');
+    const direction = searchParams.get('direction') as 'income' | 'expense' | undefined;
+    const categorizationStatus = searchParams.get('categorizationStatus') as
+      | 'auto'
+      | 'manual'
+      | 'uncategorized'
+      | undefined;
+    const reimbursementStatus = searchParams.get('reimbursementStatus') as
+      | 'none'
+      | 'pending'
+      | 'cleared'
+      | undefined;
+
+    return {
       startDate: monthDateRange.startDate,
       endDate: monthDateRange.endDate,
-    }));
-  }, [monthDateRange.startDate, monthDateRange.endDate]);
+      ...(categoryId && { categoryId }),
+      ...(searchText && { searchText }),
+      ...(direction && { direction }),
+      ...(categorizationStatus && { categorizationStatus }),
+      ...(reimbursementStatus && { reimbursementStatus }),
+    };
+  }, [searchParams, monthDateRange]);
+
+  // Update URL when filters change
+  const handleFiltersChange = useCallback(
+    (newFilters: Filters) => {
+      const params: Record<string, string> = {};
+      if (newFilters.categoryId) params.category = newFilters.categoryId;
+      if (newFilters.searchText) params.search = newFilters.searchText;
+      if (newFilters.direction) params.direction = newFilters.direction;
+      if (newFilters.categorizationStatus) params.categorizationStatus = newFilters.categorizationStatus;
+      if (newFilters.reimbursementStatus) params.reimbursementStatus = newFilters.reimbursementStatus;
+      setSearchParams(params, { replace: true });
+    },
+    [setSearchParams]
+  );
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteTransaction, setDeleteTransaction] = useState<Transaction | null>(null);
@@ -58,10 +88,6 @@ export function Transactions() {
     useState<Transaction | null>(null);
   const [clearReimbursementTransaction, setClearReimbursementTransaction] =
     useState<Transaction | null>(null);
-
-  // Counterparty dialog state
-  const [selectedCounterparty, setSelectedCounterparty] = useState<string | null>(null);
-  const [isCounterpartyDialogOpen, setIsCounterpartyDialogOpen] = useState(false);
 
   // Rule creation state
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
@@ -177,11 +203,6 @@ export function Transactions() {
     setClearReimbursementTransaction(transaction);
   };
 
-  const handleCounterpartyClick = (counterparty: string) => {
-    setSelectedCounterparty(counterparty);
-    setIsCounterpartyDialogOpen(true);
-  };
-
   const handleMarkReimbursableSubmit = async (data: {
     type: 'work' | 'personal';
     note?: string | undefined;
@@ -232,7 +253,7 @@ export function Transactions() {
       </div>
 
       {/* Filters */}
-      <TransactionFilters filters={filters} onChange={setFilters} categories={categories} />
+      <TransactionFilters filters={filters} onChange={handleFiltersChange} categories={categories} />
 
       {/* Transaction List */}
       <Card>
@@ -246,7 +267,6 @@ export function Transactions() {
             onDelete={handleDelete}
             onMarkReimbursable={handleMarkReimbursable}
             onClearReimbursement={handleClearReimbursement}
-            onCounterpartyClick={handleCounterpartyClick}
           />
         </CardContent>
       </Card>
@@ -359,12 +379,6 @@ export function Transactions() {
         isSubmitting={clearReimbursementMutation.isPending}
       />
 
-      {/* Counterparty Analytics Dialog */}
-      <CounterpartyDialog
-        open={isCounterpartyDialogOpen}
-        onOpenChange={setIsCounterpartyDialogOpen}
-        counterparty={selectedCounterparty}
-      />
     </div>
   );
 }

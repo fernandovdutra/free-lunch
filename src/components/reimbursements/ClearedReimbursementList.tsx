@@ -2,6 +2,14 @@ import { Check } from 'lucide-react';
 import { formatAmount, formatDate, cn } from '@/lib/utils';
 import type { Transaction } from '@/types';
 
+function toDate(value: unknown): Date {
+  if (value instanceof Date) return value;
+  if (value && typeof value === 'object' && 'seconds' in value) {
+    return new Date((value as { seconds: number }).seconds * 1000);
+  }
+  return new Date(value as string | number);
+}
+
 interface ClearedReimbursementListProps {
   transactions: Transaction[];
   isLoading?: boolean;
@@ -51,7 +59,7 @@ export function ClearedReimbursementList({
               {transaction.reimbursement?.clearedAt && (
                 <>
                   <span>·</span>
-                  <span>Cleared {formatDate(transaction.reimbursement.clearedAt, 'relative')}</span>
+                  <span>Cleared {formatDate(toDate(transaction.reimbursement.clearedAt), 'relative')}</span>
                 </>
               )}
             </div>

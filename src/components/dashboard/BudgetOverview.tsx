@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBudgetProgress } from '@/hooks/useBudgetProgress';
+import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount, cn } from '@/lib/utils';
 
 export function BudgetOverview() {
-  const { data: budgetProgress, isLoading } = useBudgetProgress();
+  const { dateRange } = useMonth();
+  const { data: budgetProgress, isLoading } = useBudgetProgress(dateRange);
 
   // Show top 4 budgets, prioritizing exceeded/warning
   const displayBudgets = [...budgetProgress]

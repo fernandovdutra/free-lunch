@@ -23,7 +23,6 @@ interface TransactionRowProps {
   onDelete: (transaction: Transaction) => void;
   onMarkReimbursable?: ((transaction: Transaction) => void) | undefined;
   onClearReimbursement?: ((transaction: Transaction) => void) | undefined;
-  onCounterpartyClick?: ((counterparty: string) => void) | undefined;
 }
 
 export function TransactionRow({
@@ -34,7 +33,6 @@ export function TransactionRow({
   onDelete,
   onMarkReimbursable,
   onClearReimbursement,
-  onCounterpartyClick,
 }: TransactionRowProps) {
   const [isPickingCategory, setIsPickingCategory] = useState(false);
 
@@ -103,22 +101,6 @@ export function TransactionRow({
             </span>
           )}
         </div>
-      </div>
-
-      {/* Counterparty */}
-      <div className="w-32 flex-shrink-0">
-        {transaction.counterparty ? (
-          <button
-            type="button"
-            className="max-w-full truncate text-left text-sm text-muted-foreground transition-colors hover:text-foreground hover:underline"
-            onClick={() => onCounterpartyClick?.(transaction.counterparty!)}
-            title={transaction.counterparty}
-          >
-            {transaction.counterparty}
-          </button>
-        ) : (
-          <span className="text-sm text-muted-foreground">—</span>
-        )}
       </div>
 
       {/* Category */}
