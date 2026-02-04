@@ -22,6 +22,7 @@ npm run firebase:emulators  # Start Firebase emulators (Auth, Firestore, Functio
 npm run test                # Run Vitest unit tests
 npm run test:watch          # Watch mode
 npm run test:coverage       # Coverage report
+npm run test src/hooks/__tests__/useTransactions.test.ts  # Run single test file
 npm run e2e                 # Run Playwright E2E tests
 npm run e2e:headed          # E2E with visible browser
 
@@ -58,7 +59,9 @@ npm run firebase:deploy     # Deploy all Firebase services
 - Path alias `@/` maps to `src/`
 - Auth state managed via `AuthContext` with `useAuth()` hook
 - Protected routes wrap content in `ProtectedRoute` component
+- Date range selection via `MonthContext` with `useMonth()` hook - components read selected month for filtering
 - Build uses manual chunks: vendor, firebase, charts, ui
+- Firebase emulator UI available at `http://localhost:4000` when running emulators
 
 ## Data Model
 
