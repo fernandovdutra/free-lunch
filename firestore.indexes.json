@@ -3,11 +3,6 @@
     {
       "collectionGroup": "transactions",
       "queryScope": "COLLECTION",
-      "fields": [{ "fieldPath": "date", "order": "DESCENDING" }]
-    },
-    {
-      "collectionGroup": "transactions",
-      "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "categoryId", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" }

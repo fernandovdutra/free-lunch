@@ -45,6 +45,9 @@ interface TransactionDocument {
   updatedAt?: Timestamp | string;
 }
 
+// Special value to filter for uncategorized transactions
+export const UNCATEGORIZED_FILTER = '__uncategorized__';
+
 // Filter interface
 export interface TransactionFilters {
   startDate?: Date;
@@ -123,19 +126,31 @@ export function useTransactions(filters: TransactionFilters = {}) {
 
       const transactionsRef = collection(db, 'users', user.id, 'transactions');
 
-      // Build query with filters
-      let q = query(transactionsRef, orderBy('date', 'desc'));
+      // Build query with filters - equality filters before range filters for Firestore
+      const constraints = [];
 
-      // Add Firestore filters for date range
+      // Add categoryId equality filter first (if provided)
+      if (filters.categoryId) {
+        if (filters.categoryId === UNCATEGORIZED_FILTER) {
+          // Filter for transactions with no category
+          constraints.push(where('categoryId', '==', null));
+        } else {
+          constraints.push(where('categoryId', '==', filters.categoryId));
+        }
+      }
+
+      // Add date range filters
       if (filters.startDate) {
-        q = query(q, where('date', '>=', Timestamp.fromDate(filters.startDate)));
+        constraints.push(where('date', '>=', Timestamp.fromDate(filters.startDate)));
       }
       if (filters.endDate) {
-        q = query(q, where('date', '<=', Timestamp.fromDate(filters.endDate)));
+        constraints.push(where('date', '<=', Timestamp.fromDate(filters.endDate)));
       }
-      if (filters.categoryId) {
-        q = query(q, where('categoryId', '==', filters.categoryId));
-      }
+
+      // Add ordering last
+      constraints.push(orderBy('date', 'desc'));
+
+      const q = query(transactionsRef, ...constraints);
 
       const snapshot = await getDocs(q);
       let transactions = snapshot.docs.map(transformTransaction);

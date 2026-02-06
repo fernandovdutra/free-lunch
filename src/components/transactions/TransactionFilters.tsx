@@ -49,6 +49,7 @@ export function TransactionFilters({ filters, onChange, categories }: Transactio
   const handleCategoryChange = (categoryId: string | null) => {
     const newFilters = { ...filters };
     if (categoryId) {
+      // Include both regular category IDs and the special uncategorized filter
       newFilters.categoryId = categoryId;
     } else {
       delete newFilters.categoryId;
@@ -105,6 +106,7 @@ export function TransactionFilters({ filters, onChange, categories }: Transactio
           categories={categories}
           placeholder="All categories"
           className="w-[180px]"
+          showAllOption
         />
 
         {/* Direction filter */}

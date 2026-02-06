@@ -14,7 +14,6 @@ interface CategoryItemProps {
 export function CategoryItem({ category, level, onEdit, onDelete }: CategoryItemProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const hasChildren = category.children.length > 0;
-  const canDelete = !category.isSystem;
 
   return (
     <div>
@@ -73,19 +72,17 @@ export function CategoryItem({ category, level, onEdit, onDelete }: CategoryItem
             <Pencil className="h-4 w-4" />
             <span className="sr-only">Edit {category.name}</span>
           </Button>
-          {canDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive"
-              onClick={() => {
-                onDelete(category);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-              <span className="sr-only">Delete {category.name}</span>
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive"
+            onClick={() => {
+              onDelete(category);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+            <span className="sr-only">Delete {category.name}</span>
+          </Button>
         </div>
       </div>
 
