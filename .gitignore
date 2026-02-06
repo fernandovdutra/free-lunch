@@ -29,6 +29,9 @@ ui-debug.log
 .env.test.local
 .env.production.local
 
+# Xcode
+*.xcuserstate
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
