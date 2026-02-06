@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.recategorizeTransactions = exports.getAvailableBanks = exports.getBankStatus = exports.syncTransactions = exports.bankCallback = exports.initBankConnection = void 0;
+exports.createDefaultCategories = exports.getReimbursementSummary = exports.getBudgetProgress = exports.getDashboardData = exports.recategorizeTransactions = exports.getAvailableBanks = exports.getBankStatus = exports.syncTransactions = exports.bankCallback = exports.initBankConnection = void 0;
 const app_1 = require("firebase-admin/app");
 // Initialize Firebase Admin
 (0, app_1.initializeApp)();
@@ -17,4 +17,12 @@ var getAvailableBanks_js_1 = require("./handlers/getAvailableBanks.js");
 Object.defineProperty(exports, "getAvailableBanks", { enumerable: true, get: function () { return getAvailableBanks_js_1.getAvailableBanks; } });
 var recategorizeTransactions_js_1 = require("./handlers/recategorizeTransactions.js");
 Object.defineProperty(exports, "recategorizeTransactions", { enumerable: true, get: function () { return recategorizeTransactions_js_1.recategorizeTransactions; } });
+var getDashboardData_js_1 = require("./handlers/getDashboardData.js");
+Object.defineProperty(exports, "getDashboardData", { enumerable: true, get: function () { return getDashboardData_js_1.getDashboardData; } });
+var getBudgetProgress_js_1 = require("./handlers/getBudgetProgress.js");
+Object.defineProperty(exports, "getBudgetProgress", { enumerable: true, get: function () { return getBudgetProgress_js_1.getBudgetProgress; } });
+var getReimbursementSummary_js_1 = require("./handlers/getReimbursementSummary.js");
+Object.defineProperty(exports, "getReimbursementSummary", { enumerable: true, get: function () { return getReimbursementSummary_js_1.getReimbursementSummary; } });
+var createDefaultCategories_js_1 = require("./handlers/createDefaultCategories.js");
+Object.defineProperty(exports, "createDefaultCategories", { enumerable: true, get: function () { return createDefaultCategories_js_1.createDefaultCategories; } });
 //# sourceMappingURL=index.js.map

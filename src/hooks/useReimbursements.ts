@@ -12,9 +12,10 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { getReimbursementSummaryFn, deserializeTransaction } from '@/lib/bankingFunctions';
 import type { Transaction, ReimbursementInfo } from '@/types';
 
-// Firestore document shape (matches useTransactions.ts)
+// Firestore document shape (used only for useRecentIncomeTransactions)
 interface TransactionDocument {
   externalId?: string | null;
   date: Timestamp | string;
@@ -33,7 +34,7 @@ interface TransactionDocument {
   updatedAt?: Timestamp | string;
 }
 
-// Transform Firestore data to Transaction type
+// Transform Firestore data to Transaction type (used only for useRecentIncomeTransactions)
 function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
   const data = docSnap.data() as TransactionDocument;
   return {
@@ -73,71 +74,65 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
 
 // Query keys
 export const reimbursementKeys = {
-  pending: (userId: string) => ['reimbursements', 'pending', userId] as const,
-  cleared: (userId: string) => ['reimbursements', 'cleared', userId] as const,
+  all: (userId: string) => ['reimbursements', 'all', userId] as const,
   incomeForClearing: (userId: string) => ['reimbursements', 'income-for-clearing', userId] as const,
 };
 
 /**
- * Query for pending reimbursements (expenses marked as reimbursable but not yet cleared)
+ * Unified reimbursement data hook — single Cloud Function call for all reimbursement data
  */
-export function usePendingReimbursements() {
+function useReimbursementData(clearedLimit?: number) {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: reimbursementKeys.pending(user?.id ?? ''),
+    queryKey: [...reimbursementKeys.all(user?.id ?? ''), clearedLimit],
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!user?.id) return { summary: null, pending: [] as Transaction[], cleared: [] as Transaction[] };
 
-      const transactionsRef = collection(db, 'users', user.id, 'transactions');
-      // Note: Firestore doesn't support querying nested fields well, so we fetch all and filter
-      const q = query(transactionsRef, orderBy('date', 'desc'));
-      const snapshot = await getDocs(q);
-      const transactions = snapshot.docs.map(transformTransaction);
-
-      // Filter for pending reimbursements (expenses with reimbursement.status === 'pending')
-      return transactions.filter((t) => t.reimbursement?.status === 'pending' && t.amount < 0);
+      const params: { clearedLimit?: number } = {};
+      if (clearedLimit !== undefined) {
+        params.clearedLimit = clearedLimit;
+      }
+      const result = await getReimbursementSummaryFn(params);
+      return {
+        summary: result.data.summary,
+        pending: result.data.pendingTransactions.map(deserializeTransaction),
+        cleared: result.data.clearedTransactions.map(deserializeTransaction),
+      };
     },
     enabled: !!user?.id,
   });
+}
+
+/**
+ * Query for pending reimbursements
+ */
+export function usePendingReimbursements() {
+  const { data, isLoading, error } = useReimbursementData();
+
+  return {
+    data: data?.pending ?? [],
+    isLoading,
+    error,
+  };
 }
 
 /**
  * Query for cleared reimbursements
  */
 export function useClearedReimbursements(options?: { limit?: number }) {
-  const { user } = useAuth();
+  const { data, isLoading, error } = useReimbursementData(options?.limit);
 
-  return useQuery({
-    queryKey: reimbursementKeys.cleared(user?.id ?? ''),
-    queryFn: async () => {
-      if (!user?.id) return [];
-
-      const transactionsRef = collection(db, 'users', user.id, 'transactions');
-      const q = query(transactionsRef, orderBy('date', 'desc'));
-      const snapshot = await getDocs(q);
-      const transactions = snapshot.docs.map(transformTransaction);
-
-      // Filter for cleared reimbursements
-      let cleared = transactions.filter(
-        (t) => t.reimbursement?.status === 'cleared' && t.amount < 0
-      );
-
-      // Apply limit if provided
-      if (options?.limit) {
-        cleared = cleared.slice(0, options.limit);
-      }
-
-      return cleared;
-    },
-    enabled: !!user?.id,
-  });
+  return {
+    data: data?.cleared ?? [],
+    isLoading,
+    error,
+  };
 }
 
 /**
  * Query for recent income transactions that can be used to clear reimbursements.
- * Filters to transactions with amount > 0 that are not already linked to cleared reimbursements.
- * Supports optional search text for filtering by description/counterparty.
+ * Stays as direct Firestore query — it's an interactive search.
  */
 export function useRecentIncomeTransactions(searchText?: string) {
   const { user } = useAuth();
@@ -248,14 +243,13 @@ export function useClearReimbursement() {
       }
 
       // Optionally mark the income transaction as containing reimbursement
-      // (This helps identify which income was used to clear expenses)
       const incomeRef = doc(db, 'users', user.id, 'transactions', incomeTransactionId);
       await updateDoc(incomeRef, {
         reimbursement: {
           type: 'work' as const,
           note: `Clears ${expenseTransactionIds.length} expense(s)`,
           status: 'cleared' as const,
-          linkedTransactionId: expenseTransactionIds[0], // Link to first expense
+          linkedTransactionId: expenseTransactionIds[0],
           clearedAt: Timestamp.fromDate(clearedAt),
         },
         updatedAt: serverTimestamp(),
