@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
 import { CategoryPicker } from './CategoryPicker';
@@ -101,6 +102,18 @@ export function TransactionRow({
             </span>
           )}
         </div>
+        {/* Counterparty link */}
+        {transaction.counterparty && (
+          <Link
+            to={`/counterparty/${encodeURIComponent(transaction.counterparty)}`}
+            className="text-sm text-muted-foreground hover:text-primary hover:underline"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            {transaction.counterparty}
+          </Link>
+        )}
       </div>
 
       {/* Category */}
