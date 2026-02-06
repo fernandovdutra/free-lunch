@@ -6,9 +6,10 @@ struct DashboardView: View {
     @Binding var selectedTab: Int
     @Environment(DashboardViewModel.self) private var viewModel
     @Environment(MonthViewModel.self) private var monthViewModel
+    @State private var navigationPath = NavigationPath()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             ScrollView {
                 VStack(spacing: 20) {
                     // Month Selector
@@ -33,7 +34,13 @@ struct DashboardView: View {
 
                     // Spending by Category Chart
                     if !viewModel.topSpendingCategories.isEmpty {
-                        SpendingByCategoryChart(data: viewModel.topSpendingCategories)
+                        SpendingByCategoryChart(
+                            data: viewModel.topSpendingCategories,
+                            allCategories: viewModel.categories,
+                            onCategoryTap: { categoryId in
+                                navigationPath.append(PieChartDestination(categoryId: categoryId))
+                            }
+                        )
                     }
 
                     // Budget Alerts
@@ -82,8 +89,20 @@ struct DashboardView: View {
                 viewModel.stopListening()
                 viewModel.startListening(dateRange: monthViewModel.dateRange)
             }
+            .navigationDestination(for: PieChartDestination.self) { dest in
+                SpendingCategoryView(
+                    direction: .expenses,
+                    categoryId: dest.categoryId,
+                    categoryName: viewModel.categories.first(where: { $0.id == dest.categoryId })?.name ?? "Category"
+                )
+            }
         }
     }
+}
+
+/// Navigation value for pie chart tap
+struct PieChartDestination: Hashable {
+    let categoryId: String
 }
 
 // MARK: - Month Selector
@@ -263,6 +282,8 @@ struct SummaryCardSkeleton: View {
 
 struct SpendingByCategoryChart: View {
     let data: [(category: Category, amount: Double, percentage: Double)]
+    var allCategories: [Category] = []
+    var onCategoryTap: ((String) -> Void)?
     @State private var selectedCategory: String?
 
     var body: some View {
@@ -295,6 +316,13 @@ struct SpendingByCategoryChart: View {
             }
             .frame(height: 240)
             .chartAngleSelection(value: $selectedCategory)
+            .onChange(of: selectedCategory) { _, newValue in
+                guard let catId = newValue, let onTap = onCategoryTap else { return }
+                // Resolve subcategory to top-level parent
+                let cat = allCategories.first(where: { $0.id == catId })
+                let topLevelId = cat?.parentId ?? catId
+                onTap(topLevelId)
+            }
         }
         .padding()
         .background(Color(.secondarySystemBackground))

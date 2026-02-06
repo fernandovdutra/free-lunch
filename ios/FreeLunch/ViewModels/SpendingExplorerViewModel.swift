@@ -163,6 +163,85 @@ final class SpendingExplorerViewModel {
         }
     }
 
+    /// Recalculate breakdown for a different month using cached data (no re-fetch)
+    func recalculateBreakdown(
+        for monthKey: String,
+        direction: SpendingDirection,
+        categoryId: String? = nil,
+        subcategoryId: String? = nil,
+        counterparty: String? = nil
+    ) async {
+        let calendar = Calendar.current
+        let parts = monthKey.split(separator: "-")
+        guard parts.count == 2,
+              let year = Int(parts[0]),
+              let monthNum = Int(parts[1])
+        else { return }
+
+        var components = DateComponents()
+        components.year = year
+        components.month = monthNum
+        components.day = 1
+        guard let monthStart = calendar.date(from: components),
+              let nextMonth = calendar.date(byAdding: .month, value: 1, to: monthStart),
+              let monthEnd = calendar.date(byAdding: .second, value: -1, to: nextMonth)
+        else { return }
+
+        let directed = allTransactions.filter { tx in
+            if tx.reimbursement?.status == .pending { return false }
+            return direction == .expenses ? tx.amount < 0 : tx.amount > 0
+        }
+
+        let monthTransactions = directed.filter { tx in
+            tx.date >= monthStart && tx.date <= monthEnd
+        }
+
+        let total = monthlyTotals.first(where: { $0.monthKey == monthKey })?.amount ?? 0
+
+        let breakdown: [CategoryBreakdown]
+        let levelTransactions: [Transaction]
+
+        if let counterparty, let subcategoryId {
+            breakdown = []
+            levelTransactions = monthTransactions.filter { tx in
+                tx.counterparty == counterparty &&
+                matchesSubcategory(tx, subcategoryId: subcategoryId)
+            }
+        } else if let subcategoryId {
+            breakdown = []
+            levelTransactions = monthTransactions.filter { tx in
+                matchesSubcategory(tx, subcategoryId: subcategoryId)
+            }
+        } else if let categoryId {
+            let subcats = allCategories.filter { $0.parentId == categoryId }
+            if subcats.isEmpty {
+                breakdown = []
+                levelTransactions = monthTransactions.filter { tx in
+                    topLevelCategoryId(for: tx.categoryId, categories: allCategories) == categoryId
+                }
+            } else {
+                breakdown = calculateCategoryBreakdown(
+                    transactions: monthTransactions,
+                    categories: allCategories,
+                    parentCategoryId: categoryId
+                )
+                levelTransactions = []
+            }
+        } else {
+            breakdown = calculateTopLevelBreakdown(
+                transactions: monthTransactions,
+                categories: allCategories
+            )
+            levelTransactions = []
+        }
+
+        await MainActor.run {
+            self.currentTotal = total
+            self.categories = breakdown
+            self.transactions = levelTransactions
+        }
+    }
+
     // MARK: - Calculation Helpers
 
     private func monthKeyString(_ date: Date) -> String {
