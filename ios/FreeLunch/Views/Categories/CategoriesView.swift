@@ -164,7 +164,7 @@ struct CategoryTreeNode: View {
                         .fill(Color(hex: node.category.color)?.opacity(0.2) ?? .gray.opacity(0.2))
                         .frame(width: 36, height: 36)
 
-                    Image(systemName: node.category.icon)
+                    IconView(icon: node.category.icon)
                         .font(.body)
                         .foregroundStyle(Color(hex: node.category.color) ?? .gray)
                 }
@@ -277,7 +277,7 @@ struct CategoryFormSheet: View {
                         showIconPicker = true
                     } label: {
                         HStack {
-                            Image(systemName: icon)
+                            IconView(icon: icon)
                                 .font(.title2)
                                 .foregroundStyle(Color(hex: color) ?? .blue)
                             Text("Choose Icon")
@@ -317,7 +317,7 @@ struct CategoryFormSheet: View {
 
                         ForEach(parentCategories, id: \.id) { category in
                             HStack {
-                                Image(systemName: category.icon)
+                                IconView(icon: category.icon)
                                 Text(category.name)
                             }
                             .tag(category.id as String?)

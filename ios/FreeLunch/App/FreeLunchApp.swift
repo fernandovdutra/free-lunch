@@ -6,6 +6,7 @@ struct FreeLunchApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @State private var authViewModel: AuthViewModel
     @State private var monthViewModel = MonthViewModel()
+    @AppStorage("userTheme") private var userTheme = "system"
 
     init() {
         // Configure Firebase before any Firebase services are used
@@ -20,6 +21,15 @@ struct FreeLunchApp: App {
             ContentView()
                 .environment(authViewModel)
                 .environment(monthViewModel)
+                .preferredColorScheme(colorScheme)
+        }
+    }
+
+    private var colorScheme: ColorScheme? {
+        switch userTheme {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil
         }
     }
 }

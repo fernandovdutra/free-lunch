@@ -13,7 +13,9 @@ final class DashboardViewModel {
     var budgets: [Budget] = []
     var bankConnections: [BankConnection] = []
     var isLoading = false
+    var isSyncing = false
     var errorMessage: String?
+    var lastSyncResult: String?
 
     // MARK: - Cloud Function Results
 
@@ -195,6 +197,45 @@ final class DashboardViewModel {
             Task { @MainActor in
                 self?.bankConnections = connections
             }
+        }
+    }
+
+    /// Sync transactions from all active bank connections
+    @MainActor
+    func syncTransactions() async {
+        let activeConnections = activeBankConnections
+        guard !activeConnections.isEmpty else {
+            lastSyncResult = "No active bank connections"
+            return
+        }
+
+        isSyncing = true
+        lastSyncResult = nil
+
+        var totalNew = 0
+        var totalUpdated = 0
+        var errors: [String] = []
+
+        for connection in activeConnections {
+            guard let connectionId = connection.id else { continue }
+            do {
+                let result = try await BankingService.shared.syncTransactions(connectionId: connectionId)
+                totalNew += result.totalNew
+                totalUpdated += result.totalUpdated
+            } catch {
+                errors.append("\(connection.bankName): \(error.localizedDescription)")
+            }
+        }
+
+        isSyncing = false
+        if errors.isEmpty {
+            if totalNew == 0 && totalUpdated == 0 {
+                lastSyncResult = "Already up to date"
+            } else {
+                lastSyncResult = "\(totalNew) new, \(totalUpdated) updated"
+            }
+        } else {
+            lastSyncResult = "Sync errors: \(errors.joined(separator: "; "))"
         }
     }
 

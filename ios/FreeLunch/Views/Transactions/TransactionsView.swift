@@ -331,7 +331,7 @@ struct CategoryBadge: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: category.icon)
+            IconView(icon: category.icon)
                 .font(.caption)
 
             Text(category.name)
@@ -425,12 +425,8 @@ struct TransactionFiltersSheet: View {
                         Text("Uncategorized").tag("uncategorized" as String?)
 
                         ForEach(categories.flatWithLevel(), id: \.category.id) { item in
-                            HStack {
-                                Text(String(repeating: "  ", count: item.level))
-                                Image(systemName: item.category.icon)
-                                Text(item.category.name)
-                            }
-                            .tag(item.category.id as String?)
+                            Text(String(repeating: "  ", count: item.level) + item.category.name)
+                                .tag(item.category.id as String?)
                         }
                     }
                 }
@@ -485,7 +481,7 @@ struct CategoryPickerSheet: View {
                     } label: {
                         HStack {
                             Text(String(repeating: "  ", count: item.level))
-                            Image(systemName: item.category.icon)
+                            IconView(icon: item.category.icon)
                                 .foregroundStyle(Color(hex: item.category.color) ?? .gray)
                             Text(item.category.name)
                             Spacer()

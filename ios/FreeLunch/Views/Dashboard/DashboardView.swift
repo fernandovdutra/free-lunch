@@ -3,6 +3,7 @@ import Charts
 
 /// Main dashboard view with spending summary and charts
 struct DashboardView: View {
+    @Binding var selectedTab: Int
     @Environment(DashboardViewModel.self) private var viewModel
     @Environment(MonthViewModel.self) private var monthViewModel
 
@@ -23,6 +24,13 @@ struct DashboardView: View {
                         isLoading: viewModel.isLoading
                     )
 
+                    // Spending Drill-Down Entry Cards
+                    SpendingEntryCards(
+                        totalExpenses: viewModel.totalExpenses,
+                        totalIncome: viewModel.totalIncome,
+                        isLoading: viewModel.isLoading
+                    )
+
                     // Spending by Category Chart
                     if !viewModel.topSpendingCategories.isEmpty {
                         SpendingByCategoryChart(data: viewModel.topSpendingCategories)
@@ -37,7 +45,8 @@ struct DashboardView: View {
                     if !viewModel.recentTransactions.isEmpty {
                         RecentTransactionsSection(
                             transactions: viewModel.recentTransactions,
-                            categories: viewModel.categories
+                            categories: viewModel.categories,
+                            selectedTab: $selectedTab
                         )
                     }
 
@@ -49,7 +58,27 @@ struct DashboardView: View {
                 .padding()
             }
             .navigationTitle("Dashboard")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task {
+                            await viewModel.syncTransactions()
+                            // Refresh data after sync
+                            viewModel.stopListening()
+                            viewModel.startListening(dateRange: monthViewModel.dateRange)
+                        }
+                    } label: {
+                        if viewModel.isSyncing {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                        }
+                    }
+                    .disabled(viewModel.isSyncing)
+                }
+            }
             .refreshable {
+                await viewModel.syncTransactions()
                 viewModel.stopListening()
                 viewModel.startListening(dateRange: monthViewModel.dateRange)
             }
@@ -179,14 +208,13 @@ struct SummaryCard: View {
                 .fontWeight(.bold)
                 .foregroundStyle(showSign && amount < 0 ? .red : (showSign && amount > 0 ? .green : .primary))
 
-            if let subtitle {
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+            // Always reserve space for subtitle to keep card heights consistent
+            Text(subtitle ?? " ")
+                .font(.caption2)
+                .foregroundColor(subtitle != nil ? .secondary : .clear)
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
@@ -225,7 +253,7 @@ struct SummaryCardSkeleton: View {
                 .frame(width: 80, height: 10)
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
@@ -245,41 +273,31 @@ struct SpendingByCategoryChart: View {
             Chart(data, id: \.category.id) { item in
                 SectorMark(
                     angle: .value("Amount", item.amount),
-                    innerRadius: .ratio(0.6),
+                    innerRadius: .ratio(0.5),
                     angularInset: 1.5
                 )
                 .foregroundStyle(Color(hex: item.category.color) ?? .gray)
                 .opacity(selectedCategory == nil || selectedCategory == item.category.id ? 1 : 0.5)
-            }
-            .frame(height: 200)
-            .chartAngleSelection(value: $selectedCategory)
-
-            // Legend
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                ForEach(data.prefix(6), id: \.category.id) { item in
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color(hex: item.category.color) ?? .gray)
-                            .frame(width: 8, height: 8)
-
-                        Image(systemName: item.category.icon)
-                            .font(.caption)
-
-                        Text(item.category.name)
-                            .font(.caption)
-                            .lineLimit(1)
-
-                        Spacer()
-
-                        Text(formatCurrency(item.amount))
-                            .font(.caption)
-                            .fontWeight(.medium)
+                .annotation(position: .overlay) {
+                    if item.percentage >= 8 {
+                        VStack(spacing: 1) {
+                            IconView(icon: item.category.icon)
+                                .font(.caption2)
+                            Text(item.category.name)
+                                .font(.system(size: 9))
+                                .lineLimit(1)
+                            Text(formatCurrency(item.amount))
+                                .font(.system(size: 9, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
                     }
                 }
             }
+            .frame(height: 240)
+            .chartAngleSelection(value: $selectedCategory)
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
@@ -310,7 +328,7 @@ struct BudgetAlertsSection: View {
 
             ForEach(budgets) { budget in
                 HStack {
-                    Image(systemName: budget.categoryIcon)
+                    IconView(icon: budget.categoryIcon)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(budget.categoryName)
@@ -329,7 +347,7 @@ struct BudgetAlertsSection: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
@@ -340,6 +358,7 @@ struct BudgetAlertsSection: View {
 struct RecentTransactionsSection: View {
     let transactions: [Transaction]
     let categories: [Category]
+    @Binding var selectedTab: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -347,8 +366,8 @@ struct RecentTransactionsSection: View {
                 Text("Recent Transactions")
                     .font(.headline)
                 Spacer()
-                NavigationLink {
-                    // Navigate to transactions tab
+                Button {
+                    selectedTab = 1
                 } label: {
                     Text("See All")
                         .font(.caption)
@@ -361,7 +380,7 @@ struct RecentTransactionsSection: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
@@ -380,7 +399,7 @@ struct RecentTransactionRow: View {
                     .frame(width: 36, height: 36)
 
                 if let icon = category?.icon {
-                    Image(systemName: icon)
+                    IconView(icon: icon)
                         .font(.caption)
                         .foregroundStyle(Color(hex: category?.color ?? "#9CA3A0") ?? .gray)
                 } else {
@@ -418,6 +437,92 @@ struct RecentTransactionRow: View {
     }
 }
 
+// MARK: - Spending Entry Cards
+
+struct SpendingEntryCards: View {
+    let totalExpenses: Double
+    let totalIncome: Double
+    let isLoading: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            NavigationLink {
+                SpendingExplorerView(direction: .expenses)
+            } label: {
+                SpendingEntryCard(
+                    title: "Expenses",
+                    amount: totalExpenses,
+                    icon: "arrow.down.circle.fill",
+                    color: .red,
+                    isLoading: isLoading
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                SpendingExplorerView(direction: .income)
+            } label: {
+                SpendingEntryCard(
+                    title: "Income",
+                    amount: totalIncome,
+                    icon: "arrow.up.circle.fill",
+                    color: .green,
+                    isLoading: isLoading
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+struct SpendingEntryCard: View {
+    let title: String
+    let amount: Double
+    let icon: String
+    let color: Color
+    let isLoading: Bool
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if isLoading {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color(.systemGray5))
+                        .frame(width: 80, height: 20)
+                } else {
+                    Text(formatCurrency(amount))
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundStyle(color)
+                        .monospacedDigit()
+                }
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+    }
+
+    private func formatCurrency(_ amount: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "EUR"
+        formatter.locale = Locale(identifier: "nl_NL")
+        return formatter.string(from: NSNumber(value: amount)) ?? "€\(amount)"
+    }
+}
+
 // MARK: - Bank Alert Card
 
 struct BankAlertCard: View {
@@ -452,7 +557,7 @@ struct BankAlertCard: View {
 
 #if DEBUG
 #Preview {
-    DashboardView()
+    DashboardView(selectedTab: .constant(0))
         .environment(DashboardViewModel.preview)
         .environment(MonthViewModel())
 }

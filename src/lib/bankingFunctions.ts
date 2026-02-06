@@ -223,3 +223,46 @@ export const createDefaultCategoriesFn = httpsCallable<
   undefined,
   { created: boolean; count: number }
 >(functions, 'createDefaultCategories');
+
+// ============================================================================
+// Spending Explorer
+// ============================================================================
+
+export interface SpendingExplorerRequest {
+  direction: 'expenses' | 'income';
+  startDate: string;
+  endDate: string;
+  categoryId?: string | undefined;
+  subcategoryId?: string | undefined;
+  counterparty?: string | undefined;
+}
+
+export interface MonthlyTotal {
+  month: string;      // 'MMM yyyy' display format
+  monthKey: string;   // 'yyyy-MM' sortable key
+  amount: number;
+  transactionCount: number;
+}
+
+export interface CategoryBreakdownItem {
+  categoryId: string;
+  categoryName: string;
+  categoryIcon: string;
+  categoryColor: string;
+  amount: number;
+  percentage: number;
+  transactionCount: number;
+}
+
+export interface SpendingExplorerResponse {
+  currentTotal: number;
+  currentMonth: string;
+  monthlyTotals: MonthlyTotal[];
+  categories?: CategoryBreakdownItem[] | undefined;
+  transactions?: SerializedTransaction[] | undefined;
+}
+
+export const getSpendingExplorerFn = httpsCallable<
+  SpendingExplorerRequest,
+  SpendingExplorerResponse
+>(functions, 'getSpendingExplorer');

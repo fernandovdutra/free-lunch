@@ -158,7 +158,7 @@ struct BudgetsView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
@@ -244,7 +244,7 @@ struct BudgetCard: View {
                         .fill(Color(hex: progress.categoryColor)?.opacity(0.2) ?? .gray.opacity(0.2))
                         .frame(width: 40, height: 40)
 
-                    Image(systemName: progress.categoryIcon)
+                    IconView(icon: progress.categoryIcon)
                         .foregroundStyle(Color(hex: progress.categoryColor) ?? .gray)
                 }
 
@@ -294,7 +294,7 @@ struct BudgetCard: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
         .contextMenu {
@@ -398,7 +398,7 @@ struct BudgetCardSkeleton: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
@@ -448,7 +448,7 @@ struct BudgetFormSheet: View {
                         ForEach(availableCategories, id: \.category.id) { item in
                             HStack {
                                 Text(String(repeating: "  ", count: item.level))
-                                Image(systemName: item.category.icon)
+                                IconView(icon: item.category.icon)
                                     .foregroundStyle(Color(hex: item.category.color) ?? .gray)
                                 Text(item.category.name)
                             }

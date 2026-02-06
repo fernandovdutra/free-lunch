@@ -133,8 +133,8 @@ final class BudgetsViewModel {
 
     // MARK: - Data Fetching
 
-    /// Start listening to budgets
-    func startListening() {
+    /// Start listening to budgets and fetch spending progress
+    func startListening(dateRange: ClosedRange<Date>? = nil) {
         isLoading = true
         errorMessage = nil
 
@@ -144,6 +144,13 @@ final class BudgetsViewModel {
                     self?.budgets = budgets
                     self?.isLoading = false
                 }
+            }
+
+            // Fetch budget progress from Cloud Function
+            if let dateRange {
+                await fetchBudgetProgress(startDate: dateRange.lowerBound, endDate: dateRange.upperBound)
+            } else {
+                await fetchBudgetProgress()
             }
         }
     }
