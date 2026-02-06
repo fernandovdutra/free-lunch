@@ -5,6 +5,7 @@ struct SpendingExplorerView: View {
     let direction: SpendingDirection
     @Environment(MonthViewModel.self) private var monthViewModel
     @State private var viewModel = SpendingExplorerViewModel()
+    @State private var highlightedMonthKey: String?
 
     var body: some View {
         ScrollView {
@@ -17,7 +18,7 @@ struct SpendingExplorerView: View {
                         .monospacedDigit()
                         .foregroundStyle(direction == .expenses ? .red : .green)
 
-                    Text(monthViewModel.monthDisplayString)
+                    Text(displayMonthLabel)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -28,7 +29,7 @@ struct SpendingExplorerView: View {
                     monthlyTotals: viewModel.monthlyTotals,
                     selectedMonthKey: selectedMonthKey,
                     onMonthTap: { monthKey in
-                        navigateToMonth(monthKey)
+                        handleBarTap(monthKey)
                     },
                     barColor: direction == .expenses
                         ? (Color(hex: "#1D4739") ?? .green)
@@ -79,29 +80,38 @@ struct SpendingExplorerView: View {
         }
     }
 
-    private var selectedMonthKey: String {
+    private var globalMonthKey: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM"
         return formatter.string(from: monthViewModel.selectedMonth)
     }
 
-    private func navigateToMonth(_ monthKey: String) {
-        let parts = monthKey.split(separator: "-")
-        guard parts.count == 2,
-              let year = Int(parts[0]),
-              let month = Int(parts[1])
-        else { return }
+    private var selectedMonthKey: String {
+        highlightedMonthKey ?? globalMonthKey
+    }
 
-        var components = DateComponents()
-        components.year = year
-        components.month = month
-        components.day = 1
-        if let date = Calendar.current.date(from: components) {
-            monthViewModel.setMonth(date)
+    private var displayMonthLabel: String {
+        if let key = highlightedMonthKey,
+           let total = viewModel.monthlyTotals.first(where: { $0.monthKey == key }) {
+            return total.month
+        }
+        return monthViewModel.monthDisplayString
+    }
+
+    private func handleBarTap(_ monthKey: String) {
+        let newKey = monthKey == globalMonthKey ? nil : monthKey
+        highlightedMonthKey = newKey
+        Task {
+            if let key = newKey {
+                await viewModel.recalculateBreakdown(for: key, direction: direction)
+            } else {
+                await viewModel.recalculateBreakdown(for: globalMonthKey, direction: direction)
+            }
         }
     }
 
     private func fetchData() async {
+        highlightedMonthKey = nil
         await viewModel.fetchData(
             direction: direction,
             dateRange: monthViewModel.dateRange
