@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useBudgetProgress } from '@/hooks/useBudgetProgress';
 import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount, cn } from '@/lib/utils';
+import { resolveIcon } from '@/lib/iconUtils';
 
 export function BudgetOverview() {
   const { dateRange } = useMonth();
@@ -98,7 +99,7 @@ export function BudgetOverview() {
           <div key={progress.budget.id} className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2 font-medium">
-                <span>{progress.categoryIcon}</span>
+                <span>{resolveIcon(progress.categoryIcon)}</span>
                 {progress.budget.name}
               </span>
               <span className={cn('tabular-nums', statusTextColors[progress.status])}>

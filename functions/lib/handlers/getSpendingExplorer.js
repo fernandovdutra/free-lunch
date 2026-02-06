@@ -46,7 +46,7 @@ exports.getSpendingExplorer = (0, https_1.onCall)({
         throw new https_1.HttpsError('unauthenticated', 'Must be logged in');
     }
     const userId = request.auth.uid;
-    const { direction, startDate, endDate, categoryId, subcategoryId, counterparty, } = request.data;
+    const { direction, startDate, endDate, categoryId, subcategoryId, counterparty, breakdownMonthKey, } = request.data;
     // Validate required params
     if (!direction || (direction !== 'expenses' && direction !== 'income')) {
         throw new https_1.HttpsError('invalid-argument', 'direction must be "expenses" or "income"');
@@ -194,14 +194,18 @@ exports.getSpendingExplorer = (0, https_1.onCall)({
     // ========================================================================
     // Current month data
     // ========================================================================
-    const currentMonthKey = (0, date_fns_1.format)(selectedStart, 'yyyy-MM');
-    const currentMonthTotal = monthlyMap.get(currentMonthKey);
+    // Determine which month to show breakdown for
+    const effectiveMonthKey = breakdownMonthKey ?? (0, date_fns_1.format)(selectedStart, 'yyyy-MM');
+    const effectiveMonthDate = new Date(effectiveMonthKey + '-01');
+    const effectiveMonthStart = (0, date_fns_1.startOfMonth)(effectiveMonthDate);
+    const effectiveMonthEnd = (0, date_fns_1.endOfMonth)(effectiveMonthDate);
+    const currentMonthTotal = monthlyMap.get(effectiveMonthKey);
     const currentTotal = Math.round((currentMonthTotal?.amount ?? 0) * 100) / 100;
-    const currentMonth = (0, date_fns_1.format)(selectedStart, 'MMMM yyyy');
-    // Filter to selected month only for breakdown
+    const currentMonth = (0, date_fns_1.format)(effectiveMonthStart, 'MMMM yyyy');
+    // Filter to breakdown month for category/transaction detail
     const selectedMonthTransactions = directedTransactions.filter(({ doc }) => {
         const txDate = doc.date.toDate();
-        return txDate >= selectedStart && txDate <= selectedEnd;
+        return txDate >= effectiveMonthStart && txDate <= effectiveMonthEnd;
     });
     // ========================================================================
     // Level-specific response

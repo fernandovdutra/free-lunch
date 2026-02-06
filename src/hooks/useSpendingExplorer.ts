@@ -18,7 +18,8 @@ export const spendingExplorerKeys = {
     monthISO: string,
     categoryId?: string,
     subcategoryId?: string,
-    counterparty?: string
+    counterparty?: string,
+    breakdownMonthKey?: string
   ) =>
     [
       'spendingExplorer',
@@ -28,6 +29,7 @@ export const spendingExplorerKeys = {
       categoryId,
       subcategoryId,
       counterparty,
+      breakdownMonthKey,
     ] as const,
 };
 
@@ -36,6 +38,7 @@ interface UseSpendingExplorerParams {
   categoryId?: string | undefined;
   subcategoryId?: string | undefined;
   counterparty?: string | undefined;
+  breakdownMonthKey?: string | undefined;
 }
 
 export interface SpendingExplorerData {
@@ -51,6 +54,7 @@ export function useSpendingExplorer({
   categoryId,
   subcategoryId,
   counterparty,
+  breakdownMonthKey,
 }: UseSpendingExplorerParams) {
   const { user } = useAuth();
   const { dateRange, selectedMonth } = useMonth();
@@ -62,7 +66,8 @@ export function useSpendingExplorer({
       selectedMonth.toISOString(),
       categoryId,
       subcategoryId,
-      counterparty
+      counterparty,
+      breakdownMonthKey
     ),
     queryFn: async (): Promise<SpendingExplorerData> => {
       if (!user?.id) throw new Error('Not authenticated');
@@ -75,6 +80,7 @@ export function useSpendingExplorer({
       if (categoryId) request.categoryId = categoryId;
       if (subcategoryId) request.subcategoryId = subcategoryId;
       if (counterparty) request.counterparty = counterparty;
+      if (breakdownMonthKey) request.breakdownMonthKey = breakdownMonthKey;
 
       const result = await getSpendingExplorerFn(request);
 

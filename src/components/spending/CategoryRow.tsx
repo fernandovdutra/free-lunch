@@ -1,4 +1,5 @@
 import { formatAmount, cn } from '@/lib/utils';
+import { resolveIcon } from '@/lib/iconUtils';
 import { ChevronRight } from 'lucide-react';
 
 interface CategoryRowProps {
@@ -46,7 +47,7 @@ export function CategoryRow({
       />
 
       {/* Icon */}
-      <span className="relative z-10 text-lg">{icon}</span>
+      <span className="relative z-10 text-lg">{resolveIcon(icon)}</span>
 
       {/* Name and count */}
       <div className="relative z-10 min-w-0 flex-1">

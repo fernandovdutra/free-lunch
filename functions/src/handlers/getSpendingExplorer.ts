@@ -96,6 +96,7 @@ export const getSpendingExplorer = onCall(
       categoryId,
       subcategoryId,
       counterparty,
+      breakdownMonthKey,
     } = request.data as {
       direction?: string;
       startDate?: string;
@@ -103,6 +104,7 @@ export const getSpendingExplorer = onCall(
       categoryId?: string;
       subcategoryId?: string;
       counterparty?: string;
+      breakdownMonthKey?: string; // 'yyyy-MM' — if provided, use this month for breakdown
     };
 
     // Validate required params
@@ -261,15 +263,20 @@ export const getSpendingExplorer = onCall(
     // Current month data
     // ========================================================================
 
-    const currentMonthKey = format(selectedStart, 'yyyy-MM');
-    const currentMonthTotal = monthlyMap.get(currentMonthKey);
-    const currentTotal = Math.round((currentMonthTotal?.amount ?? 0) * 100) / 100;
-    const currentMonth = format(selectedStart, 'MMMM yyyy');
+    // Determine which month to show breakdown for
+    const effectiveMonthKey = breakdownMonthKey ?? format(selectedStart, 'yyyy-MM');
+    const effectiveMonthDate = new Date(effectiveMonthKey + '-01');
+    const effectiveMonthStart = startOfMonth(effectiveMonthDate);
+    const effectiveMonthEnd = endOfMonth(effectiveMonthDate);
 
-    // Filter to selected month only for breakdown
+    const currentMonthTotal = monthlyMap.get(effectiveMonthKey);
+    const currentTotal = Math.round((currentMonthTotal?.amount ?? 0) * 100) / 100;
+    const currentMonth = format(effectiveMonthStart, 'MMMM yyyy');
+
+    // Filter to breakdown month for category/transaction detail
     const selectedMonthTransactions = directedTransactions.filter(({ doc }) => {
       const txDate = doc.date.toDate();
-      return txDate >= selectedStart && txDate <= selectedEnd;
+      return txDate >= effectiveMonthStart && txDate <= effectiveMonthEnd;
     });
 
     // ========================================================================
