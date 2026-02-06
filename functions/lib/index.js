@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createDefaultCategories = exports.getReimbursementSummary = exports.getBudgetProgress = exports.getDashboardData = exports.recategorizeTransactions = exports.getAvailableBanks = exports.getBankStatus = exports.syncTransactions = exports.bankCallback = exports.initBankConnection = void 0;
+exports.getSpendingExplorer = exports.createDefaultCategories = exports.getReimbursementSummary = exports.getBudgetProgress = exports.getDashboardData = exports.recategorizeTransactions = exports.getAvailableBanks = exports.getBankStatus = exports.syncTransactions = exports.bankCallback = exports.initBankConnection = void 0;
 const app_1 = require("firebase-admin/app");
 // Initialize Firebase Admin
 (0, app_1.initializeApp)();
@@ -25,4 +25,6 @@ var getReimbursementSummary_js_1 = require("./handlers/getReimbursementSummary.j
 Object.defineProperty(exports, "getReimbursementSummary", { enumerable: true, get: function () { return getReimbursementSummary_js_1.getReimbursementSummary; } });
 var createDefaultCategories_js_1 = require("./handlers/createDefaultCategories.js");
 Object.defineProperty(exports, "createDefaultCategories", { enumerable: true, get: function () { return createDefaultCategories_js_1.createDefaultCategories; } });
+var getSpendingExplorer_js_1 = require("./handlers/getSpendingExplorer.js");
+Object.defineProperty(exports, "getSpendingExplorer", { enumerable: true, get: function () { return getSpendingExplorer_js_1.getSpendingExplorer; } });
 //# sourceMappingURL=index.js.map

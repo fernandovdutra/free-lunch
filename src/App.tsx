@@ -12,6 +12,10 @@ import { Budgets } from '@/pages/Budgets';
 import { Reimbursements } from '@/pages/Reimbursements';
 import { Settings } from '@/pages/Settings';
 import { CounterpartyDetail } from '@/pages/CounterpartyDetail';
+import { SpendingExplorer } from '@/pages/SpendingExplorer';
+import { SpendingCategory } from '@/pages/SpendingCategory';
+import { SpendingSubcategory } from '@/pages/SpendingSubcategory';
+import { SpendingCounterparty } from '@/pages/SpendingCounterparty';
 import { Login } from '@/pages/auth/Login';
 import { Register } from '@/pages/auth/Register';
 
@@ -54,6 +58,14 @@ export function App() {
                 <Route path="budgets" element={<Budgets />} />
                 <Route path="reimbursements" element={<Reimbursements />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="expenses" element={<SpendingExplorer />} />
+                <Route path="expenses/:categoryId" element={<SpendingCategory />} />
+                <Route path="expenses/:categoryId/:subcategoryId" element={<SpendingSubcategory />} />
+                <Route path="expenses/:categoryId/:subcategoryId/counterparty/:counterparty" element={<SpendingCounterparty />} />
+                <Route path="income" element={<SpendingExplorer />} />
+                <Route path="income/:categoryId" element={<SpendingCategory />} />
+                <Route path="income/:categoryId/:subcategoryId" element={<SpendingSubcategory />} />
+                <Route path="income/:categoryId/:subcategoryId/counterparty/:counterparty" element={<SpendingCounterparty />} />
                 <Route path="counterparty/:counterparty" element={<CounterpartyDetail />} />
               </Route>
             </Routes>

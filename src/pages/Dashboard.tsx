@@ -1,10 +1,11 @@
 import { format } from 'date-fns';
-import { useNavigate, createSearchParams } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { Link, useNavigate, createSearchParams } from 'react-router-dom';
+import { AlertTriangle, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useCategories } from '@/hooks/useCategories';
 import { useMonth } from '@/contexts/MonthContext';
+import { formatAmount } from '@/lib/utils';
 import {
   SummaryCards,
   SpendingByCategoryChart,
@@ -35,10 +36,7 @@ export function Dashboard() {
   const periodLabel = format(selectedMonth, 'MMMM yyyy');
 
   const handleCategoryClick = (categoryId: string) => {
-    void navigate({
-      pathname: '/transactions',
-      search: createSearchParams({ category: categoryId }).toString(),
-    });
+    void navigate(`/expenses/${categoryId}`);
   };
 
   const handleDateClick = (date: string) => {
@@ -75,6 +73,46 @@ export function Dashboard() {
         isLoading={isLoading}
         pendingCount={pendingCount}
       />
+
+      {/* Spending drill-down entry cards */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link to="/expenses">
+          <Card className="transition-colors hover:bg-muted/50">
+            <CardContent className="flex items-center justify-between py-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-red-500/10 p-2">
+                  <TrendingDown className="h-5 w-5 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Expenses</p>
+                  <p className="text-xl font-bold tabular-nums text-red-500">
+                    {formatAmount(-(dashboardData?.summary.totalExpenses ?? 0), { showSign: false })}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to="/income">
+          <Card className="transition-colors hover:bg-muted/50">
+            <CardContent className="flex items-center justify-between py-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-emerald-500/10 p-2">
+                  <TrendingUp className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Income</p>
+                  <p className="text-xl font-bold tabular-nums text-emerald-500">
+                    {formatAmount(dashboardData?.summary.totalIncome ?? 0, { showSign: false })}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
 
       {/* Charts section */}
       <div className="grid gap-4 lg:grid-cols-2">

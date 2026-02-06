@@ -67,7 +67,7 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            DashboardView()
+            DashboardView(selectedTab: $selectedTab)
                 .environment(dashboardViewModel)
                 .tabItem {
                     Label("Dashboard", systemImage: "chart.pie")
@@ -111,6 +111,12 @@ struct MainTabView: View {
             transactionsViewModel.stopListening()
             dashboardViewModel.startListening(dateRange: newRange)
             transactionsViewModel.startListening(dateRange: newRange)
+            Task {
+                await budgetsViewModel.fetchBudgetProgress(
+                    startDate: newRange.lowerBound,
+                    endDate: newRange.upperBound
+                )
+            }
         }
         .onDisappear {
             stopListeners()
@@ -122,7 +128,7 @@ struct MainTabView: View {
         dashboardViewModel.startListening(dateRange: dateRange)
         transactionsViewModel.startListening(dateRange: dateRange)
         categoriesViewModel.startListening()
-        budgetsViewModel.startListening()
+        budgetsViewModel.startListening(dateRange: dateRange)
     }
 
     private func stopListeners() {
