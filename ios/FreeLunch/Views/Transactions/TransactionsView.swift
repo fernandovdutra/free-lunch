@@ -427,7 +427,7 @@ struct TransactionFiltersSheet: View {
                         ForEach(categories.flatWithLevel(), id: \.category.id) { item in
                             HStack {
                                 Text(String(repeating: "  ", count: item.level))
-                                Text(item.category.icon)
+                                Image(systemName: item.category.icon)
                                 Text(item.category.name)
                             }
                             .tag(item.category.id as String?)

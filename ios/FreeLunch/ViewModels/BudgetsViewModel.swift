@@ -37,7 +37,7 @@ final class BudgetsViewModel {
                     updatedAt: Date()
                 )
 
-                let status: BudgetProgressStatus
+                let status: BudgetStatus
                 switch item.status {
                 case "exceeded": status = .exceeded
                 case "warning": status = .warning

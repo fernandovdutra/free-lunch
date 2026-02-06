@@ -262,7 +262,7 @@ struct SpendingByCategoryChart: View {
                             .fill(Color(hex: item.category.color) ?? .gray)
                             .frame(width: 8, height: 8)
 
-                        Text(item.category.icon)
+                        Image(systemName: item.category.icon)
                             .font(.caption)
 
                         Text(item.category.name)
@@ -310,7 +310,7 @@ struct BudgetAlertsSection: View {
 
             ForEach(budgets) { budget in
                 HStack {
-                    Text(budget.categoryIcon)
+                    Image(systemName: budget.categoryIcon)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(budget.categoryName)
