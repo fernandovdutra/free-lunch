@@ -16,6 +16,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Category, CategoryFormData, CategoryWithChildren } from '@/types';
 import { generateId } from '@/lib/utils';
+import { resolveIcon } from '@/lib/iconUtils';
 
 // Firestore document shape
 interface CategoryDocument {
@@ -40,7 +41,7 @@ function transformCategory(docSnap: QueryDocumentSnapshot): Category {
   return {
     id: docSnap.id,
     name: data.name,
-    icon: data.icon,
+    icon: resolveIcon(data.icon),
     color: data.color,
     parentId: data.parentId ?? null,
     order: data.order ?? 0,
