@@ -235,6 +235,7 @@ export interface SpendingExplorerRequest {
   categoryId?: string | undefined;
   subcategoryId?: string | undefined;
   counterparty?: string | undefined;
+  breakdownMonthKey?: string | undefined; // 'yyyy-MM' — show breakdown for this month instead of startDate month
 }
 
 export interface MonthlyTotal {

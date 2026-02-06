@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,24 +15,26 @@ export function SpendingCounterparty() {
   }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { selectedMonth, setSelectedMonth } = useMonth();
+  const { selectedMonth } = useMonth();
 
   const direction = location.pathname.startsWith('/income') ? 'income' : 'expenses';
   const basePath = `/${direction}`;
   const decodedCounterparty = counterparty ? decodeURIComponent(counterparty) : '';
+
+  const globalMonthKey = format(selectedMonth, 'yyyy-MM');
+  const [highlightedMonth, setHighlightedMonth] = useState<string | undefined>(undefined);
+  const selectedMonthKey = highlightedMonth ?? globalMonthKey;
 
   const { data, isLoading } = useSpendingExplorer({
     direction,
     categoryId,
     subcategoryId,
     counterparty: decodedCounterparty,
+    breakdownMonthKey: highlightedMonth,
   });
 
-  const selectedMonthKey = format(selectedMonth, 'yyyy-MM');
-
   const handleMonthClick = (monthKey: string) => {
-    const [year, month] = monthKey.split('-');
-    setSelectedMonth(new Date(Number(year), Number(month) - 1, 1));
+    setHighlightedMonth(monthKey === globalMonthKey ? undefined : monthKey);
   };
 
   // Group transactions by date

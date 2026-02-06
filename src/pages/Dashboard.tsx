@@ -36,7 +36,10 @@ export function Dashboard() {
   const periodLabel = format(selectedMonth, 'MMMM yyyy');
 
   const handleCategoryClick = (categoryId: string) => {
-    void navigate(`/expenses/${categoryId}`);
+    // Resolve subcategory to its parent so the spending explorer gets a top-level ID
+    const cat = categories.find((c) => c.id === categoryId);
+    const topLevelId = cat?.parentId ?? categoryId;
+    void navigate(`/expenses/${topLevelId}`);
   };
 
   const handleDateClick = (date: string) => {

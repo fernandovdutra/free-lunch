@@ -47,7 +47,13 @@ struct SpendingExplorerView: View {
                 } else {
                     VStack(spacing: 2) {
                         ForEach(viewModel.categories) { category in
-                            NavigationLink(value: category) {
+                            NavigationLink {
+                                SpendingCategoryView(
+                                    direction: direction,
+                                    categoryId: category.categoryId,
+                                    categoryName: category.categoryName
+                                )
+                            } label: {
                                 CategoryRowView(
                                     name: category.categoryName,
                                     icon: category.categoryIcon,
@@ -65,13 +71,6 @@ struct SpendingExplorerView: View {
             }
         }
         .navigationTitle(direction == .expenses ? "Expenses" : "Income")
-        .navigationDestination(for: CategoryBreakdown.self) { category in
-            SpendingCategoryView(
-                direction: direction,
-                categoryId: category.categoryId,
-                categoryName: category.categoryName
-            )
-        }
         .task {
             await fetchData()
         }
