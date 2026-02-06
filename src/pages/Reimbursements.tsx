@@ -19,13 +19,13 @@ import type { Transaction } from '@/types';
 
 export function Reimbursements() {
   const {
-    data: pendingReimbursements = [],
+    data: pendingReimbursements,
     isLoading: isPendingLoading,
     error: pendingError,
   } = usePendingReimbursements();
 
   const {
-    data: clearedReimbursements = [],
+    data: clearedReimbursements,
     isLoading: isClearedLoading,
     error: clearedError,
   } = useClearedReimbursements({ limit: 10 });

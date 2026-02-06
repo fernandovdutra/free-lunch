@@ -1,5 +1,7 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+
+const FILTERS_STORAGE_KEY = 'transactions-filters';
 import { Plus, AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +42,29 @@ export function Transactions() {
   const { dateRange: monthDateRange } = useMonth();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Restore filters from sessionStorage on initial mount if URL has no filters
+  useEffect(() => {
+    const hasUrlFilters = Array.from(searchParams.keys()).some((key) =>
+      ['category', 'search', 'direction', 'categorizationStatus', 'reimbursementStatus'].includes(key)
+    );
+
+    if (!hasUrlFilters) {
+      try {
+        const stored = sessionStorage.getItem(FILTERS_STORAGE_KEY);
+        if (stored) {
+          const savedFilters = JSON.parse(stored) as Record<string, string>;
+          if (Object.keys(savedFilters).length > 0) {
+            setSearchParams(savedFilters, { replace: true });
+          }
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Parse filters from URL, falling back to month context for dates
   const filters: Filters = useMemo(() => {
     const categoryId = searchParams.get('category');
@@ -67,7 +92,7 @@ export function Transactions() {
     };
   }, [searchParams, monthDateRange]);
 
-  // Update URL when filters change
+  // Update URL and sessionStorage when filters change
   const handleFiltersChange = useCallback(
     (newFilters: Filters) => {
       const params: Record<string, string> = {};
@@ -76,6 +101,10 @@ export function Transactions() {
       if (newFilters.direction) params.direction = newFilters.direction;
       if (newFilters.categorizationStatus) params.categorizationStatus = newFilters.categorizationStatus;
       if (newFilters.reimbursementStatus) params.reimbursementStatus = newFilters.reimbursementStatus;
+
+      // Save to sessionStorage for persistence across navigation
+      sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(params));
+
       setSearchParams(params, { replace: true });
     },
     [setSearchParams]
@@ -99,7 +128,7 @@ export function Transactions() {
 
   const { data: categories = [] } = useCategories();
   const { data: transactions = [], isLoading, error } = useTransactions(filters);
-  const { data: pendingReimbursements = [] } = usePendingReimbursements();
+  const { data: pendingReimbursements } = usePendingReimbursements();
 
   const createMutation = useCreateTransaction();
   const updateMutation = useUpdateTransaction();

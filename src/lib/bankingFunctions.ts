@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
+import type { Transaction } from '@/types';
 
 // Types
 export interface Bank {
@@ -81,3 +82,144 @@ export const recategorizeTransactions = httpsCallable<undefined, RecategorizeRes
   functions,
   'recategorizeTransactions'
 );
+
+// ============================================================================
+// Shared Cloud Functions API
+// ============================================================================
+
+// Serialized transaction (dates as ISO strings instead of Date objects)
+export interface SerializedTransaction {
+  id: string;
+  externalId: string | null;
+  date: string;
+  description: string;
+  amount: number;
+  currency: string;
+  counterparty: string | null;
+  categoryId: string | null;
+  categorySource: string;
+  categoryConfidence: number;
+  isSplit: boolean;
+  splits: Array<{ amount: number; categoryId: string; note: string | null }> | null;
+  reimbursement: {
+    type: string;
+    status: string;
+    note: string | null;
+    linkedTransactionId: string | null;
+    clearedAt: string | null;
+  } | null;
+  bankAccountId: string | null;
+  importedAt: string;
+  updatedAt: string;
+}
+
+export function deserializeTransaction(t: SerializedTransaction): Transaction {
+  return {
+    id: t.id,
+    externalId: t.externalId,
+    date: new Date(t.date),
+    description: t.description,
+    amount: t.amount,
+    currency: t.currency as 'EUR',
+    counterparty: t.counterparty,
+    categoryId: t.categoryId,
+    categorySource: t.categorySource as Transaction['categorySource'],
+    categoryConfidence: t.categoryConfidence,
+    isSplit: t.isSplit,
+    splits: t.splits,
+    reimbursement: t.reimbursement
+      ? {
+          type: t.reimbursement.type as 'work' | 'personal',
+          note: t.reimbursement.note,
+          status: t.reimbursement.status as 'pending' | 'cleared',
+          linkedTransactionId: t.reimbursement.linkedTransactionId,
+          clearedAt: t.reimbursement.clearedAt ? new Date(t.reimbursement.clearedAt) : null,
+        }
+      : null,
+    bankAccountId: t.bankAccountId,
+    importedAt: new Date(t.importedAt),
+    updatedAt: new Date(t.updatedAt),
+  };
+}
+
+// Dashboard
+export interface DashboardDataResponse {
+  summary: {
+    totalIncome: number;
+    totalExpenses: number;
+    netBalance: number;
+    pendingReimbursements: number;
+    transactionCount: number;
+  };
+  categorySpending: Array<{
+    categoryId: string;
+    categoryName: string;
+    categoryColor: string;
+    amount: number;
+    percentage: number;
+    transactionCount: number;
+  }>;
+  timeline: Array<{
+    date: string;
+    dateKey: string;
+    income: number;
+    expenses: number;
+  }>;
+  recentTransactions: SerializedTransaction[];
+}
+
+export const getDashboardData = httpsCallable<
+  { startDate: string; endDate: string },
+  DashboardDataResponse
+>(functions, 'getDashboardData');
+
+// Budget Progress
+export interface BudgetProgressItem {
+  budgetId: string;
+  budgetName: string;
+  categoryId: string;
+  categoryName: string;
+  categoryIcon: string;
+  categoryColor: string;
+  monthlyLimit: number;
+  alertThreshold: number;
+  spent: number;
+  remaining: number;
+  percentage: number;
+  status: 'safe' | 'warning' | 'exceeded';
+}
+
+export interface BudgetProgressResponse {
+  budgetProgress: BudgetProgressItem[];
+  suggestions?: Record<string, number>;
+}
+
+export const getBudgetProgressFn = httpsCallable<
+  { startDate?: string; endDate?: string; suggestions?: boolean },
+  BudgetProgressResponse
+>(functions, 'getBudgetProgress');
+
+// Reimbursement Summary
+export interface ReimbursementSummaryResponse {
+  summary: {
+    pendingCount: number;
+    pendingTotal: number;
+    pendingWorkTotal: number;
+    pendingPersonalTotal: number;
+    clearedCount: number;
+    clearedTotal: number;
+  };
+  pendingTransactions: SerializedTransaction[];
+  clearedTransactions: SerializedTransaction[];
+}
+
+export const getReimbursementSummaryFn = httpsCallable<
+  { clearedLimit?: number },
+  ReimbursementSummaryResponse
+>(functions, 'getReimbursementSummary');
+
+// Default Categories
+export const createDefaultCategoriesFn = httpsCallable<
+  undefined,
+  { created: boolean; count: number }
+>(functions, 'createDefaultCategories');
