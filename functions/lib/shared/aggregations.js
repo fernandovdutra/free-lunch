@@ -54,15 +54,33 @@ function serializeTransaction(id, doc) {
     };
 }
 // ============================================================================
+// Helper: resolve top-level category ID
+// ============================================================================
+function getTopLevelCategoryId(categoryId, categories) {
+    if (!categoryId)
+        return 'uncategorized';
+    const cat = categories.get(categoryId);
+    if (!cat)
+        return categoryId;
+    if (cat.parentId)
+        return cat.parentId;
+    return categoryId;
+}
+// ============================================================================
 // calculateSummary
 // ============================================================================
-function calculateSummary(transactions) {
+function calculateSummary(transactions, categories) {
     let totalIncome = 0;
     let totalExpenses = 0;
     let pendingReimbursements = 0;
     for (const { doc } of transactions) {
         if (doc.excludeFromTotals)
             continue;
+        if (categories && doc.categoryId) {
+            const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
+            if (topLevel === 'transfer')
+                continue;
+        }
         if (doc.reimbursement?.status === 'pending') {
             pendingReimbursements += Math.abs(doc.amount);
         }
@@ -86,8 +104,19 @@ function calculateSummary(transactions) {
 // (Fixed: now handles split transactions — ports budget progress approach)
 // ============================================================================
 function calculateCategorySpending(transactions, categories) {
-    // Only count expenses (negative amounts), exclude pending reimbursements and excluded transactions
-    const expenses = transactions.filter(({ doc }) => doc.amount < 0 && doc.reimbursement?.status !== 'pending' && !doc.excludeFromTotals);
+    // Only count expenses (negative amounts), exclude pending reimbursements, excluded, and Transfer category
+    const expenses = transactions.filter(({ doc }) => {
+        if (doc.amount >= 0)
+            return false;
+        if (doc.reimbursement?.status === 'pending')
+            return false;
+        if (doc.excludeFromTotals)
+            return false;
+        const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
+        if (topLevel === 'transfer')
+            return false;
+        return true;
+    });
     // Group by category, handling splits
     const spending = new Map();
     for (const { doc } of expenses) {
@@ -135,7 +164,7 @@ function calculateCategorySpending(transactions, categories) {
 // ============================================================================
 // calculateTimelineData
 // ============================================================================
-function calculateTimelineData(transactions, startDate, endDate) {
+function calculateTimelineData(transactions, startDate, endDate, categories) {
     // Create a map of date -> amounts
     const dailyData = new Map();
     // Initialize all days in range
@@ -149,6 +178,11 @@ function calculateTimelineData(transactions, startDate, endDate) {
             continue;
         if (doc.reimbursement?.status === 'pending')
             continue; // Skip pending reimbursements
+        if (categories && doc.categoryId) {
+            const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
+            if (topLevel === 'transfer')
+                continue;
+        }
         const dateKey = (0, date_fns_1.format)(toDate(doc.date), 'yyyy-MM-dd');
         const current = dailyData.get(dateKey) ?? { income: 0, expenses: 0 };
         if (doc.amount > 0) {
@@ -175,12 +209,15 @@ function calculateTimelineData(transactions, startDate, endDate) {
 function calculateSpendingByCategory(transactions, categories) {
     const spending = new Map();
     for (const { doc } of transactions) {
-        // Skip income, pending reimbursements, and excluded transactions
+        // Skip income, pending reimbursements, excluded, and Transfer category
         if (doc.excludeFromTotals)
             continue;
         if (doc.amount >= 0)
             continue;
         if (doc.reimbursement?.status === 'pending')
+            continue;
+        const topLevelId = getTopLevelCategoryId(doc.categoryId, categories);
+        if (topLevelId === 'transfer')
             continue;
         const absAmount = Math.abs(doc.amount);
         if (doc.isSplit && doc.splits) {

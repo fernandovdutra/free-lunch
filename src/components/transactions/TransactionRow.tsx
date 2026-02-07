@@ -8,11 +8,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
 import { CategoryPicker } from './CategoryPicker';
-import { IcsBreakdownDialog } from './IcsBreakdownDialog';
 import { cn, formatAmount, formatDate, getAmountColor } from '@/lib/utils';
 import type { Transaction, Category } from '@/types';
 import { useState } from 'react';
@@ -37,7 +36,7 @@ export function TransactionRow({
   onClearReimbursement,
 }: TransactionRowProps) {
   const [isPickingCategory, setIsPickingCategory] = useState(false);
-  const [showBreakdown, setShowBreakdown] = useState(false);
+  const navigate = useNavigate();
 
   const category = categories.find((c) => c.id === transaction.categoryId);
   const isExpense = transaction.amount < 0;
@@ -46,6 +45,7 @@ export function TransactionRow({
   const isClearedReimbursement = transaction.reimbursement?.status === 'cleared';
   const isIcsImport = transaction.source === 'ics_import';
   const isExcluded = transaction.excludeFromTotals === true;
+  const isIcsLumpSum = (isExcluded || transaction.categoryId === 'transfer-cc') && !!transaction.icsStatementId;
 
   const handleCategoryClick = () => {
     setIsPickingCategory(true);
@@ -119,20 +119,20 @@ export function TransactionRow({
               ICS
             </span>
           )}
-          {isExcluded && transaction.icsStatementId && (
+          {isIcsLumpSum && (
             <button
               type="button"
               className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 transition-colors hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-900/50"
-              title="View individual ICS credit card transactions"
+              title="View ICS credit card breakdown"
               onClick={(e) => {
                 e.stopPropagation();
-                setShowBreakdown(true);
+                void navigate(`/ics/${transaction.icsStatementId}`);
               }}
             >
-              ICS Breakdown &rarr;
+              💳 ICS Breakdown →
             </button>
           )}
-          {isExcluded && !transaction.icsStatementId && (
+          {isExcluded && !isIcsLumpSum && (
             <span
               className="inline-flex flex-shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
               title="Excluded from totals"
@@ -278,15 +278,6 @@ export function TransactionRow({
         </div>
       </div>
 
-      {isExcluded && transaction.icsStatementId && (
-        <IcsBreakdownDialog
-          icsStatementId={transaction.icsStatementId}
-          lumpSumAmount={transaction.amount}
-          open={showBreakdown}
-          onOpenChange={setShowBreakdown}
-          categories={categories}
-        />
-      )}
     </div>
   );
 }

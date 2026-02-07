@@ -80,9 +80,9 @@ export const getDashboardData = onCall(
     });
 
     // Compute aggregations
-    const summary = calculateSummary(transactions);
+    const summary = calculateSummary(transactions, categories);
     const categorySpending = calculateCategorySpending(transactions, categories);
-    const timeline = calculateTimelineData(transactions, start, end);
+    const timeline = calculateTimelineData(transactions, start, end, categories);
 
     // Recent transactions (first 5, already sorted desc)
     const recentTransactions = transactions

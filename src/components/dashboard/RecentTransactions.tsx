@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, CreditCard } from 'lucide-react';
 import { formatAmount, formatDate, cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
@@ -21,6 +21,7 @@ export function RecentTransactions({
   onCategoryChange,
 }: RecentTransactionsProps) {
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
   if (isLoading) {
@@ -49,21 +50,31 @@ export function RecentTransactions({
     <div className="space-y-1">
       {transactions.map((transaction) => {
         const category = transaction.categoryId ? categoryMap.get(transaction.categoryId) : null;
+        const isIcsLumpSum = (transaction.excludeFromTotals === true || transaction.categoryId === 'transfer-cc') && !!transaction.icsStatementId;
 
         return (
           <div
             key={transaction.id}
-            className="flex items-center gap-4 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50"
+            className={cn(
+              'flex items-center gap-4 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50',
+              isIcsLumpSum && 'cursor-pointer'
+            )}
+            onClick={isIcsLumpSum ? () => { void navigate(`/ics/${transaction.icsStatementId}`); } : undefined}
           >
             <div className="w-14 flex-shrink-0 text-sm text-muted-foreground">
               {formatDate(transaction.date, 'short')}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">
-                {typeof transaction.description === 'string'
-                  ? transaction.description
-                  : 'Bank transaction'}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-medium">
+                  {typeof transaction.description === 'string'
+                    ? transaction.description
+                    : 'Bank transaction'}
+                </p>
+                {isIcsLumpSum && (
+                  <CreditCard className="h-3.5 w-3.5 flex-shrink-0 text-violet-500" />
+                )}
+              </div>
             </div>
             <div className="w-32 flex-shrink-0">
               {onCategoryChange && editingTransactionId === transaction.id ? (
@@ -80,7 +91,7 @@ export function RecentTransactions({
                 onCategoryChange ? (
                   <button
                     type="button"
-                    onClick={() => { setEditingTransactionId(transaction.id); }}
+                    onClick={(e) => { e.stopPropagation(); setEditingTransactionId(transaction.id); }}
                     className="block w-full text-left transition-opacity hover:opacity-80"
                   >
                     <CategoryBadge category={category} size="sm" />
@@ -91,7 +102,7 @@ export function RecentTransactions({
               ) : onCategoryChange ? (
                 <button
                   type="button"
-                  onClick={() => { setEditingTransactionId(transaction.id); }}
+                  onClick={(e) => { e.stopPropagation(); setEditingTransactionId(transaction.id); }}
                   className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80"
                 >
                   <span>?</span>
