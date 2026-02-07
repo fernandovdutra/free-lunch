@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { BankConnectionCard } from '@/components/settings/BankConnectionCard';
+import { IcsImportCard } from '@/components/settings/IcsImportCard';
 import { BuiltInRulesCard } from '@/components/settings/BuiltInRulesCard';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
@@ -106,6 +107,7 @@ export function Settings() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <BankConnectionCard />
+        <IcsImportCard />
 
         <Card>
           <CardHeader>

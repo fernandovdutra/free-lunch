@@ -48,6 +48,9 @@ function serializeTransaction(id, doc) {
         bankAccountId: doc.bankAccountId ?? null,
         importedAt: toISOString(doc.importedAt),
         updatedAt: toISOString(doc.updatedAt),
+        excludeFromTotals: doc.excludeFromTotals ?? undefined,
+        icsStatementId: doc.icsStatementId ?? undefined,
+        source: doc.source ?? undefined,
     };
 }
 // ============================================================================
@@ -58,6 +61,8 @@ function calculateSummary(transactions) {
     let totalExpenses = 0;
     let pendingReimbursements = 0;
     for (const { doc } of transactions) {
+        if (doc.excludeFromTotals)
+            continue;
         if (doc.reimbursement?.status === 'pending') {
             pendingReimbursements += Math.abs(doc.amount);
         }
@@ -81,8 +86,8 @@ function calculateSummary(transactions) {
 // (Fixed: now handles split transactions — ports budget progress approach)
 // ============================================================================
 function calculateCategorySpending(transactions, categories) {
-    // Only count expenses (negative amounts), exclude pending reimbursements
-    const expenses = transactions.filter(({ doc }) => doc.amount < 0 && doc.reimbursement?.status !== 'pending');
+    // Only count expenses (negative amounts), exclude pending reimbursements and excluded transactions
+    const expenses = transactions.filter(({ doc }) => doc.amount < 0 && doc.reimbursement?.status !== 'pending' && !doc.excludeFromTotals);
     // Group by category, handling splits
     const spending = new Map();
     for (const { doc } of expenses) {
@@ -140,6 +145,8 @@ function calculateTimelineData(transactions, startDate, endDate) {
     }
     // Aggregate transactions by day
     for (const { doc } of transactions) {
+        if (doc.excludeFromTotals)
+            continue;
         if (doc.reimbursement?.status === 'pending')
             continue; // Skip pending reimbursements
         const dateKey = (0, date_fns_1.format)(toDate(doc.date), 'yyyy-MM-dd');
@@ -168,7 +175,9 @@ function calculateTimelineData(transactions, startDate, endDate) {
 function calculateSpendingByCategory(transactions, categories) {
     const spending = new Map();
     for (const { doc } of transactions) {
-        // Skip income and pending reimbursements
+        // Skip income, pending reimbursements, and excluded transactions
+        if (doc.excludeFromTotals)
+            continue;
         if (doc.amount >= 0)
             continue;
         if (doc.reimbursement?.status === 'pending')

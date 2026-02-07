@@ -10,6 +10,9 @@ const aggregations_js_1 = require("../shared/aggregations.js");
 // ============================================================================
 function filterByDirection(transactions, direction) {
     return transactions.filter(({ doc }) => {
+        // Exclude transactions marked for exclusion (e.g. ABN AMRO ICS lump sums)
+        if (doc.excludeFromTotals)
+            return false;
         // Exclude pending reimbursements
         if (doc.reimbursement?.status === 'pending')
             return false;

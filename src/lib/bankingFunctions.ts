@@ -111,6 +111,9 @@ export interface SerializedTransaction {
   bankAccountId: string | null;
   importedAt: string;
   updatedAt: string;
+  excludeFromTotals?: boolean;
+  icsStatementId?: string | null;
+  source?: 'bank_sync' | 'ics_import' | 'manual';
 }
 
 export function deserializeTransaction(t: SerializedTransaction): Transaction {
@@ -136,6 +139,9 @@ export function deserializeTransaction(t: SerializedTransaction): Transaction {
           clearedAt: t.reimbursement.clearedAt ? new Date(t.reimbursement.clearedAt) : null,
         }
       : null,
+    excludeFromTotals: t.excludeFromTotals,
+    icsStatementId: t.icsStatementId,
+    source: t.source,
     bankAccountId: t.bankAccountId,
     importedAt: new Date(t.importedAt),
     updatedAt: new Date(t.updatedAt),
@@ -267,3 +273,40 @@ export const getSpendingExplorerFn = httpsCallable<
   SpendingExplorerRequest,
   SpendingExplorerResponse
 >(functions, 'getSpendingExplorer');
+
+// ============================================================================
+// ICS Credit Card Import
+// ============================================================================
+
+export interface ImportIcsRequest {
+  statementId: string;
+  statementDate: string;
+  customerNumber: string;
+  totalNewExpenses: number;
+  estimatedDebitDate: string;
+  debitIban: string;
+  transactions: Array<{
+    transactionDate: string;
+    bookingDate: string;
+    description: string;
+    city: string;
+    country: string;
+    foreignAmount: number | null;
+    foreignCurrency: string | null;
+    exchangeRate: number | null;
+    amountEur: number;
+    direction: 'Af' | 'Bij';
+  }>;
+}
+
+export interface ImportIcsResponse {
+  transactionsCreated: number;
+  lumpSumMatched: boolean;
+  lumpSumTransactionId: string | null;
+  message: string;
+}
+
+export const importIcsStatementFn = httpsCallable<ImportIcsRequest, ImportIcsResponse>(
+  functions,
+  'importIcsStatement'
+);

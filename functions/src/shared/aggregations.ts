@@ -27,6 +27,9 @@ export interface TransactionDoc {
   bankAccountId: string | null;
   importedAt: Timestamp;
   updatedAt: Timestamp;
+  excludeFromTotals?: boolean;
+  icsStatementId?: string | null;
+  source?: 'bank_sync' | 'ics_import' | 'manual';
 }
 
 export interface CategoryDoc {
@@ -121,6 +124,9 @@ export interface TransactionResult {
   bankAccountId: string | null;
   importedAt: string;        // ISO string
   updatedAt: string;         // ISO string
+  excludeFromTotals?: boolean;
+  icsStatementId?: string | null;
+  source?: 'bank_sync' | 'ics_import' | 'manual';
 }
 
 // Internal type for transactions with id attached
@@ -173,6 +179,9 @@ export function serializeTransaction(id: string, doc: TransactionDoc): Transacti
     bankAccountId: doc.bankAccountId ?? null,
     importedAt: toISOString(doc.importedAt),
     updatedAt: toISOString(doc.updatedAt),
+    excludeFromTotals: doc.excludeFromTotals ?? undefined,
+    icsStatementId: doc.icsStatementId ?? undefined,
+    source: doc.source ?? undefined,
   };
 }
 
@@ -188,6 +197,7 @@ export function calculateSummary(
   let pendingReimbursements = 0;
 
   for (const { doc } of transactions) {
+    if (doc.excludeFromTotals) continue;
     if (doc.reimbursement?.status === 'pending') {
       pendingReimbursements += Math.abs(doc.amount);
     } else if (doc.amount > 0) {
@@ -215,9 +225,9 @@ export function calculateCategorySpending(
   transactions: TransactionWithId[],
   categories: Map<string, CategoryDoc>
 ): CategorySpendingResult[] {
-  // Only count expenses (negative amounts), exclude pending reimbursements
+  // Only count expenses (negative amounts), exclude pending reimbursements and excluded transactions
   const expenses = transactions.filter(
-    ({ doc }) => doc.amount < 0 && doc.reimbursement?.status !== 'pending'
+    ({ doc }) => doc.amount < 0 && doc.reimbursement?.status !== 'pending' && !doc.excludeFromTotals
   );
 
   // Group by category, handling splits
@@ -287,6 +297,7 @@ export function calculateTimelineData(
 
   // Aggregate transactions by day
   for (const { doc } of transactions) {
+    if (doc.excludeFromTotals) continue;
     if (doc.reimbursement?.status === 'pending') continue; // Skip pending reimbursements
 
     const dateKey = format(toDate(doc.date), 'yyyy-MM-dd');
@@ -323,7 +334,8 @@ export function calculateSpendingByCategory(
   const spending = new Map<string, number>();
 
   for (const { doc } of transactions) {
-    // Skip income and pending reimbursements
+    // Skip income, pending reimbursements, and excluded transactions
+    if (doc.excludeFromTotals) continue;
     if (doc.amount >= 0) continue;
     if (doc.reimbursement?.status === 'pending') continue;
 

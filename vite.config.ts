@@ -27,6 +27,7 @@ export default defineConfig({
           vendor: ['react', 'react-dom', 'react-router-dom'],
           firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
           charts: ['recharts'],
+          pdf: ['pdfjs-dist'],
           ui: [
             '@radix-ui/react-dialog',
             '@radix-ui/react-dropdown-menu',

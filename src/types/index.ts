@@ -82,6 +82,11 @@ export interface Transaction {
   // Reimbursement
   reimbursement: ReimbursementInfo | null;
 
+  // ICS Credit Card Import
+  excludeFromTotals?: boolean | undefined;
+  icsStatementId?: string | null | undefined;
+  source?: 'bank_sync' | 'ics_import' | 'manual' | undefined;
+
   // Metadata
   bankAccountId: string | null;
   importedAt: Date;
