@@ -69,6 +69,7 @@ struct MainTabView: View {
         TabView(selection: $selectedTab) {
             DashboardView(selectedTab: $selectedTab)
                 .environment(dashboardViewModel)
+                .environment(categoriesViewModel)
                 .tabItem {
                     Label("Dashboard", systemImage: "chart.pie")
                 }
