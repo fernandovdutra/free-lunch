@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSpendingExplorer = exports.createDefaultCategories = exports.getReimbursementSummary = exports.getBudgetProgress = exports.getDashboardData = exports.recategorizeTransactions = exports.getAvailableBanks = exports.getBankStatus = exports.syncTransactions = exports.bankCallback = exports.initBankConnection = void 0;
+exports.importIcsStatement = exports.getSpendingExplorer = exports.createDefaultCategories = exports.getReimbursementSummary = exports.getBudgetProgress = exports.getDashboardData = exports.recategorizeTransactions = exports.getAvailableBanks = exports.getBankStatus = exports.syncTransactions = exports.bankCallback = exports.initBankConnection = void 0;
 const app_1 = require("firebase-admin/app");
 // Initialize Firebase Admin
 (0, app_1.initializeApp)();
@@ -27,4 +27,6 @@ var createDefaultCategories_js_1 = require("./handlers/createDefaultCategories.j
 Object.defineProperty(exports, "createDefaultCategories", { enumerable: true, get: function () { return createDefaultCategories_js_1.createDefaultCategories; } });
 var getSpendingExplorer_js_1 = require("./handlers/getSpendingExplorer.js");
 Object.defineProperty(exports, "getSpendingExplorer", { enumerable: true, get: function () { return getSpendingExplorer_js_1.getSpendingExplorer; } });
+var importIcsStatement_js_1 = require("./handlers/importIcsStatement.js");
+Object.defineProperty(exports, "importIcsStatement", { enumerable: true, get: function () { return importIcsStatement_js_1.importIcsStatement; } });
 //# sourceMappingURL=index.js.map

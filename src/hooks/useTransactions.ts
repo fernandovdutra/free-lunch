@@ -41,6 +41,9 @@ interface TransactionDocument {
   splits?: TransactionSplit[] | null;
   reimbursement?: ReimbursementInfo | null;
   bankAccountId?: string | null;
+  excludeFromTotals?: boolean;
+  icsStatementId?: string | null;
+  source?: 'bank_sync' | 'ics_import' | 'manual';
   importedAt?: Timestamp | string;
   updatedAt?: Timestamp | string;
 }
@@ -104,6 +107,9 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
             : null,
         }
       : null,
+    excludeFromTotals: data.excludeFromTotals ?? undefined,
+    icsStatementId: data.icsStatementId ?? undefined,
+    source: data.source ?? undefined,
     bankAccountId: data.bankAccountId ?? null,
     importedAt:
       data.importedAt instanceof Timestamp

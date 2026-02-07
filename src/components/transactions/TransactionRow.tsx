@@ -42,6 +42,8 @@ export function TransactionRow({
   const isIncome = transaction.amount > 0;
   const isPendingReimbursement = transaction.reimbursement?.status === 'pending';
   const isClearedReimbursement = transaction.reimbursement?.status === 'cleared';
+  const isIcsImport = transaction.source === 'ics_import';
+  const isExcluded = transaction.excludeFromTotals === true;
 
   const handleCategoryClick = () => {
     setIsPickingCategory(true);
@@ -59,7 +61,13 @@ export function TransactionRow({
     transaction.bookingDate.toDateString() !== transaction.transactionDate.toDateString();
 
   return (
-    <div className="group flex items-center gap-4 border-b border-border px-4 py-3 transition-colors hover:bg-muted/50">
+    <div
+      className={cn(
+        'group flex items-center gap-4 border-b border-border px-4 py-3 transition-colors hover:bg-muted/50',
+        isExcluded && 'opacity-50'
+      )}
+      title={isExcluded ? 'Excluded from totals: individual ICS transactions imported' : undefined}
+    >
       {/* Date */}
       <div className="w-28 flex-shrink-0">
         <div className="text-sm text-muted-foreground">
@@ -99,6 +107,22 @@ export function TransactionRow({
             >
               <Receipt className="h-3 w-3" />
               Cleared
+            </span>
+          )}
+          {isIcsImport && (
+            <span
+              className="inline-flex flex-shrink-0 items-center rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+              title="Imported from ICS credit card statement"
+            >
+              ICS
+            </span>
+          )}
+          {isExcluded && (
+            <span
+              className="inline-flex flex-shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+              title="Excluded from totals: individual ICS transactions imported"
+            >
+              Excluded
             </span>
           )}
         </div>

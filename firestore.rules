@@ -42,6 +42,13 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // ICS statement import records
+      match /icsStatements/{statementId} {
+        allow read: if isOwner(userId);
+        // Create only by Cloud Functions, no client writes
+        allow create, update, delete: if false;
+      }
+
       // Raw bank transactions subcollection (for debugging/audit)
       match /rawBankTransactions/{rawId} {
         allow read: if isOwner(userId);

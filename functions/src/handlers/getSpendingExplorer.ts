@@ -45,6 +45,8 @@ function filterByDirection(
   direction: 'expenses' | 'income'
 ): Array<{ id: string; doc: TransactionDoc }> {
   return transactions.filter(({ doc }) => {
+    // Exclude transactions marked for exclusion (e.g. ABN AMRO ICS lump sums)
+    if (doc.excludeFromTotals) return false;
     // Exclude pending reimbursements
     if (doc.reimbursement?.status === 'pending') return false;
     return direction === 'expenses' ? doc.amount < 0 : doc.amount > 0;
