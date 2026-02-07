@@ -387,6 +387,9 @@ struct RecentTransactionsSection: View {
     let transactions: [Transaction]
     let categories: [Category]
     @Binding var selectedTab: Int
+    @Environment(DashboardViewModel.self) private var viewModel
+    @Environment(CategoriesViewModel.self) private var categoriesViewModel
+    @State private var selectedTransaction: Transaction?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -404,38 +407,61 @@ struct RecentTransactionsSection: View {
 
             ForEach(transactions) { transaction in
                 let category = categories.first { $0.id == transaction.categoryId }
-                RecentTransactionRow(transaction: transaction, category: category)
+                RecentTransactionRow(
+                    transaction: transaction,
+                    category: category,
+                    onCategoryTap: { selectedTransaction = transaction }
+                )
             }
         }
         .padding()
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+        .sheet(item: $selectedTransaction) { transaction in
+            CategoryPickerSheet(
+                transaction: transaction,
+                categories: categoriesViewModel.flatCategories,
+                onSelect: { categoryId in
+                    Task {
+                        await viewModel.updateCategory(
+                            transactionId: transaction.id ?? "",
+                            categoryId: categoryId
+                        )
+                    }
+                    selectedTransaction = nil
+                }
+            )
+        }
     }
 }
 
 struct RecentTransactionRow: View {
     let transaction: Transaction
     let category: Category?
+    let onCategoryTap: () -> Void
 
     var body: some View {
         HStack {
-            // Category icon
-            ZStack {
-                Circle()
-                    .fill(Color(hex: category?.color ?? "#9CA3A0")?.opacity(0.2) ?? .gray.opacity(0.2))
-                    .frame(width: 36, height: 36)
+            // Category icon (tappable)
+            Button(action: onCategoryTap) {
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: category?.color ?? "#9CA3A0")?.opacity(0.2) ?? .gray.opacity(0.2))
+                        .frame(width: 36, height: 36)
 
-                if let icon = category?.icon {
-                    IconView(icon: icon)
-                        .font(.caption)
-                        .foregroundStyle(Color(hex: category?.color ?? "#9CA3A0") ?? .gray)
-                } else {
-                    Image(systemName: "questionmark.circle")
-                        .font(.caption)
-                        .foregroundStyle(.gray)
+                    if let icon = category?.icon {
+                        IconView(icon: icon)
+                            .font(.caption)
+                            .foregroundStyle(Color(hex: category?.color ?? "#9CA3A0") ?? .gray)
+                    } else {
+                        Image(systemName: "questionmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(.gray)
+                    }
                 }
             }
+            .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(transaction.description)

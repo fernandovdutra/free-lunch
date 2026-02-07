@@ -103,6 +103,26 @@ final class DashboardViewModel {
             .reduce(0) { $0 + abs($1.amount) }
     }
 
+    // MARK: - Transaction Updates
+
+    /// Update category for a transaction
+    func updateCategory(transactionId: String, categoryId: String?) async {
+        do {
+            try await FirestoreService.shared.updateTransactionCategory(
+                transactionId: transactionId,
+                categoryId: categoryId
+            )
+
+            // Optimistic update
+            if let index = transactions.firstIndex(where: { $0.id == transactionId }) {
+                transactions[index].categoryId = categoryId
+                transactions[index].categorySource = .manual
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: - Bank Connection Status
 
     var activeBankConnections: [BankConnection] {

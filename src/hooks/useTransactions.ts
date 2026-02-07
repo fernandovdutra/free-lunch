@@ -332,6 +332,7 @@ export function useUpdateTransactionCategory() {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
