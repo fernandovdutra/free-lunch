@@ -58,11 +58,12 @@ exports.importIcsStatement = (0, https_1.onCall)({
         const desc = (txData.description ?? '').toUpperCase();
         const counterparty = (txData.counterparty ?? '').toUpperCase();
         const amount = txData.amount;
-        // Match: negative amount close to total, description or counterparty contains "ICS"
-        const containsICS = desc.includes('ICS') ||
-            desc.includes('INTERNATIONAL CARD SERVICES') ||
-            counterparty.includes('ICS') ||
-            counterparty.includes('INTERNATIONAL CARD SERVICES');
+        // Match: negative amount close to total, description or counterparty contains ICS variants
+        // ABN AMRO shows it as "INT CARD SERVICES" in the bank feed
+        const searchFields = desc + ' ' + counterparty;
+        const containsICS = searchFields.includes('INT CARD SERVICES') ||
+            searchFields.includes('INTERNATIONAL CARD SERVICES') ||
+            searchFields.includes('ICS');
         if (containsICS && amount < 0) {
             const diff = Math.abs(Math.abs(amount) - data.totalNewExpenses);
             if (diff <= 0.05) {

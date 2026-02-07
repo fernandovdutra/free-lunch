@@ -166,6 +166,7 @@ interface TextItem {
   str: string;
   x: number;
   y: number;
+  page: number;
   width: number;
 }
 
@@ -199,13 +200,18 @@ export async function parseIcsStatement(pdfBuffer: ArrayBuffer): Promise<IcsPars
           str: item.str,
           x: transform[4] as number,
           y: transform[5] as number,
+          page: pageNum,
           width: item.width,
         });
       }
     }
   }
 
-  // Parse header info from the text
+  // Group text items into rows by Y-coordinate (used for both header and transaction parsing)
+  const rows = groupIntoRows(allTextItems);
+
+  // Parse header info using row-based extraction
+  // The PDF has a header table with labels on one row and values on the next
   const fullText = allTextItems.map((t) => t.str).join(' ');
 
   // Extract statement date: "26 januari 2026"
@@ -221,16 +227,34 @@ export async function parseIcsStatement(pdfBuffer: ArrayBuffer): Promise<IcsPars
   if (!customerMatch?.[1]) throw new Error('Could not find ICS customer number in PDF');
   const customerNumber = customerMatch[1];
 
-  // Extract total new expenses
-  const totalMatch = fullText.match(/Totaal nieuwe uitgaven\s+€?\s*([\d.,]+)\s+Af/);
-  if (!totalMatch?.[1]) throw new Error('Could not find total new expenses in PDF');
-  const totalNewExpenses = parseDutchAmount(totalMatch[1]);
+  // Extract total new expenses using row-based approach
+  // Find the row containing "Totaal nieuwe uitgaven", then get values from the next row
+  let totalNewExpenses = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const rowText = rows[i]!.map((t) => t.str).join(' ');
+    if (rowText.includes('Totaal nieuwe uitgaven')) {
+      // The values row is the next row
+      const valuesRow = rows[i + 1];
+      if (valuesRow) {
+        // Values row contains: "€ 692,52 | Af | € 692,52 | Bij | € 712,40 | Af | € 712,40 | Af"
+        // Extract all € amounts and their directions
+        const valuesText = valuesRow.map((t) => t.str).join(' ');
+        // Find the third "€ amount" (Totaal nieuwe uitgaven is the third column)
+        const amountMatches = [...valuesText.matchAll(/€\s*([\d.,]+)/g)];
+        const thirdAmount = amountMatches[2];
+        if (thirdAmount?.[1]) {
+          totalNewExpenses = parseDutchAmount(thirdAmount[1]);
+        }
+      }
+      break;
+    }
+  }
+  if (totalNewExpenses === 0) throw new Error('Could not find total new expenses in PDF');
 
-  // Extract debit IBAN
+  // Extract debit IBAN and estimated debit date from the footer text
   const ibanMatch = fullText.match(/bankrekening\s+(NL\w+)/i);
   const debitIban = ibanMatch?.[1] ?? '';
 
-  // Extract estimated debit date
   const debitDateMatch = fullText.match(/omstreeks\s+(\d{1,2}\s+[a-z]+\s+\d{4})/i);
   let estimatedDebitDate = new Date(statementYear, statementMonth, 1);
   if (debitDateMatch?.[1]) {
@@ -245,10 +269,7 @@ export async function parseIcsStatement(pdfBuffer: ArrayBuffer): Promise<IcsPars
   const monthStr = String(statementMonth + 1).padStart(2, '0');
   const statementId = `${customerNumber}_${statementYear}-${monthStr}`;
 
-  // Group text items into rows by Y-coordinate
-  const rows = groupIntoRows(allTextItems);
-
-  // Parse transaction rows
+  // Parse transaction rows (reusing rows grouped above)
   const transactions: IcsTransaction[] = [];
   let lastTransaction: IcsTransaction | null = null;
 
@@ -315,13 +336,14 @@ export async function parseIcsStatement(pdfBuffer: ArrayBuffer): Promise<IcsPars
 }
 
 /**
- * Group text items into rows by Y-coordinate proximity
+ * Group text items into rows by page and Y-coordinate proximity.
+ * Items on different pages are never grouped together.
  */
 function groupIntoRows(items: TextItem[]): TextItem[][] {
   if (items.length === 0) return [];
 
-  // Sort by Y descending (PDF coordinates: 0,0 is bottom-left), then X ascending
-  const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
+  // Sort by page ascending, then Y descending (top to bottom), then X ascending
+  const sorted = [...items].sort((a, b) => a.page - b.page || b.y - a.y || a.x - b.x);
 
   const firstItem = sorted[0];
   if (!firstItem) return [];
@@ -329,17 +351,19 @@ function groupIntoRows(items: TextItem[]): TextItem[][] {
   const rows: TextItem[][] = [];
   let currentRow: TextItem[] = [firstItem];
   let currentY = firstItem.y;
+  let currentPage = firstItem.page;
 
   for (let i = 1; i < sorted.length; i++) {
     const item = sorted[i];
     if (!item) continue;
-    // If Y is close to current row (within 3 units), same row
-    if (Math.abs(item.y - currentY) < 3) {
+    // Same row only if same page and Y within 3 units
+    if (item.page === currentPage && Math.abs(item.y - currentY) < 3) {
       currentRow.push(item);
     } else {
       rows.push(currentRow);
       currentRow = [item];
       currentY = item.y;
+      currentPage = item.page;
     }
   }
   rows.push(currentRow);
