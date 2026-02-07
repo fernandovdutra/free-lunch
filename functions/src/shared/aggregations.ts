@@ -186,11 +186,27 @@ export function serializeTransaction(id: string, doc: TransactionDoc): Transacti
 }
 
 // ============================================================================
+// Helper: resolve top-level category ID
+// ============================================================================
+
+function getTopLevelCategoryId(
+  categoryId: string | null,
+  categories: Map<string, CategoryDoc>
+): string {
+  if (!categoryId) return 'uncategorized';
+  const cat = categories.get(categoryId);
+  if (!cat) return categoryId;
+  if (cat.parentId) return cat.parentId;
+  return categoryId;
+}
+
+// ============================================================================
 // calculateSummary
 // ============================================================================
 
 export function calculateSummary(
-  transactions: TransactionWithId[]
+  transactions: TransactionWithId[],
+  categories?: Map<string, CategoryDoc>
 ): SpendingSummaryResult {
   let totalIncome = 0;
   let totalExpenses = 0;
@@ -198,6 +214,10 @@ export function calculateSummary(
 
   for (const { doc } of transactions) {
     if (doc.excludeFromTotals) continue;
+    if (categories && doc.categoryId) {
+      const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
+      if (topLevel === 'transfer') continue;
+    }
     if (doc.reimbursement?.status === 'pending') {
       pendingReimbursements += Math.abs(doc.amount);
     } else if (doc.amount > 0) {
@@ -225,10 +245,15 @@ export function calculateCategorySpending(
   transactions: TransactionWithId[],
   categories: Map<string, CategoryDoc>
 ): CategorySpendingResult[] {
-  // Only count expenses (negative amounts), exclude pending reimbursements and excluded transactions
-  const expenses = transactions.filter(
-    ({ doc }) => doc.amount < 0 && doc.reimbursement?.status !== 'pending' && !doc.excludeFromTotals
-  );
+  // Only count expenses (negative amounts), exclude pending reimbursements, excluded, and Transfer category
+  const expenses = transactions.filter(({ doc }) => {
+    if (doc.amount >= 0) return false;
+    if (doc.reimbursement?.status === 'pending') return false;
+    if (doc.excludeFromTotals) return false;
+    const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
+    if (topLevel === 'transfer') return false;
+    return true;
+  });
 
   // Group by category, handling splits
   const spending = new Map<string, { amount: number; count: number }>();
@@ -284,7 +309,8 @@ export function calculateCategorySpending(
 export function calculateTimelineData(
   transactions: TransactionWithId[],
   startDate: Date,
-  endDate: Date
+  endDate: Date,
+  categories?: Map<string, CategoryDoc>
 ): TimelineDataResult[] {
   // Create a map of date -> amounts
   const dailyData = new Map<string, { income: number; expenses: number }>();
@@ -299,6 +325,10 @@ export function calculateTimelineData(
   for (const { doc } of transactions) {
     if (doc.excludeFromTotals) continue;
     if (doc.reimbursement?.status === 'pending') continue; // Skip pending reimbursements
+    if (categories && doc.categoryId) {
+      const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
+      if (topLevel === 'transfer') continue;
+    }
 
     const dateKey = format(toDate(doc.date), 'yyyy-MM-dd');
     const current = dailyData.get(dateKey) ?? { income: 0, expenses: 0 };
@@ -334,10 +364,12 @@ export function calculateSpendingByCategory(
   const spending = new Map<string, number>();
 
   for (const { doc } of transactions) {
-    // Skip income, pending reimbursements, and excluded transactions
+    // Skip income, pending reimbursements, excluded, and Transfer category
     if (doc.excludeFromTotals) continue;
     if (doc.amount >= 0) continue;
     if (doc.reimbursement?.status === 'pending') continue;
+    const topLevelId = getTopLevelCategoryId(doc.categoryId, categories);
+    if (topLevelId === 'transfer') continue;
 
     const absAmount = Math.abs(doc.amount);
 

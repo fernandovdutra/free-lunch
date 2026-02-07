@@ -172,10 +172,41 @@ export const importIcsStatement = onCall(
       transactionsCreated += batchItems.length;
     }
 
-    // 6. Mark ABN AMRO lump sum as excluded
+    // 6. Mark ABN AMRO lump sum as Transfer category
     if (lumpSumTransactionId) {
+      // Ensure Transfer categories exist for this user
+      const categoriesRef = userRef.collection('categories');
+      const transferCatDoc = await categoriesRef.doc('transfer').get();
+      if (!transferCatDoc.exists) {
+        const catBatch = db.batch();
+        catBatch.set(categoriesRef.doc('transfer'), {
+          name: 'Transfer',
+          icon: '🔄',
+          color: '#6B7280',
+          parentId: null,
+          order: 9,
+          isSystem: true,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        catBatch.set(categoriesRef.doc('transfer-cc'), {
+          name: 'Credit Card Payment',
+          icon: '💳',
+          color: '#6B7280',
+          parentId: 'transfer',
+          order: 0,
+          isSystem: true,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        await catBatch.commit();
+      }
+
       await userRef.collection('transactions').doc(lumpSumTransactionId).update({
         excludeFromTotals: true,
+        categoryId: 'transfer-cc',
+        categorySource: 'auto',
+        categoryConfidence: 1.0,
         icsStatementId: data.statementId,
         updatedAt: FieldValue.serverTimestamp(),
       });

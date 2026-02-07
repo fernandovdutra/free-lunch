@@ -8,7 +8,7 @@ const aggregations_js_1 = require("../shared/aggregations.js");
 // ============================================================================
 // Helper: filter transactions by direction, excluding pending reimbursements
 // ============================================================================
-function filterByDirection(transactions, direction) {
+function filterByDirection(transactions, direction, categories) {
     return transactions.filter(({ doc }) => {
         // Exclude transactions marked for exclusion (e.g. ABN AMRO ICS lump sums)
         if (doc.excludeFromTotals)
@@ -16,6 +16,12 @@ function filterByDirection(transactions, direction) {
         // Exclude pending reimbursements
         if (doc.reimbursement?.status === 'pending')
             return false;
+        // Exclude Transfer category from both expenses and income views
+        if (doc.categoryId) {
+            const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
+            if (topLevel === 'transfer')
+                return false;
+        }
         return direction === 'expenses' ? doc.amount < 0 : doc.amount > 0;
     });
 }
@@ -93,7 +99,7 @@ exports.getSpendingExplorer = (0, https_1.onCall)({
         categories.set(doc.id, doc.data());
     });
     // Filter by direction
-    const directedTransactions = filterByDirection(allTransactions, direction);
+    const directedTransactions = filterByDirection(allTransactions, direction, categories);
     // ========================================================================
     // Calculate 6-month totals
     // ========================================================================

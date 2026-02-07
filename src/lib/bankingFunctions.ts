@@ -275,6 +275,32 @@ export const getSpendingExplorerFn = httpsCallable<
 >(functions, 'getSpendingExplorer');
 
 // ============================================================================
+// ICS Breakdown
+// ============================================================================
+
+export interface IcsBreakdownRequest {
+  statementId: string;
+  startDate: string;
+  endDate: string;
+  categoryId?: string | undefined;
+  counterparty?: string | undefined;
+  breakdownMonthKey?: string | undefined;
+}
+
+export interface IcsBreakdownResponse {
+  currentTotal: number;
+  currentMonth: string;
+  monthlyTotals: MonthlyTotal[];
+  categories?: CategoryBreakdownItem[] | undefined;
+  transactions?: SerializedTransaction[] | undefined;
+}
+
+export const getIcsBreakdownFn = httpsCallable<IcsBreakdownRequest, IcsBreakdownResponse>(
+  functions,
+  'getIcsBreakdown'
+);
+
+// ============================================================================
 // ICS Credit Card Import
 // ============================================================================
 

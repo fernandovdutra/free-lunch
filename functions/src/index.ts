@@ -16,3 +16,4 @@ export { getReimbursementSummary } from './handlers/getReimbursementSummary.js';
 export { createDefaultCategories } from './handlers/createDefaultCategories.js';
 export { getSpendingExplorer } from './handlers/getSpendingExplorer.js';
 export { importIcsStatement } from './handlers/importIcsStatement.js';
+export { getIcsBreakdown } from './handlers/getIcsBreakdown.js';

@@ -16,6 +16,9 @@ import { SpendingExplorer } from '@/pages/SpendingExplorer';
 import { SpendingCategory } from '@/pages/SpendingCategory';
 import { SpendingSubcategory } from '@/pages/SpendingSubcategory';
 import { SpendingCounterparty } from '@/pages/SpendingCounterparty';
+import { IcsBreakdown } from '@/pages/IcsBreakdown';
+import { IcsBreakdownCategory } from '@/pages/IcsBreakdownCategory';
+import { IcsBreakdownCounterparty } from '@/pages/IcsBreakdownCounterparty';
 import { Login } from '@/pages/auth/Login';
 import { Register } from '@/pages/auth/Register';
 
@@ -67,6 +70,9 @@ export function App() {
                 <Route path="income/:categoryId/:subcategoryId" element={<SpendingSubcategory />} />
                 <Route path="income/:categoryId/:subcategoryId/counterparty/:counterparty" element={<SpendingCounterparty />} />
                 <Route path="counterparty/:counterparty" element={<CounterpartyDetail />} />
+                <Route path="ics/:statementId" element={<IcsBreakdown />} />
+                <Route path="ics/:statementId/:categoryId" element={<IcsBreakdownCategory />} />
+                <Route path="ics/:statementId/:categoryId/counterparty/:counterparty" element={<IcsBreakdownCounterparty />} />
               </Route>
             </Routes>
             <Toaster />

@@ -63,6 +63,10 @@ const DEFAULT_CATEGORIES: DefaultCategory[] = [
   // Other
   { id: 'other', name: 'Other', icon: '📋', color: '#9CA3A0', parentId: null, order: 8, isSystem: true },
   { id: 'uncategorized', name: 'Uncategorized', icon: '❓', color: '#9CA3A0', parentId: 'other', order: 0, isSystem: true },
+
+  // Transfer
+  { id: 'transfer', name: 'Transfer', icon: '🔄', color: '#6B7280', parentId: null, order: 9, isSystem: true },
+  { id: 'transfer-cc', name: 'Credit Card Payment', icon: '💳', color: '#6B7280', parentId: 'transfer', order: 0, isSystem: true },
 ];
 
 export const createDefaultCategories = onCall(

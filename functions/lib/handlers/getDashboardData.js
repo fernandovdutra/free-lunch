@@ -50,9 +50,9 @@ exports.getDashboardData = (0, https_1.onCall)({
         categories.set(doc.id, doc.data());
     });
     // Compute aggregations
-    const summary = (0, aggregations_js_1.calculateSummary)(transactions);
+    const summary = (0, aggregations_js_1.calculateSummary)(transactions, categories);
     const categorySpending = (0, aggregations_js_1.calculateCategorySpending)(transactions, categories);
-    const timeline = (0, aggregations_js_1.calculateTimelineData)(transactions, start, end);
+    const timeline = (0, aggregations_js_1.calculateTimelineData)(transactions, start, end, categories);
     // Recent transactions (first 5, already sorted desc)
     const recentTransactions = transactions
         .slice(0, 5)
