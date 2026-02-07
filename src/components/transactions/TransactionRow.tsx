@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
 import { CategoryPicker } from './CategoryPicker';
+import { IcsBreakdownDialog } from './IcsBreakdownDialog';
 import { cn, formatAmount, formatDate, getAmountColor } from '@/lib/utils';
 import type { Transaction, Category } from '@/types';
 import { useState } from 'react';
@@ -36,6 +37,7 @@ export function TransactionRow({
   onClearReimbursement,
 }: TransactionRowProps) {
   const [isPickingCategory, setIsPickingCategory] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   const category = categories.find((c) => c.id === transaction.categoryId);
   const isExpense = transaction.amount < 0;
@@ -117,10 +119,23 @@ export function TransactionRow({
               ICS
             </span>
           )}
-          {isExcluded && (
+          {isExcluded && transaction.icsStatementId && (
+            <button
+              type="button"
+              className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 transition-colors hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-900/50"
+              title="View individual ICS credit card transactions"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowBreakdown(true);
+              }}
+            >
+              ICS Breakdown &rarr;
+            </button>
+          )}
+          {isExcluded && !transaction.icsStatementId && (
             <span
               className="inline-flex flex-shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-              title="Excluded from totals: individual ICS transactions imported"
+              title="Excluded from totals"
             >
               Excluded
             </span>
@@ -262,6 +277,16 @@ export function TransactionRow({
           </div>
         </div>
       </div>
+
+      {isExcluded && transaction.icsStatementId && (
+        <IcsBreakdownDialog
+          icsStatementId={transaction.icsStatementId}
+          lumpSumAmount={transaction.amount}
+          open={showBreakdown}
+          onOpenChange={setShowBreakdown}
+          categories={categories}
+        />
+      )}
     </div>
   );
 }
