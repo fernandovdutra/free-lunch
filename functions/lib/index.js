@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getIcsBreakdown = exports.importIcsStatement = exports.getSpendingExplorer = exports.createDefaultCategories = exports.getReimbursementSummary = exports.getBudgetProgress = exports.getDashboardData = exports.recategorizeTransactions = exports.getAvailableBanks = exports.getBankStatus = exports.syncTransactions = exports.bankCallback = exports.initBankConnection = void 0;
+exports.deleteIcsImport = exports.getIcsBreakdown = exports.importIcsStatement = exports.getSpendingExplorer = exports.createDefaultCategories = exports.getReimbursementSummary = exports.getBudgetProgress = exports.getDashboardData = exports.recategorizeTransactions = exports.getAvailableBanks = exports.getBankStatus = exports.syncTransactions = exports.bankCallback = exports.initBankConnection = void 0;
 const app_1 = require("firebase-admin/app");
 // Initialize Firebase Admin
 (0, app_1.initializeApp)();
@@ -31,4 +31,6 @@ var importIcsStatement_js_1 = require("./handlers/importIcsStatement.js");
 Object.defineProperty(exports, "importIcsStatement", { enumerable: true, get: function () { return importIcsStatement_js_1.importIcsStatement; } });
 var getIcsBreakdown_js_1 = require("./handlers/getIcsBreakdown.js");
 Object.defineProperty(exports, "getIcsBreakdown", { enumerable: true, get: function () { return getIcsBreakdown_js_1.getIcsBreakdown; } });
+var deleteIcsImport_js_1 = require("./handlers/deleteIcsImport.js");
+Object.defineProperty(exports, "deleteIcsImport", { enumerable: true, get: function () { return deleteIcsImport_js_1.deleteIcsImport; } });
 //# sourceMappingURL=index.js.map
