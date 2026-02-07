@@ -1,21 +1,26 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { formatAmount, formatDate, cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
+import { CategoryPicker } from '@/components/transactions/CategoryPicker';
 import type { Transaction, Category } from '@/types';
 
 interface RecentTransactionsProps {
   transactions: Transaction[];
   categories: Category[];
   isLoading?: boolean;
+  onCategoryChange?: (transactionId: string, categoryId: string | null) => void;
 }
 
 export function RecentTransactions({
   transactions,
   categories,
   isLoading,
+  onCategoryChange,
 }: RecentTransactionsProps) {
+  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
   if (isLoading) {
@@ -60,7 +65,40 @@ export function RecentTransactions({
                   : 'Bank transaction'}
               </p>
             </div>
-            {category && <CategoryBadge category={category} size="sm" />}
+            <div className="w-32 flex-shrink-0">
+              {onCategoryChange && editingTransactionId === transaction.id ? (
+                <CategoryPicker
+                  value={transaction.categoryId}
+                  onChange={(categoryId) => {
+                    onCategoryChange(transaction.id, categoryId);
+                    setEditingTransactionId(null);
+                  }}
+                  categories={categories}
+                  className="h-7"
+                />
+              ) : category ? (
+                onCategoryChange ? (
+                  <button
+                    type="button"
+                    onClick={() => { setEditingTransactionId(transaction.id); }}
+                    className="block w-full text-left transition-opacity hover:opacity-80"
+                  >
+                    <CategoryBadge category={category} size="sm" />
+                  </button>
+                ) : (
+                  <CategoryBadge category={category} size="sm" />
+                )
+              ) : onCategoryChange ? (
+                <button
+                  type="button"
+                  onClick={() => { setEditingTransactionId(transaction.id); }}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+                >
+                  <span>?</span>
+                  Uncategorized
+                </button>
+              ) : null}
+            </div>
             <div
               className={cn(
                 'w-20 flex-shrink-0 text-right text-sm font-medium tabular-nums',

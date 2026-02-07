@@ -1,9 +1,16 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { Link, useNavigate, createSearchParams } from 'react-router-dom';
 import { AlertTriangle, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useCategories } from '@/hooks/useCategories';
+import {
+  useUpdateTransactionCategory,
+  useBulkUpdateCategory,
+  useCountMatchingTransactions,
+} from '@/hooks/useTransactions';
+import { useCreateRule } from '@/hooks/useRules';
 import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount } from '@/lib/utils';
 import {
@@ -13,6 +20,8 @@ import {
   RecentTransactions,
   BudgetOverview,
 } from '@/components/dashboard';
+import { ApplyToSimilarDialog } from '@/components/transactions/ApplyToSimilarDialog';
+import type { Transaction } from '@/types';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -20,6 +29,21 @@ export function Dashboard() {
 
   const { data: categories = [] } = useCategories();
   const { data: dashboardData, isLoading, error } = useDashboardData(dateRange);
+
+  // Category editing state
+  const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
+  const [pendingCategoryChange, setPendingCategoryChange] = useState<{
+    transactionId: string;
+    newCategoryId: string;
+    transaction: Transaction;
+  } | null>(null);
+
+  const updateCategoryMutation = useUpdateTransactionCategory();
+  const bulkUpdateMutation = useBulkUpdateCategory();
+  const createRuleMutation = useCreateRule();
+  const { data: matchingCount = 0 } = useCountMatchingTransactions(
+    pendingCategoryChange?.transaction.counterparty ?? null
+  );
 
   if (error) {
     return (
@@ -47,6 +71,52 @@ export function Dashboard() {
       pathname: '/transactions',
       search: createSearchParams({ date }).toString(),
     });
+  };
+
+  const handleCategoryChange = async (transactionId: string, categoryId: string | null) => {
+    const transaction = dashboardData?.recentTransactions.find((t) => t.id === transactionId);
+    await updateCategoryMutation.mutateAsync({ id: transactionId, categoryId });
+
+    if (
+      categoryId &&
+      transaction &&
+      transaction.counterparty &&
+      (transaction.categorySource !== 'manual' || !transaction.categoryId)
+    ) {
+      setPendingCategoryChange({ transactionId, newCategoryId: categoryId, transaction });
+      setRuleDialogOpen(true);
+    }
+  };
+
+  const handleApplyToSimilar = async (options: {
+    applyToSimilar: boolean;
+    createRule: boolean;
+    pattern: string;
+    matchType: 'contains' | 'exact';
+  }) => {
+    if (!pendingCategoryChange) return;
+
+    try {
+      if (options.applyToSimilar && pendingCategoryChange.transaction.counterparty) {
+        await bulkUpdateMutation.mutateAsync({
+          counterparty: pendingCategoryChange.transaction.counterparty,
+          categoryId: pendingCategoryChange.newCategoryId,
+          excludeTransactionId: pendingCategoryChange.transactionId,
+        });
+      }
+
+      if (options.createRule && options.pattern) {
+        await createRuleMutation.mutateAsync({
+          pattern: options.pattern,
+          matchType: options.matchType,
+          categoryId: pendingCategoryChange.newCategoryId,
+          isLearned: true,
+        });
+      }
+    } finally {
+      setRuleDialogOpen(false);
+      setPendingCategoryChange(null);
+    }
   };
 
   // Count pending reimbursements
@@ -159,9 +229,25 @@ export function Dashboard() {
             transactions={dashboardData?.recentTransactions ?? []}
             categories={categories}
             isLoading={isLoading}
+            onCategoryChange={(id, categoryId) => void handleCategoryChange(id, categoryId)}
           />
         </CardContent>
       </Card>
+
+      {/* Apply to Similar Dialog */}
+      <ApplyToSimilarDialog
+        open={ruleDialogOpen}
+        onOpenChange={(open) => {
+          setRuleDialogOpen(open);
+          if (!open) setPendingCategoryChange(null);
+        }}
+        transaction={pendingCategoryChange?.transaction ?? null}
+        newCategoryId={pendingCategoryChange?.newCategoryId ?? ''}
+        categories={categories}
+        matchingCount={matchingCount - 1}
+        onApply={(options) => void handleApplyToSimilar(options)}
+        isApplying={bulkUpdateMutation.isPending || createRuleMutation.isPending}
+      />
     </div>
   );
 }
