@@ -233,6 +233,61 @@ export const syncTransactions = onCall(
           await batch.commit();
           result.newTransactions += batchItems.length;
         }
+
+        // Check newly synced transactions for ICS lump sums that should be excluded
+        // (when a PDF was imported before the bank sync brought in the lump sum)
+        for (const { transactionData } of newTransactionsToCreate) {
+          const desc = (transactionData.description ?? '').toUpperCase();
+          const cp = (transactionData.counterparty ?? '').toUpperCase();
+          const searchFields = desc + ' ' + cp;
+          const isIcsLumpSum =
+            searchFields.includes('INT CARD SERVICES') ||
+            searchFields.includes('INTERNATIONAL CARD SERVICES') ||
+            searchFields.includes('ICS');
+
+          if (isIcsLumpSum && transactionData.amount < 0) {
+            // Check if there's an imported ICS statement matching this amount
+            const absAmount = Math.abs(transactionData.amount);
+            const statementsSnapshot = await db
+              .collection('users')
+              .doc(userId)
+              .collection('icsStatements')
+              .where('totalNewExpenses', '>=', absAmount - 0.05)
+              .where('totalNewExpenses', '<=', absAmount + 0.05)
+              .limit(1)
+              .get();
+
+            if (!statementsSnapshot.empty) {
+              const statementDoc = statementsSnapshot.docs[0]!;
+              // Find the transaction we just created and mark it excluded
+              const matchQuery = await transactionsRef
+                .where('externalId', '==', transactionData.externalId)
+                .limit(1)
+                .get();
+
+              if (!matchQuery.empty) {
+                await matchQuery.docs[0]!.ref.update({
+                  excludeFromTotals: true,
+                  icsStatementId: statementDoc.id,
+                  updatedAt: FieldValue.serverTimestamp(),
+                });
+
+                // Also update the statement record with the lump sum ID if not already set
+                if (!statementDoc.data().lumpSumTransactionId) {
+                  await statementDoc.ref.update({
+                    lumpSumTransactionId: matchQuery.docs[0]!.id,
+                  });
+                }
+
+                console.log(
+                  `Auto-excluded ICS lump sum transaction (${transactionData.externalId}) ` +
+                  `matching statement ${statementDoc.id}`
+                );
+              }
+            }
+          }
+        }
+
         // Fetch and store account balances
         try {
           const balanceResponse = await client.getBalances(account.uid);
