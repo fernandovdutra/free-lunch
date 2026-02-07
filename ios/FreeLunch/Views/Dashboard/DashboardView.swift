@@ -389,6 +389,7 @@ struct RecentTransactionsSection: View {
     @Binding var selectedTab: Int
     @Environment(DashboardViewModel.self) private var viewModel
     @Environment(CategoriesViewModel.self) private var categoriesViewModel
+    @State private var showCategoryPicker = false
     @State private var selectedTransaction: Transaction?
 
     var body: some View {
@@ -410,7 +411,10 @@ struct RecentTransactionsSection: View {
                 RecentTransactionRow(
                     transaction: transaction,
                     category: category,
-                    onCategoryTap: { selectedTransaction = transaction }
+                    onCategoryTap: {
+                        selectedTransaction = transaction
+                        showCategoryPicker = true
+                    }
                 )
             }
         }
@@ -418,20 +422,23 @@ struct RecentTransactionsSection: View {
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
-        .sheet(item: $selectedTransaction) { transaction in
-            CategoryPickerSheet(
-                transaction: transaction,
-                categories: categoriesViewModel.flatCategories,
-                onSelect: { categoryId in
-                    Task {
-                        await viewModel.updateCategory(
-                            transactionId: transaction.id ?? "",
-                            categoryId: categoryId
-                        )
+        .sheet(isPresented: $showCategoryPicker) {
+            if let transaction = selectedTransaction {
+                CategoryPickerSheet(
+                    transaction: transaction,
+                    categories: categoriesViewModel.flatCategories,
+                    onSelect: { categoryId in
+                        Task {
+                            await viewModel.updateCategory(
+                                transactionId: transaction.id ?? "",
+                                categoryId: categoryId
+                            )
+                        }
+                        showCategoryPicker = false
+                        selectedTransaction = nil
                     }
-                    selectedTransaction = nil
-                }
-            )
+                )
+            }
         }
     }
 }
@@ -443,34 +450,37 @@ struct RecentTransactionRow: View {
 
     var body: some View {
         HStack {
-            // Category icon (tappable)
-            Button(action: onCategoryTap) {
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: category?.color ?? "#9CA3A0")?.opacity(0.2) ?? .gray.opacity(0.2))
-                        .frame(width: 36, height: 36)
-
-                    if let icon = category?.icon {
-                        IconView(icon: icon)
-                            .font(.caption)
-                            .foregroundStyle(Color(hex: category?.color ?? "#9CA3A0") ?? .gray)
-                    } else {
-                        Image(systemName: "questionmark.circle")
-                            .font(.caption)
-                            .foregroundStyle(.gray)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(transaction.description)
                     .font(.subheadline)
                     .lineLimit(1)
 
-                Text(transaction.date, style: .date)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Text(transaction.date, style: .date)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    // Tappable category badge
+                    Button(action: onCategoryTap) {
+                        if let category {
+                            CategoryBadge(category: category)
+                        } else {
+                            HStack(spacing: 4) {
+                                Image(systemName: "questionmark.circle")
+                                    .font(.caption)
+                                Text("Uncategorized")
+                                    .font(.caption)
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color(.systemGray5))
+                            .foregroundStyle(.secondary)
+                            .clipShape(Capsule())
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             Spacer()
