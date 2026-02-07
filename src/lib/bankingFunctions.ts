@@ -301,6 +301,21 @@ export const getIcsBreakdownFn = httpsCallable<IcsBreakdownRequest, IcsBreakdown
 );
 
 // ============================================================================
+// ICS Delete Import
+// ============================================================================
+
+export interface DeleteIcsResponse {
+  transactionsDeleted: number;
+  lumpSumReverted: boolean;
+  message: string;
+}
+
+export const deleteIcsImportFn = httpsCallable<{ statementId: string }, DeleteIcsResponse>(
+  functions,
+  'deleteIcsImport'
+);
+
+// ============================================================================
 // ICS Credit Card Import
 // ============================================================================
 

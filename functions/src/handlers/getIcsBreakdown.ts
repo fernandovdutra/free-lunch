@@ -67,14 +67,13 @@ export const getIcsBreakdown = onCall(
     const db = getFirestore();
 
     // Fetch ICS transactions for this statement and categories in parallel
+    // Query by icsStatementId only (single-field, auto-indexed) and filter source in code
     const [transactionsSnapshot, categoriesSnapshot] = await Promise.all([
       db
         .collection('users')
         .doc(userId)
         .collection('transactions')
         .where('icsStatementId', '==', statementId)
-        .where('source', '==', 'ics_import')
-        .orderBy('date', 'desc')
         .get(),
       db
         .collection('users')
@@ -84,10 +83,13 @@ export const getIcsBreakdown = onCall(
         .get(),
     ]);
 
-    const allTransactions = transactionsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      doc: doc.data() as TransactionDoc,
-    }));
+    const allTransactions = transactionsSnapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        doc: doc.data() as TransactionDoc,
+      }))
+      .filter(({ doc }) => doc.source === 'ics_import')
+      .sort((a, b) => b.doc.date.toDate().getTime() - a.doc.date.toDate().getTime());
 
     const categories = new Map<string, CategoryDoc>();
     categoriesSnapshot.docs.forEach((doc) => {
@@ -120,20 +122,24 @@ export const getIcsBreakdown = onCall(
       windowEnd = endOfMonth(now);
     }
 
-    // Fetch ALL ICS transactions in the 6-month window for the chart
+    // Fetch ALL ICS transactions for the chart
+    // Query by source only (single-field) and filter by date in code
     const allIcsSnapshot = await db
       .collection('users')
       .doc(userId)
       .collection('transactions')
       .where('source', '==', 'ics_import')
-      .where('date', '>=', Timestamp.fromDate(windowStart))
-      .where('date', '<=', Timestamp.fromDate(windowEnd))
       .get();
 
-    const allIcsTransactions = allIcsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      doc: doc.data() as TransactionDoc,
-    }));
+    const allIcsTransactions = allIcsSnapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        doc: doc.data() as TransactionDoc,
+      }))
+      .filter(({ doc }) => {
+        const txDate = doc.date.toDate();
+        return txDate >= windowStart && txDate <= windowEnd;
+      });
 
     // Build monthly totals from ALL ICS transactions
     const monthlyMap = new Map<string, { amount: number; count: number }>();
