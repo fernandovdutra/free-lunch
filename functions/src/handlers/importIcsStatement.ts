@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue, Timestamp, WriteBatch } from 'firebase-admin/firestore';
 import { Categorizer } from '../categorization/index.js';
+import { importIcsStatementSchema } from '../validation/schemas.js';
 
 // ============================================================================
 // Request/Response types
@@ -55,12 +56,11 @@ export const importIcsStatement = onCall(
     }
 
     const userId = request.auth.uid;
-    const data = request.data as ImportIcsRequest;
-
-    // Validate input
-    if (!data.statementId || !data.transactions?.length) {
-      throw new HttpsError('invalid-argument', 'statementId and transactions are required');
+    const parseResult = importIcsStatementSchema.safeParse(request.data);
+    if (!parseResult.success) {
+      throw new HttpsError('invalid-argument', parseResult.error.issues.map(i => i.message).join(', '));
     }
+    const data = parseResult.data;
 
     const db = getFirestore();
     const userRef = db.collection('users').doc(userId);

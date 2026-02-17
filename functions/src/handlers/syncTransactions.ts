@@ -4,6 +4,7 @@ import { EnableBankingClient } from '../enableBanking/client.js';
 import type { EnableBankingTransaction } from '../enableBanking/types.js';
 import { config } from '../config.js';
 import { Categorizer } from '../categorization/index.js';
+import { syncTransactionsSchema } from '../validation/schemas.js';
 
 interface SyncResult {
   accountId: string;
@@ -13,7 +14,7 @@ interface SyncResult {
 }
 
 // Firestore batch limit is 500 operations
-const BATCH_SIZE = 250; // Use 250 to have room for both transaction + raw writes
+const BATCH_SIZE = 249; // Each item = 2 writes (transaction + raw); 249 × 2 = 498, safely under Firestore's 500 limit
 
 export const syncTransactions = onCall(
   {
@@ -27,11 +28,11 @@ export const syncTransactions = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const { connectionId } = request.data as { connectionId: string };
-
-    if (!connectionId) {
-      throw new HttpsError('invalid-argument', 'Connection ID is required');
+    const parseResult = syncTransactionsSchema.safeParse(request.data);
+    if (!parseResult.success) {
+      throw new HttpsError('invalid-argument', parseResult.error.issues.map(i => i.message).join(', '));
     }
+    const { connectionId } = parseResult.data;
 
     const userId = request.auth.uid;
     const db = getFirestore();

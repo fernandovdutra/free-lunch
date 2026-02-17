@@ -440,6 +440,6 @@ export function useCountMatchingTransactions(counterparty: string | null) {
       return count;
     },
     enabled: !!user?.id && !!counterparty,
-    staleTime: 0, // Always refetch to get accurate count
+    staleTime: 30_000, // 30s — avoid excessive refetches while staying reasonably fresh
   });
 }
