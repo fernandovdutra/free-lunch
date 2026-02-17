@@ -3,6 +3,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { randomBytes } from 'crypto';
 import { EnableBankingClient } from '../enableBanking/client.js';
 import { config } from '../config.js';
+import { initBankConnectionSchema } from '../validation/schemas.js';
 
 export const initBankConnection = onCall(
   {
@@ -15,14 +16,11 @@ export const initBankConnection = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const { bankName, bankCountry = 'NL' } = request.data as {
-      bankName: string;
-      bankCountry?: string;
-    };
-
-    if (!bankName) {
-      throw new HttpsError('invalid-argument', 'Bank name is required');
+    const parseResult = initBankConnectionSchema.safeParse(request.data);
+    if (!parseResult.success) {
+      throw new HttpsError('invalid-argument', parseResult.error.issues.map(i => i.message).join(', '));
     }
+    const { bankName, bankCountry } = parseResult.data;
 
     const userId = request.auth.uid;
     const db = getFirestore();

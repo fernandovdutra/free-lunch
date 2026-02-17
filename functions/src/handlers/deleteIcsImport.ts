@@ -1,9 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-
-interface DeleteIcsRequest {
-  statementId: string;
-}
+import { deleteIcsImportSchema } from '../validation/schemas.js';
 
 interface DeleteIcsResponse {
   transactionsDeleted: number;
@@ -26,11 +23,11 @@ export const deleteIcsImport = onCall(
     }
 
     const userId = request.auth.uid;
-    const data = request.data as DeleteIcsRequest;
-
-    if (!data.statementId) {
-      throw new HttpsError('invalid-argument', 'statementId is required');
+    const parseResult = deleteIcsImportSchema.safeParse(request.data);
+    if (!parseResult.success) {
+      throw new HttpsError('invalid-argument', parseResult.error.issues.map(i => i.message).join(', '));
     }
+    const data = parseResult.data;
 
     const db = getFirestore();
     const userRef = db.collection('users').doc(userId);
