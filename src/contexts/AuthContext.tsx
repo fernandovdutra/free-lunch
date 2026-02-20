@@ -4,6 +4,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut,
   updateProfile,
@@ -63,6 +65,13 @@ const DEFAULT_SETTINGS: UserSettings = {
 
 const googleProvider = new GoogleAuthProvider();
 
+// Safari detection (covers Safari desktop, iOS Safari, iOS PWA)
+function isSafariOrWebKit(): boolean {
+  const ua = navigator.userAgent;
+  return /^((?!chrome|android).)*safari/i.test(ua) ||
+    (ua.includes('AppleWebKit') && !ua.includes('Chrome'));
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -105,6 +114,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return { id: fbUser.uid, ...newUser };
   };
 
+  // Handle redirect result on app load (for Safari sign-in flow)
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log('Redirect sign-in successful:', result.user.email);
+        }
+      })
+      .catch((error) => {
+        console.error('Redirect sign-in error:', error);
+      });
+  }, []);
+
   // Listen for auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
@@ -145,7 +167,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loginWithGoogle = async () => {
     setIsLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      if (isSafariOrWebKit()) {
+        await signInWithRedirect(auth, googleProvider);
+        // Page will navigate away — no return value here
+      } else {
+        await signInWithPopup(auth, googleProvider);
+      }
     } finally {
       setIsLoading(false);
     }
