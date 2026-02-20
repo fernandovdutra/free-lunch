@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,16 +14,10 @@ export function SpendingExplorer() {
   const direction = location.pathname.startsWith('/income') ? 'income' : 'expenses';
   const basePath = `/${direction}`;
 
-  // Local state for which bar is highlighted — initialized from global month
+  // Local state for which bar is highlighted (defaults to global month)
   const globalMonthKey = format(selectedMonth, 'yyyy-MM');
-  const [highlightedMonth, setHighlightedMonth] = useState<string>(globalMonthKey);
-
-  // Sync local highlight when user navigates via the header month selector
-  useEffect(() => {
-    setHighlightedMonth(globalMonthKey);
-  }, [globalMonthKey]);
-
-  const selectedMonthKey = highlightedMonth;
+  const [highlightedMonth, setHighlightedMonth] = useState<string | undefined>(undefined);
+  const selectedMonthKey = highlightedMonth ?? globalMonthKey;
 
   const { data, isLoading } = useSpendingExplorer({
     direction,
@@ -31,7 +25,7 @@ export function SpendingExplorer() {
   });
 
   const handleMonthClick = (monthKey: string) => {
-    setHighlightedMonth(monthKey);
+    setHighlightedMonth(monthKey === globalMonthKey ? undefined : monthKey);
   };
 
   return (
