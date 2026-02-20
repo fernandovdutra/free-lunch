@@ -18,7 +18,10 @@ export function useBudgetProgress(dateRange?: { startDate: Date; endDate: Date }
   const { data: budgets = [] } = useBudgets();
 
   const { data: budgetProgress = [], isLoading } = useQuery({
-    queryKey: budgetProgressKeys.current(user?.id ?? ''),
+    queryKey: [
+      ...budgetProgressKeys.current(user?.id ?? ''),
+      dateRange?.startDate.toISOString() ?? 'default',
+    ],
     queryFn: async (): Promise<BudgetProgress[]> => {
       if (!user?.id) return [];
 
