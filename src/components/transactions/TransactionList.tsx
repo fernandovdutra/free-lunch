@@ -57,7 +57,7 @@ export function TransactionList({
   return (
     <div className="divide-y divide-border">
       {/* Header row */}
-      <div className="flex items-center gap-4 bg-muted/50 px-4 py-2 text-sm font-medium text-muted-foreground">
+      <div className="hidden sm:flex items-center gap-4 bg-muted/50 px-4 py-2 text-sm font-medium text-muted-foreground">
         <div className="w-28 flex-shrink-0">Date</div>
         <div className="min-w-0 flex-1">Description</div>
         <div className="w-36 flex-shrink-0">Category</div>
