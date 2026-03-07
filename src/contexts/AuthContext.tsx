@@ -3,7 +3,8 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut,
   updateProfile,
@@ -105,6 +106,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return { id: fbUser.uid, ...newUser };
   };
 
+  // Handle redirect result from Google sign-in (must run before onAuthStateChanged)
+  useEffect(() => {
+    getRedirectResult(auth).catch((error: unknown) => {
+      console.error('Error handling redirect result:', error);
+      setIsLoading(false);
+    });
+  }, []);
+
   // Listen for auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
@@ -145,7 +154,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loginWithGoogle = async () => {
     setIsLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithRedirect(auth, googleProvider);
     } finally {
       setIsLoading(false);
     }
