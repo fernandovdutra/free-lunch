@@ -145,10 +145,12 @@ export function Dashboard() {
         }
         isLoading={isLoading}
         pendingCount={pendingCount}
+        incomeHref="/income"
+        expensesHref="/expenses"
       />
 
-      {/* Spending drill-down entry cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Spending drill-down entry cards (desktop only - on mobile, SummaryCards are tappable) */}
+      <div className="hidden gap-4 lg:grid lg:grid-cols-2">
         <Link to="/expenses">
           <Card className="transition-colors hover:bg-muted/50">
             <CardContent className="flex items-center justify-between py-4">

@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatAmount, cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import type { CategorySpending } from '@/types';
 
 interface SpendingByCategoryChartProps {
@@ -55,6 +56,8 @@ export function SpendingByCategoryChart({
   className,
   onCategoryClick,
 }: SpendingByCategoryChartProps) {
+  const isMobile = useIsMobile();
+
   if (isLoading) {
     return <Skeleton className={cn('h-[300px] w-full', className)} />;
   }
@@ -81,18 +84,18 @@ export function SpendingByCategoryChart({
 
   return (
     <div className={className}>
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
         <PieChart>
           <Pie
             data={chartData}
             cx="50%"
             cy="50%"
-            innerRadius={60}
-            outerRadius={100}
+            innerRadius={isMobile ? 40 : 60}
+            outerRadius={isMobile ? 75 : 100}
             paddingAngle={2}
             dataKey="value"
             nameKey="name"
-            label={renderCustomLabel}
+            label={isMobile ? false : renderCustomLabel}
             labelLine={false}
             onClick={handleClick}
             style={{ cursor: onCategoryClick ? 'pointer' : 'default' }}
@@ -106,11 +109,24 @@ export function SpendingByCategoryChart({
       </ResponsiveContainer>
 
       {/* Legend */}
-      <div className="mt-4 flex flex-wrap justify-center gap-4">
-        {chartData.slice(0, 5).map((entry) => (
-          <div key={entry.name} className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: entry.color }} />
-            <span className="text-sm text-muted-foreground">{entry.name}</span>
+      <div className="mt-4 space-y-1.5">
+        {chartData.map((entry) => (
+          <div
+            key={entry.name}
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => {
+              const category = data.find((d) => d.categoryName === entry.name);
+              if (category && onCategoryClick) onCategoryClick(category.categoryId);
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span className="text-sm">{entry.name}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm tabular-nums text-muted-foreground">{entry.percentage.toFixed(0)}%</span>
+              <span className="text-sm tabular-nums font-medium">{formatAmount(entry.value, { showSign: false })}</span>
+            </div>
           </div>
         ))}
       </div>

@@ -1,6 +1,7 @@
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, TrendingDown, Wallet, Receipt } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Receipt, ChevronRight } from 'lucide-react';
 import { formatAmount } from '@/lib/utils';
 import type { SpendingSummary } from '@/types';
 
@@ -8,9 +9,11 @@ interface SummaryCardsProps {
   summary: SpendingSummary;
   isLoading?: boolean;
   pendingCount?: number;
+  incomeHref?: string;
+  expensesHref?: string;
 }
 
-export function SummaryCards({ summary, isLoading, pendingCount = 0 }: SummaryCardsProps) {
+export function SummaryCards({ summary, isLoading, pendingCount = 0, incomeHref, expensesHref }: SummaryCardsProps) {
   if (isLoading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -32,31 +35,71 @@ export function SummaryCards({ summary, isLoading, pendingCount = 0 }: SummaryCa
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Income</CardTitle>
-          <TrendingUp className="h-4 w-4 text-emerald-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold tabular-nums text-emerald-500">
-            {formatAmount(summary.totalIncome, { showSign: false })}
-          </div>
-          <p className="text-xs text-muted-foreground">This period</p>
-        </CardContent>
-      </Card>
+      {incomeHref ? (
+        <Link to={incomeHref}>
+          <Card className="transition-colors hover:bg-muted/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+              <div className="flex items-center gap-1">
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground lg:hidden" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold tabular-nums text-emerald-500">
+                {formatAmount(summary.totalIncome, { showSign: false })}
+              </div>
+              <p className="text-xs text-muted-foreground">This period</p>
+            </CardContent>
+          </Card>
+        </Link>
+      ) : (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums text-emerald-500">
+              {formatAmount(summary.totalIncome, { showSign: false })}
+            </div>
+            <p className="text-xs text-muted-foreground">This period</p>
+          </CardContent>
+        </Card>
+      )}
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-          <TrendingDown className="h-4 w-4 text-red-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold tabular-nums text-red-500">
-            {formatAmount(-summary.totalExpenses, { showSign: false })}
-          </div>
-          <p className="text-xs text-muted-foreground">This period</p>
-        </CardContent>
-      </Card>
+      {expensesHref ? (
+        <Link to={expensesHref}>
+          <Card className="transition-colors hover:bg-muted/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+              <div className="flex items-center gap-1">
+                <TrendingDown className="h-4 w-4 text-red-500" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground lg:hidden" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold tabular-nums text-red-500">
+                {formatAmount(-summary.totalExpenses, { showSign: false })}
+              </div>
+              <p className="text-xs text-muted-foreground">This period</p>
+            </CardContent>
+          </Card>
+        </Link>
+      ) : (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+            <TrendingDown className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums text-red-500">
+              {formatAmount(-summary.totalExpenses, { showSign: false })}
+            </div>
+            <p className="text-xs text-muted-foreground">This period</p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

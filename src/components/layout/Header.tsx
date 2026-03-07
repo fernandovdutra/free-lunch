@@ -1,4 +1,5 @@
-import { Menu, RefreshCw, LogOut } from 'lucide-react';
+import { RefreshCw, LogOut, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useSyncAllConnections, useBankConnections } from '@/hooks/useBankConnection';
@@ -51,31 +52,31 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Mobile menu button */}
-        <Button variant="ghost" size="icon" className="lg:hidden">
-          <Menu className="h-5 w-5" />
-          <span className="sr-only">Open menu</span>
-        </Button>
-
-        {/* Logo (mobile only) */}
-        <img
-          src="/free-lunch-icon.jpg"
-          alt="Free Lunch"
-          className="h-9 lg:hidden"
-        />
-
-        {/* Month selector (mobile - compact) */}
-        <div className="flex items-center lg:hidden">
+        {/* Mobile: Logo + Month selector */}
+        <div className="flex items-center gap-2 lg:hidden">
+          <img
+            src="/free-lunch-icon.jpg"
+            alt="Free Lunch"
+            className="h-9"
+          />
           <MonthSelector className="scale-90" />
         </div>
 
-        {/* Month selector (desktop) */}
+        {/* Desktop: Month selector centered */}
         <div className="hidden lg:flex lg:flex-1 lg:justify-center">
           <MonthSelector />
         </div>
 
         {/* Right side actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Settings (mobile only - removed from bottom nav) */}
+          <Link to="/settings" className="lg:hidden">
+            <Button variant="ghost" size="icon">
+              <Settings className="h-4 w-4" />
+              <span className="sr-only">Settings</span>
+            </Button>
+          </Link>
+
           {/* Sync button */}
           <Button
             variant="ghost"
