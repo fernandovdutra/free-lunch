@@ -65,10 +65,8 @@ const DEFAULT_SETTINGS: UserSettings = {
 
 const googleProvider = new GoogleAuthProvider();
 
-const isStandalone = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  ('standalone' in navigator &&
-    (navigator as unknown as { standalone?: boolean }).standalone === true);
+const isMobile = () =>
+  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
@@ -159,7 +157,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loginWithGoogle = async () => {
     setIsLoading(true);
     try {
-      if (isStandalone()) {
+      if (isMobile()) {
         await signInWithRedirect(auth, googleProvider);
         // Page will navigate away; no further code runs here
       } else {
