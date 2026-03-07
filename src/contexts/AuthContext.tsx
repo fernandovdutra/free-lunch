@@ -4,6 +4,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut,
   updateProfile,
@@ -63,6 +65,11 @@ const DEFAULT_SETTINGS: UserSettings = {
 
 const googleProvider = new GoogleAuthProvider();
 
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  ('standalone' in navigator &&
+    (navigator as unknown as { standalone?: boolean }).standalone === true);
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -105,6 +112,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return { id: fbUser.uid, ...newUser };
   };
 
+  // Handle redirect result from signInWithRedirect (used in standalone/PWA mode)
+  useEffect(() => {
+    getRedirectResult(auth).catch((error: unknown) => {
+      console.error('Error handling redirect result:', error);
+    });
+  }, []);
+
   // Listen for auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
@@ -145,7 +159,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loginWithGoogle = async () => {
     setIsLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      if (isStandalone()) {
+        await signInWithRedirect(auth, googleProvider);
+        // Page will navigate away; no further code runs here
+      } else {
+        await signInWithPopup(auth, googleProvider);
+      }
     } finally {
       setIsLoading(false);
     }
