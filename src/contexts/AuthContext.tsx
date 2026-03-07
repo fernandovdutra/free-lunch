@@ -3,6 +3,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -106,12 +107,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return { id: fbUser.uid, ...newUser };
   };
 
-  // Handle redirect result from Google sign-in (must run before onAuthStateChanged)
+  // Handle redirect result from Google sign-in
   useEffect(() => {
-    getRedirectResult(auth).catch((error: unknown) => {
-      console.error('Error handling redirect result:', error);
-      setIsLoading(false);
-    });
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          console.log('[AUTH] Redirect result received:', result.user.email);
+        } else {
+          console.log('[AUTH] No redirect result');
+        }
+      })
+      .catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error('[AUTH] Redirect result error:', msg);
+        alert('[DEBUG] Redirect error: ' + msg);
+        setIsLoading(false);
+      });
   }, []);
 
   // Listen for auth state changes
@@ -154,9 +165,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loginWithGoogle = async () => {
     setIsLoading(true);
     try {
-      await signInWithRedirect(auth, googleProvider);
-    } finally {
-      setIsLoading(false);
+      console.log('[AUTH] Trying signInWithPopup...');
+      await signInWithPopup(auth, googleProvider);
+      console.log('[AUTH] Popup sign-in succeeded');
+    } catch (popupError: unknown) {
+      const msg = popupError instanceof Error ? popupError.message : String(popupError);
+      console.warn('[AUTH] Popup failed:', msg);
+      alert('[DEBUG] Popup failed: ' + msg + '\n\nTrying redirect...');
+      try {
+        await signInWithRedirect(auth, googleProvider);
+      } catch (redirectError: unknown) {
+        const rMsg = redirectError instanceof Error ? redirectError.message : String(redirectError);
+        alert('[DEBUG] Redirect also failed: ' + rMsg);
+        setIsLoading(false);
+        throw redirectError;
+      }
     }
   };
 
