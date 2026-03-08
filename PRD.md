@@ -159,7 +159,7 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 
 **Features Deferred**
 
-- ❌ Native mobile apps (iOS/Android)
+- ❌ Native mobile apps (Android)
 - ❌ Budget setting and alerts
 - ❌ Fixed costs / subscription tracking
 - ❌ Predictions (30-day forecast)
