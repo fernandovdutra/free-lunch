@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 
 const FILTERS_STORAGE_KEY = 'transactions-filters';
 import { Plus, AlertTriangle } from 'lucide-react';
+import { useToast } from '@/components/ui/toaster';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +41,7 @@ import { useMonth } from '@/contexts/MonthContext';
 import type { Transaction, TransactionFormData } from '@/types';
 
 export function Transactions() {
+  const { toast } = useToast();
   const { dateRange: monthDateRange } = useMonth();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -226,8 +228,19 @@ export function Transactions() {
     setFormOpen(true);
   };
 
-  const handleAICategorize = (transaction: Transaction) => {
-    void aiCategorizeMutation.mutateAsync(transaction.id);
+  const handleAICategorize = async (transaction: Transaction) => {
+    try {
+      const result = await aiCategorizeMutation.mutateAsync(transaction.id);
+      if (result.llmCategorized > 0) {
+        toast({ title: 'AI categorized successfully' });
+      } else if (result.updated > 0) {
+        toast({ title: 'Categorized by rules' });
+      } else {
+        toast({ title: 'Could not determine category', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'AI categorization failed', variant: 'destructive' });
+    }
   };
 
   const handleMarkReimbursable = (transaction: Transaction) => {
