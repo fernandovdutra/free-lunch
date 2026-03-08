@@ -11,6 +11,8 @@ interface TransactionListProps {
   onDelete: (transaction: Transaction) => void;
   onMarkReimbursable?: ((transaction: Transaction) => void) | undefined;
   onClearReimbursement?: ((transaction: Transaction) => void) | undefined;
+  onAICategorize?: ((transaction: Transaction) => void) | undefined;
+  isAICategorizing?: boolean | undefined;
 }
 
 export function TransactionList({
@@ -22,6 +24,8 @@ export function TransactionList({
   onDelete,
   onMarkReimbursable,
   onClearReimbursement,
+  onAICategorize,
+  isAICategorizing,
 }: TransactionListProps) {
   if (isLoading) {
     return (
@@ -77,6 +81,8 @@ export function TransactionList({
           onDelete={onDelete}
           onMarkReimbursable={onMarkReimbursable}
           onClearReimbursement={onClearReimbursement}
+          onAICategorize={onAICategorize}
+          isAICategorizing={isAICategorizing}
         />
       ))}
     </div>

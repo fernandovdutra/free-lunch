@@ -18,6 +18,7 @@ const recategorizeSchema = z
       .enum(['all', 'uncategorized'])
       .optional()
       .default('all'),
+    transactionIds: z.array(z.string()).optional(),
   })
   .nullable()
   .optional()
@@ -45,7 +46,10 @@ export const recategorizeTransactions = onCall(
         parseResult.error.issues.map((i) => i.message).join(', ')
       );
     }
-    const { useLLM, mode } = parseResult.data;
+    const { useLLM, mode, transactionIds } = parseResult.data;
+
+    // When targeting specific transactions, always use LLM
+    const effectiveUseLLM = useLLM || (transactionIds && transactionIds.length > 0);
 
     const userId = request.auth.uid;
     const db = getFirestore();
@@ -54,13 +58,22 @@ export const recategorizeTransactions = onCall(
     const categorizer = new Categorizer(userId);
     await categorizer.initialize();
 
-    // Get transactions based on mode
+    // Get transactions based on mode or specific IDs
     const transactionsRef = db.collection('users').doc(userId).collection('transactions');
-    let snapshot;
-    if (mode === 'uncategorized') {
-      snapshot = await transactionsRef.where('categorySource', '==', 'none').get();
+    let docs: FirebaseFirestore.QueryDocumentSnapshot[];
+    if (transactionIds && transactionIds.length > 0) {
+      // Fetch specific transactions by ID
+      const docRefs = transactionIds.map((id) => transactionsRef.doc(id));
+      const docSnaps = await db.getAll(...docRefs);
+      docs = docSnaps.filter((d) => d.exists) as FirebaseFirestore.QueryDocumentSnapshot[];
     } else {
-      snapshot = await transactionsRef.where('categorySource', '!=', 'manual').get();
+      let snapshot;
+      if (mode === 'uncategorized') {
+        snapshot = await transactionsRef.where('categorySource', '==', 'none').get();
+      } else {
+        snapshot = await transactionsRef.where('categorySource', '!=', 'manual').get();
+      }
+      docs = snapshot.docs;
     }
 
     const result: RecategorizeResult = {
@@ -81,7 +94,6 @@ export const recategorizeTransactions = onCall(
     }> = [];
 
     // Process in batches — pattern matching pass
-    const docs = snapshot.docs;
     for (let i = 0; i < docs.length; i += BATCH_SIZE) {
       const batch: WriteBatch = db.batch();
       const batchDocs = docs.slice(i, i + BATCH_SIZE);
@@ -110,7 +122,7 @@ export const recategorizeTransactions = onCall(
             });
             batchUpdates++;
             result.updated++;
-          } else if (!categorizationResult.categoryId && useLLM) {
+          } else if (!categorizationResult.categoryId && effectiveUseLLM) {
             // Collect for LLM pass
             uncategorizedForLLM.push({
               docRef: doc.ref,
@@ -134,7 +146,7 @@ export const recategorizeTransactions = onCall(
     }
 
     // LLM categorization pass
-    if (useLLM && uncategorizedForLLM.length > 0) {
+    if (effectiveUseLLM && uncategorizedForLLM.length > 0) {
       const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
       if (!anthropicApiKey) {
         result.errors.push('ANTHROPIC_API_KEY not configured — LLM categorization skipped');

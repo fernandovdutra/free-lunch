@@ -36,6 +36,7 @@ export interface BankConnectionStatus {
 export interface RecategorizeRequest {
   useLLM?: boolean;
   mode?: 'all' | 'uncategorized';
+  transactionIds?: string[];
 }
 
 export interface RecategorizeResult {

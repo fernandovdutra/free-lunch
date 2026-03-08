@@ -27,6 +27,7 @@ import {
   useDeleteTransaction,
   useBulkUpdateCategory,
   useCountMatchingTransactions,
+  useAICategorizeTransaction,
   type TransactionFilters as Filters,
 } from '@/hooks/useTransactions';
 import {
@@ -138,6 +139,7 @@ export function Transactions() {
   const clearReimbursementMutation = useClearReimbursement();
   const createRuleMutation = useCreateRule();
   const bulkUpdateMutation = useBulkUpdateCategory();
+  const aiCategorizeMutation = useAICategorizeTransaction();
   const { data: matchingCount = 0 } = useCountMatchingTransactions(
     pendingCategoryChange?.transaction.counterparty ?? null
   );
@@ -224,6 +226,10 @@ export function Transactions() {
     setFormOpen(true);
   };
 
+  const handleAICategorize = (transaction: Transaction) => {
+    void aiCategorizeMutation.mutateAsync(transaction.id);
+  };
+
   const handleMarkReimbursable = (transaction: Transaction) => {
     setMarkReimbursableTransaction(transaction);
   };
@@ -296,6 +302,8 @@ export function Transactions() {
             onDelete={handleDelete}
             onMarkReimbursable={handleMarkReimbursable}
             onClearReimbursement={handleClearReimbursement}
+            onAICategorize={handleAICategorize}
+            isAICategorizing={aiCategorizeMutation.isPending}
           />
         </CardContent>
       </Card>
