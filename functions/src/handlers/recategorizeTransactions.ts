@@ -50,6 +50,7 @@ export const recategorizeTransactions = onCall(
 
     // When targeting specific transactions, always use LLM
     const effectiveUseLLM = useLLM || (transactionIds && transactionIds.length > 0);
+    const isExplicitAICategorize = transactionIds && transactionIds.length > 0;
 
     const userId = request.auth.uid;
     const db = getFirestore();
@@ -112,8 +113,10 @@ export const recategorizeTransactions = onCall(
 
           if (
             categorizationResult.categoryId &&
-            categorizationResult.categoryId !== data.categoryId
+            categorizationResult.categoryId !== data.categoryId &&
+            !isExplicitAICategorize
           ) {
+            // Pattern matching found a different (better) category — apply it
             batch.update(doc.ref, {
               categoryId: categorizationResult.categoryId,
               categoryConfidence: categorizationResult.confidence,
@@ -122,8 +125,8 @@ export const recategorizeTransactions = onCall(
             });
             batchUpdates++;
             result.updated++;
-          } else if (!categorizationResult.categoryId && effectiveUseLLM) {
-            // Collect for LLM pass
+          } else if (effectiveUseLLM) {
+            // Send to LLM: either no pattern match, or explicit AI categorize request
             uncategorizedForLLM.push({
               docRef: doc.ref,
               description,
