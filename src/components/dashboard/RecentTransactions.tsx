@@ -5,6 +5,7 @@ import { formatAmount, formatDate, cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
 import { CategoryPicker } from '@/components/transactions/CategoryPicker';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import type { Transaction, Category } from '@/types';
 
 interface RecentTransactionsProps {
@@ -22,6 +23,7 @@ export function RecentTransactions({
 }: RecentTransactionsProps) {
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
   if (isLoading) {
@@ -51,6 +53,80 @@ export function RecentTransactions({
       {transactions.map((transaction) => {
         const category = transaction.categoryId ? categoryMap.get(transaction.categoryId) : null;
         const isIcsLumpSum = (transaction.excludeFromTotals === true || transaction.categoryId === 'transfer-cc') && !!transaction.icsStatementId;
+        const description = typeof transaction.description === 'string'
+          ? transaction.description
+          : 'Bank transaction';
+
+        const categoryElement = onCategoryChange && editingTransactionId === transaction.id ? (
+          <CategoryPicker
+            value={transaction.categoryId}
+            onChange={(categoryId) => {
+              onCategoryChange(transaction.id, categoryId);
+              setEditingTransactionId(null);
+            }}
+            categories={categories}
+            className="h-7"
+          />
+        ) : category ? (
+          onCategoryChange ? (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setEditingTransactionId(transaction.id); }}
+              className="block text-left transition-opacity hover:opacity-80"
+            >
+              <CategoryBadge category={category} size="sm" />
+            </button>
+          ) : (
+            <CategoryBadge category={category} size="sm" />
+          )
+        ) : onCategoryChange ? (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setEditingTransactionId(transaction.id); }}
+            className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+          >
+            <span>?</span>
+            Uncategorized
+          </button>
+        ) : null;
+
+        if (isMobile) {
+          return (
+            <div
+              key={transaction.id}
+              className={cn(
+                'rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50',
+                isIcsLumpSum && 'cursor-pointer'
+              )}
+              onClick={isIcsLumpSum ? () => { void navigate(`/ics/${transaction.icsStatementId}`); } : undefined}
+            >
+              {/* Row 1: Description + Amount */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <p className="truncate text-sm font-medium">{description}</p>
+                  {isIcsLumpSum && (
+                    <CreditCard className="h-3.5 w-3.5 flex-shrink-0 text-violet-500" />
+                  )}
+                </div>
+                <span
+                  className={cn(
+                    'flex-shrink-0 text-sm font-medium tabular-nums',
+                    transaction.amount > 0 ? 'text-emerald-500' : 'text-red-500'
+                  )}
+                >
+                  {formatAmount(transaction.amount)}
+                </span>
+              </div>
+              {/* Row 2: Date + Category */}
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {formatDate(transaction.date, 'short')}
+                </span>
+                {categoryElement}
+              </div>
+            </div>
+          );
+        }
 
         return (
           <div
@@ -66,49 +142,14 @@ export function RecentTransactions({
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-medium">
-                  {typeof transaction.description === 'string'
-                    ? transaction.description
-                    : 'Bank transaction'}
-                </p>
+                <p className="truncate text-sm font-medium">{description}</p>
                 {isIcsLumpSum && (
                   <CreditCard className="h-3.5 w-3.5 flex-shrink-0 text-violet-500" />
                 )}
               </div>
             </div>
             <div className="w-32 flex-shrink-0">
-              {onCategoryChange && editingTransactionId === transaction.id ? (
-                <CategoryPicker
-                  value={transaction.categoryId}
-                  onChange={(categoryId) => {
-                    onCategoryChange(transaction.id, categoryId);
-                    setEditingTransactionId(null);
-                  }}
-                  categories={categories}
-                  className="h-7"
-                />
-              ) : category ? (
-                onCategoryChange ? (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setEditingTransactionId(transaction.id); }}
-                    className="block w-full text-left transition-opacity hover:opacity-80"
-                  >
-                    <CategoryBadge category={category} size="sm" />
-                  </button>
-                ) : (
-                  <CategoryBadge category={category} size="sm" />
-                )
-              ) : onCategoryChange ? (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setEditingTransactionId(transaction.id); }}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80"
-                >
-                  <span>?</span>
-                  Uncategorized
-                </button>
-              ) : null}
+              {categoryElement}
             </div>
             <div
               className={cn(

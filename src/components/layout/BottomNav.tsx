@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, Tags, PiggyBank, Receipt, Settings } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, Tags, PiggyBank, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -8,7 +8,6 @@ const navItems = [
   { href: '/categories', label: 'Categories', icon: Tags },
   { href: '/budgets', label: 'Budgets', icon: PiggyBank },
   { href: '/reimbursements', label: 'Reimburse', icon: Receipt },
-  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 interface BottomNavProps {
@@ -31,7 +30,7 @@ export function BottomNav({ className }: BottomNavProps) {
             end={item.href === '/'}
             className={({ isActive }) =>
               cn(
-                'flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors',
+                'flex flex-col items-center gap-0.5 px-2 py-2 text-[10px] font-medium transition-colors',
                 isActive ? 'text-primary' : 'text-muted-foreground'
               )
             }
