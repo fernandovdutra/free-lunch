@@ -30,12 +30,6 @@ ui-debug.log
 .env.test.local
 .env.production.local
 
-# iOS secrets
-ios/FreeLunch/Resources/GoogleService-Info.plist
-
-# Xcode
-*.xcuserstate
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
