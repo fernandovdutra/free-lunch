@@ -2,6 +2,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import type { CategorizationResult, StoredRule } from './types.js';
 import { matchRules } from './ruleEngine.js';
 import { matchMerchant } from './merchantDatabase.js';
+import { categorizeWithLLM } from './llmCategorizer.js';
 
 interface CategoryDoc {
   id: string;
@@ -167,5 +168,38 @@ export class Categorizer {
       confidence: 0,
       source: 'none',
     };
+  }
+
+  /**
+   * Batch-categorize uncategorized transactions using LLM.
+   * Call this after pattern matching to fill in gaps.
+   * Returns a map from transaction index to categorization result.
+   */
+  async categorizeBatchWithLLM(
+    transactions: Array<{
+      index: number;
+      description: string;
+      counterparty: string | null;
+      amount: number;
+    }>,
+    apiKey: string
+  ): Promise<Map<number, CategorizationResult>> {
+    if (!this.initialized) {
+      throw new Error('Categorizer not initialized. Call initialize() first.');
+    }
+
+    // Build category info for the LLM (only leaf categories)
+    const categoryInfos = this.categories
+      .filter((c) => c.parentId !== null)
+      .map((c) => {
+        const parent = this.categories.find((p) => p.id === c.parentId);
+        return {
+          id: c.id,
+          name: c.name,
+          parentName: parent?.name ?? null,
+        };
+      });
+
+    return categorizeWithLLM(transactions, categoryInfos, apiKey);
   }
 }

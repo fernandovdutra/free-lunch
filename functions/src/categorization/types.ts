@@ -6,7 +6,7 @@ import type { Timestamp } from 'firebase-admin/firestore';
 export interface CategorizationResult {
   categoryId: string | null;
   confidence: number; // 0.0 - 1.0
-  source: 'rule' | 'merchant' | 'learned' | 'none';
+  source: 'rule' | 'merchant' | 'learned' | 'llm' | 'none';
   matchedPattern?: string; // For debugging
   ruleId?: string; // If matched by user rule
 }
