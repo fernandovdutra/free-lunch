@@ -73,7 +73,7 @@ export interface Transaction {
   // Categorization
   categoryId: string | null;
   categoryConfidence: number;
-  categorySource: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned' | 'none';
+  categorySource: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned' | 'llm' | 'none';
 
   // Splitting
   isSplit: boolean;

@@ -21,7 +21,7 @@ export const syncTransactions = onCall(
     region: 'europe-west1',
     cors: true,
     timeoutSeconds: 300, // 5 minutes for large syncs
-    secrets: ['ENABLE_BANKING_APP_ID', 'ENABLE_BANKING_PRIVATE_KEY', 'ENABLE_BANKING_API_URL'],
+    secrets: ['ENABLE_BANKING_APP_ID', 'ENABLE_BANKING_PRIVATE_KEY', 'ENABLE_BANKING_API_URL', 'ANTHROPIC_API_KEY'],
   },
   async (request) => {
     if (!request.auth) {
@@ -202,6 +202,42 @@ export const syncTransactions = onCall(
                 updatedAt: FieldValue.serverTimestamp(),
               });
               result.updatedTransactions++;
+            }
+          }
+        }
+
+        // LLM categorization pass: batch-categorize uncategorized transactions
+        const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+        if (anthropicApiKey) {
+          const uncategorized = newTransactionsToCreate
+            .map((item, idx) => ({ item, idx }))
+            .filter(({ item }) => item.transactionData.categorySource === 'none');
+
+          if (uncategorized.length > 0) {
+            try {
+              const llmResults = await categorizer.categorizeBatchWithLLM(
+                uncategorized.map(({ item, idx }) => ({
+                  index: idx,
+                  description: item.transactionData.description,
+                  counterparty: item.transactionData.counterparty,
+                  amount: item.transactionData.amount,
+                })),
+                anthropicApiKey
+              );
+
+              for (const [idx, llmResult] of llmResults) {
+                if (llmResult.categoryId) {
+                  newTransactionsToCreate[idx].transactionData.categoryId = llmResult.categoryId;
+                  newTransactionsToCreate[idx].transactionData.categoryConfidence = llmResult.confidence;
+                  newTransactionsToCreate[idx].transactionData.categorySource = 'llm';
+                }
+              }
+
+              console.log(
+                `LLM categorized ${llmResults.size}/${uncategorized.length} uncategorized transactions`
+              );
+            } catch (err) {
+              console.warn('LLM categorization failed, continuing without:', err);
             }
           }
         }
@@ -512,7 +548,7 @@ function transformTransaction(
     counterparty,
     categoryId: null as string | null,
     categoryConfidence: 0,
-    categorySource: 'auto' as 'auto' | 'rule' | 'merchant' | 'learned' | 'none',
+    categorySource: 'auto' as 'auto' | 'rule' | 'merchant' | 'learned' | 'llm' | 'none',
     isSplit: false,
     splits: null,
     reimbursement: null,

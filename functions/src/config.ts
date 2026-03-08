@@ -57,6 +57,9 @@ export const config = {
   get enableBankingApiUrl(): string {
     return getEnvOrDefault('ENABLE_BANKING_API_URL', 'https://api.enablebanking.com').trim();
   },
+  get anthropicApiKey(): string | null {
+    return process.env.ANTHROPIC_API_KEY ?? null;
+  },
   get appUrl(): string {
     return getEnvOrDefault(
       'APP_URL',

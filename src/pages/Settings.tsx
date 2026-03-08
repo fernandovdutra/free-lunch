@@ -185,26 +185,23 @@ export function Settings() {
         <CardHeader>
           <CardTitle>Auto-Categorization</CardTitle>
           <CardDescription>
-            Re-run the auto-categorization algorithm on existing transactions
+            Re-run categorization on existing transactions using rules, merchant database, and AI
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">
-                This will re-apply auto-categorization to all transactions that weren't manually
-                categorized. Manually set categories will not be changed.
-              </p>
-              {recategorizeMutation.data && (
-                <p className="text-sm text-emerald-600">
-                  Processed {recategorizeMutation.data.processed} transactions, updated{' '}
-                  {recategorizeMutation.data.updated}, skipped {recategorizeMutation.data.skipped}
-                </p>
+          {recategorizeMutation.data && (
+            <p className="text-sm text-emerald-600">
+              Processed {recategorizeMutation.data.processed} transactions: {recategorizeMutation.data.updated} updated
+              {recategorizeMutation.data.llmCategorized > 0 && (
+                <> ({recategorizeMutation.data.llmCategorized} by AI)</>
               )}
-            </div>
+              , {recategorizeMutation.data.skipped} skipped
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              onClick={() => void recategorizeMutation.mutateAsync()}
+              onClick={() => void recategorizeMutation.mutateAsync({})}
               disabled={recategorizeMutation.isPending || transactions.length === 0}
             >
               {recategorizeMutation.isPending ? (
@@ -212,9 +209,36 @@ export function Settings() {
               ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}
-              {recategorizeMutation.isPending ? 'Re-categorizing...' : 'Re-categorize'}
+              Re-categorize (rules only)
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => void recategorizeMutation.mutateAsync({ useLLM: true, mode: 'uncategorized' })}
+              disabled={recategorizeMutation.isPending || transactions.length === 0}
+            >
+              {recategorizeMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Wand2 className="mr-2 h-4 w-4" />
+              )}
+              AI categorize uncategorized
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => void recategorizeMutation.mutateAsync({ useLLM: true, mode: 'all' })}
+              disabled={recategorizeMutation.isPending || transactions.length === 0}
+            >
+              {recategorizeMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Wand2 className="mr-2 h-4 w-4" />
+              )}
+              AI categorize all
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            "Rules only" re-applies pattern matching. "AI categorize" also uses Claude AI for transactions that rules can't match. Manually set categories are never changed.
+          </p>
         </CardContent>
       </Card>
 

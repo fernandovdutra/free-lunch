@@ -184,13 +184,14 @@ export function useResetTransactionData() {
 
 /**
  * Re-run auto-categorization on all non-manually categorized transactions.
+ * Optionally use LLM for uncategorized transactions.
  */
 export function useRecategorizeTransactions() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
-      const result = await recategorizeTransactions();
+    mutationFn: async (options?: { useLLM?: boolean; mode?: 'all' | 'uncategorized' }) => {
+      const result = await recategorizeTransactions(options);
       return result.data;
     },
     onSuccess: () => {

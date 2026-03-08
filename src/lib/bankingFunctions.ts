@@ -33,10 +33,16 @@ export interface BankConnectionStatus {
   consentExpiresAt: string | null;
 }
 
+export interface RecategorizeRequest {
+  useLLM?: boolean;
+  mode?: 'all' | 'uncategorized';
+}
+
 export interface RecategorizeResult {
   processed: number;
   updated: number;
   skipped: number;
+  llmCategorized: number;
   errors: string[];
 }
 
@@ -78,10 +84,10 @@ export const syncTransactions = httpsCallable<{ connectionId: string }, SyncResu
   'syncTransactions'
 );
 
-export const recategorizeTransactions = httpsCallable<undefined, RecategorizeResult>(
-  functions,
-  'recategorizeTransactions'
-);
+export const recategorizeTransactions = httpsCallable<
+  RecategorizeRequest | undefined,
+  RecategorizeResult
+>(functions, 'recategorizeTransactions');
 
 // ============================================================================
 // Shared Cloud Functions API
