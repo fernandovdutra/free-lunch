@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { recategorizeTransactions } from '@/lib/bankingFunctions';
 import type {
   Transaction,
   TransactionFormData,
@@ -441,5 +442,23 @@ export function useCountMatchingTransactions(counterparty: string | null) {
     },
     enabled: !!user?.id && !!counterparty,
     staleTime: 30_000, // 30s — avoid excessive refetches while staying reasonably fresh
+  });
+}
+
+/**
+ * AI-categorize a single transaction using LLM.
+ */
+export function useAICategorizeTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (transactionId: string) => {
+      const result = await recategorizeTransactions({ transactionIds: [transactionId] });
+      return result.data;
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 }

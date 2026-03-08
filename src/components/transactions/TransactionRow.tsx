@@ -7,6 +7,7 @@ import {
   Banknote,
   ArrowUpRight,
   ArrowDownRight,
+  Wand2,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,8 @@ interface TransactionRowProps {
   onDelete: (transaction: Transaction) => void;
   onMarkReimbursable?: ((transaction: Transaction) => void) | undefined;
   onClearReimbursement?: ((transaction: Transaction) => void) | undefined;
+  onAICategorize?: ((transaction: Transaction) => void) | undefined;
+  isAICategorizing?: boolean | undefined;
 }
 
 export function TransactionRow({
@@ -35,6 +38,8 @@ export function TransactionRow({
   onDelete,
   onMarkReimbursable,
   onClearReimbursement,
+  onAICategorize,
+  isAICategorizing,
 }: TransactionRowProps) {
   const [isPickingCategory, setIsPickingCategory] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -169,6 +174,17 @@ export function TransactionRow({
         <Pencil className="h-4 w-4" />
         Edit
       </button>
+      {onAICategorize && (
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-violet-600 hover:bg-accent dark:text-violet-400"
+          onClick={() => { onAICategorize(transaction); }}
+          disabled={isAICategorizing}
+        >
+          <Wand2 className="h-4 w-4" />
+          AI Categorize
+        </button>
+      )}
       {isExpense && !transaction.reimbursement && onMarkReimbursable && (
         <button
           type="button"
@@ -338,6 +354,17 @@ export function TransactionRow({
               <Pencil className="h-4 w-4" />
               Edit
             </button>
+            {onAICategorize && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-violet-600 hover:bg-accent dark:text-violet-400"
+                onClick={() => { onAICategorize(transaction); }}
+                disabled={isAICategorizing}
+              >
+                <Wand2 className="h-4 w-4" />
+                AI Categorize
+              </button>
+            )}
             {isExpense && !transaction.reimbursement && onMarkReimbursable && (
               <button
                 type="button"
