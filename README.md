@@ -4,20 +4,31 @@ A free, open-source personal finance management app inspired by the beloved Grip
 
 ## Features
 
-- **Automatic Bank Sync** - Connect to ABN AMRO via Enable Banking API
-- **Smart Categorization** - AI-powered merchant recognition that learns from your corrections
+- **Multi-Bank Sync** - Connect to ABN AMRO, ING, or Rabobank via Enable Banking API (PSD2)
+- **3-Tier Smart Categorization** - User rules, merchant database, and Claude AI categorization with confidence scoring
 - **Custom Categories** - Hierarchical categories that match your mental model
 - **Split Transactions** - Divide purchases across multiple categories
-- **Reimbursement Tracking** - Track work expenses and personal IOUs separately
-- **Clean Dashboard** - Clear insights into your spending patterns
+- **Reimbursement Tracking** - Track work expenses and personal IOUs separately, clear with income
+- **Budget Management** - Set monthly spending limits per category with customizable alert thresholds
+- **ICS Credit Card Import** - Import and categorize credit card statements from PDF
+- **Spending Explorer** - Drill-down analytics by category, subcategory, and counterparty
+- **Counterparty Analytics** - Per-merchant spending patterns and trends over time
+- **Dashboard** - Summary cards, spending charts, budget overview, and recent transactions
+- **Data Export** - Export transactions as CSV or JSON
+- **PWA Support** - Installable as a web app with offline indicator
 
 ## Tech Stack
 
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS
 - **UI Components:** shadcn/ui, Radix UI
+- **State Management:** TanStack Query (server state), React Context (auth, month selection)
 - **Backend:** Firebase (Auth, Firestore, Cloud Functions)
 - **Bank API:** Enable Banking (PSD2)
+- **AI:** Anthropic Claude (transaction categorization)
 - **Charts:** Recharts
+- **PDF Parsing:** pdfjs-dist (ICS import)
+- **Forms:** React Hook Form + Zod
+- **Testing:** Vitest, React Testing Library, Playwright
 
 ## Getting Started
 
@@ -26,6 +37,7 @@ A free, open-source personal finance management app inspired by the beloved Grip
 - Node.js 20+
 - npm 10+
 - Firebase CLI (`npm install -g firebase-tools`)
+- Java 11+ (for Firebase Emulators)
 
 ### Installation
 
@@ -36,6 +48,7 @@ cd free-lunch
 
 # Install dependencies
 npm install
+cd functions && npm install && cd ..
 
 # Copy environment variables
 cp .env.example .env.local
@@ -47,42 +60,62 @@ npm run dev
 ### Development with Firebase Emulators
 
 ```bash
-# Start Firebase emulators
+# Start Firebase emulators (Auth, Firestore, Functions)
 npm run firebase:emulators
 
 # In another terminal
 npm run dev
 ```
 
+The Firebase Emulator UI is available at `http://localhost:4000`.
+
 ## Scripts
 
-| Script              | Description                  |
-| ------------------- | ---------------------------- |
-| `npm run dev`       | Start development server     |
-| `npm run build`     | Build for production         |
-| `npm run preview`   | Preview production build     |
-| `npm run lint`      | Run ESLint                   |
-| `npm run test`      | Run unit tests               |
-| `npm run e2e`       | Run E2E tests                |
-| `npm run typecheck` | Run TypeScript type checking |
+| Script                    | Description                          |
+| ------------------------- | ------------------------------------ |
+| `npm run dev`             | Start Vite dev server (port 5173)    |
+| `npm run build`           | TypeScript compile + Vite build      |
+| `npm run preview`         | Preview production build             |
+| `npm run lint`            | Run ESLint                           |
+| `npm run lint:fix`        | ESLint with auto-fix                 |
+| `npm run format`          | Prettier format                      |
+| `npm run typecheck`       | Run TypeScript type checking         |
+| `npm run test`            | Run Vitest unit tests                |
+| `npm run test:watch`      | Watch mode                           |
+| `npm run test:coverage`   | Coverage report                      |
+| `npm run e2e`             | Run Playwright E2E tests             |
+| `npm run e2e:headed`      | E2E with visible browser             |
+| `npm run firebase:emulators` | Start Firebase emulators          |
+| `npm run firebase:deploy` | Deploy all Firebase services         |
 
 ## Project Structure
 
 ```
 src/
 ├── components/
-│   ├── ui/           # Base UI components (Button, Card, etc.)
-│   ├── layout/       # Layout components (Sidebar, Header)
-│   ├── dashboard/    # Dashboard-specific components
-│   ├── transactions/ # Transaction-related components
-│   ├── categories/   # Category management components
-│   └── reimbursements/ # Reimbursement tracking components
-├── pages/            # Route pages
-├── hooks/            # Custom React hooks
-├── lib/              # Utilities and helpers
-├── types/            # TypeScript type definitions
-├── contexts/         # React contexts
-└── test/             # Test utilities and fixtures
+│   ├── ui/              # shadcn/ui + Radix base components
+│   ├── layout/          # AppLayout, Header, Sidebar, BottomNav, MonthSelector
+│   ├── dashboard/       # SummaryCards, charts, RecentTransactions, BudgetOverview
+│   ├── transactions/    # TransactionList, filters, CategoryPicker, ApplyToSimilar
+│   ├── categories/      # CategoryTree, CategoryForm, CategoryBadge
+│   ├── budgets/         # BudgetList, BudgetCard, BudgetForm
+│   ├── reimbursements/  # Pending/cleared lists, mark/clear dialogs
+│   ├── spending/        # SpendingHeader, MonthlyBarChart, CategoryRow
+│   ├── analytics/       # Counterparty charts and summary cards
+│   └── settings/        # BankConnectionCard, IcsImportCard, BuiltInRulesCard
+├── pages/               # Route pages (14+ pages including drill-downs)
+├── hooks/               # TanStack Query hooks for all data operations
+├── lib/                 # Firebase init, utilities, colors
+├── types/               # TypeScript type definitions
+├── contexts/            # AuthContext, MonthContext
+└── test/                # Test utilities and fixtures
+
+functions/src/
+├── handlers/            # Cloud Function handlers (15+ endpoints)
+├── categorization/      # 3-tier engine (rules, merchant DB, LLM)
+├── enableBanking/       # Enable Banking API integration
+├── shared/              # Transaction aggregation utilities
+└── validation/          # Zod input validation schemas
 ```
 
 ## Contributing
