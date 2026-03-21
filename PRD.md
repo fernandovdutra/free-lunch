@@ -155,18 +155,27 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 - ✅ Fast, responsive interactions
 - ✅ Dutch and English language support
 
-### Out of Scope (Post-MVP)
+### Post-MVP Features (Delivered)
+
+The following features were originally deferred but have since been implemented:
+
+- ✅ Budget setting and alerts (monthly spending limits per category with customizable alert thresholds)
+- ✅ ICS credit card import (PDF parsing with statement breakdown by category/counterparty)
+- ✅ Multi-bank support (ABN AMRO, ING, Rabobank via Enable Banking)
+- ✅ PWA / offline support (install banner, offline indicator, service worker via vite-plugin-pwa)
+- ✅ AI-powered categorization via Claude LLM (3-tier: user rules → merchant DB → AI)
+- ✅ Spending Explorer with drill-down analytics (category → subcategory → counterparty)
+- ✅ Counterparty analytics (per-merchant spending patterns and trends)
+
+### Out of Scope (Future)
 
 **Features Deferred**
 
 - ❌ Native mobile apps (Android)
-- ❌ Budget setting and alerts
 - ❌ Fixed costs / subscription tracking
 - ❌ Predictions (30-day forecast)
 - ❌ Tags/labels (beyond categories)
 - ❌ Household/benchmark comparison
-- ❌ Multi-bank support (ING, Rabobank, etc.)
-- ❌ ICS credit card support
 - ❌ Multi-currency support
 - ❌ Shared/family accounts
 - ❌ Recurring transaction detection
@@ -175,7 +184,6 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 
 **Technical Deferred**
 
-- ❌ Offline support / PWA
 - ❌ Public API for third-party integrations
 - ❌ Self-hosting option (Docker)
 - ❌ Data export to Firefly III format
@@ -399,73 +407,115 @@ Deliver a functional web application that connects to ABN AMRO, automatically ca
 free-lunch/
 ├── src/
 │   ├── components/
-│   │   ├── ui/                    # shadcn/ui components
-│   │   │   ├── button.tsx
-│   │   │   ├── card.tsx
-│   │   │   ├── dialog.tsx
-│   │   │   └── ...
-│   │   ├── layout/
-│   │   │   ├── Header.tsx
-│   │   │   ├── Sidebar.tsx
-│   │   │   └── PageContainer.tsx
-│   │   ├── dashboard/
-│   │   │   ├── SpendingChart.tsx
-│   │   │   ├── CategoryBreakdown.tsx
-│   │   │   └── SummaryCards.tsx
-│   │   ├── transactions/
-│   │   │   ├── TransactionList.tsx
-│   │   │   ├── TransactionRow.tsx
-│   │   │   ├── TransactionSplit.tsx
-│   │   │   └── CategoryPicker.tsx
-│   │   ├── categories/
-│   │   │   ├── CategoryTree.tsx
-│   │   │   └── CategoryEditor.tsx
-│   │   └── reimbursements/
-│   │       ├── ReimbursementList.tsx
-│   │       └── MatchDialog.tsx
+│   │   ├── ui/                    # shadcn/ui + Radix UI components
+│   │   ├── layout/                # AppLayout, Header, Sidebar, BottomNav,
+│   │   │                          # MonthSelector, ProtectedRoute,
+│   │   │                          # InstallBanner, OfflineBanner
+│   │   ├── dashboard/             # SummaryCards, SpendingByCategoryChart,
+│   │   │                          # SpendingOverTimeChart, RecentTransactions,
+│   │   │                          # BudgetOverview
+│   │   ├── transactions/          # TransactionList, TransactionRow,
+│   │   │                          # TransactionForm, TransactionFilters,
+│   │   │                          # CategoryPicker, ApplyToSimilarDialog,
+│   │   │                          # CounterpartyDialog
+│   │   ├── categories/            # CategoryTree, CategoryItem, CategoryForm,
+│   │   │                          # CategoryBadge
+│   │   ├── budgets/               # BudgetList, BudgetCard, BudgetForm
+│   │   ├── reimbursements/        # PendingReimbursementList,
+│   │   │                          # ClearedReimbursementList,
+│   │   │                          # ReimbursementSummary,
+│   │   │                          # MarkReimbursableDialog,
+│   │   │                          # ClearReimbursementDialog,
+│   │   │                          # ClearFromReimbursementsDialog
+│   │   ├── spending/              # SpendingHeader, MonthlyBarChart,
+│   │   │                          # CategoryRow
+│   │   ├── analytics/             # CounterpartySpendingChart,
+│   │   │                          # CounterpartyTrendChart,
+│   │   │                          # CounterpartySummaryCard
+│   │   └── settings/              # BankConnectionCard, IcsImportCard,
+│   │                              # BuiltInRulesCard
 │   ├── pages/
+│   │   ├── auth/
+│   │   │   ├── Login.tsx
+│   │   │   └── Register.tsx
 │   │   ├── Dashboard.tsx
 │   │   ├── Transactions.tsx
 │   │   ├── Categories.tsx
+│   │   ├── Budgets.tsx
 │   │   ├── Reimbursements.tsx
 │   │   ├── Settings.tsx
-│   │   └── Auth/
-│   │       ├── Login.tsx
-│   │       └── Register.tsx
-│   ├── hooks/
-│   │   ├── useAuth.ts
-│   │   ├── useTransactions.ts
-│   │   ├── useCategories.ts
-│   │   └── useBankSync.ts
+│   │   ├── SpendingExplorer.tsx   # Category drill-down (income & expenses)
+│   │   ├── SpendingCategory.tsx
+│   │   ├── SpendingSubcategory.tsx
+│   │   ├── SpendingCounterparty.tsx
+│   │   ├── CounterpartyDetail.tsx # Per-merchant analytics
+│   │   ├── IcsBreakdown.tsx       # Credit card statement breakdown
+│   │   ├── IcsBreakdownCategory.tsx
+│   │   └── IcsBreakdownCounterparty.tsx
+│   ├── hooks/                     # TanStack Query hooks for all data
+│   │   ├── useTransactions.ts     # CRUD + filtering + bulk operations
+│   │   ├── useCategories.ts       # CRUD + hierarchy
+│   │   ├── useBudgets.ts          # CRUD + progress tracking
+│   │   ├── useReimbursements.ts   # Mark, clear, unmark
+│   │   ├── useRules.ts            # Categorization rules CRUD
+│   │   ├── useDashboardData.ts    # Aggregated dashboard data
+│   │   ├── useSpendingExplorer.ts # Category breakdown analytics
+│   │   ├── useCounterpartyAnalytics.ts
+│   │   ├── useBankConnections.ts  # Bank sync status + operations
+│   │   └── useIcsBreakdownExplorer.ts
 │   ├── lib/
-│   │   ├── firebase.ts           # Firebase initialization
-│   │   ├── categorizer.ts        # Categorization logic
-│   │   ├── utils.ts              # Utility functions
-│   │   └── colors.ts             # Design system colors
+│   │   ├── firebase.ts            # Firebase initialization
+│   │   ├── utils.ts               # Utility functions
+│   │   └── colors.ts              # Design system colors
 │   ├── types/
-│   │   ├── transaction.ts
-│   │   ├── category.ts
-│   │   └── user.ts
+│   │   └── index.ts               # All TypeScript types
 │   ├── contexts/
-│   │   ├── AuthContext.tsx
-│   │   └── TransactionContext.tsx
+│   │   ├── AuthContext.tsx         # Auth state management
+│   │   └── MonthContext.tsx        # Global month selection
+│   ├── test/                      # Test utilities and fixtures
 │   ├── App.tsx
 │   ├── main.tsx
 │   └── index.css
 ├── functions/                     # Firebase Cloud Functions
 │   ├── src/
-│   │   ├── index.ts
-│   │   ├── bankSync.ts           # Enable Banking integration
-│   │   ├── categorize.ts         # Auto-categorization
-│   │   └── scheduled.ts          # Cron jobs
+│   │   ├── index.ts               # Function exports
+│   │   ├── handlers/              # Cloud Function handlers
+│   │   │   ├── initBankConnection.ts
+│   │   │   ├── bankCallback.ts
+│   │   │   ├── syncTransactions.ts
+│   │   │   ├── importIcsStatement.ts
+│   │   │   ├── deleteIcsImport.ts
+│   │   │   ├── recategorizeTransactions.ts
+│   │   │   ├── getDashboardData.ts
+│   │   │   ├── getBudgetProgress.ts
+│   │   │   ├── getReimbursementSummary.ts
+│   │   │   ├── getSpendingExplorer.ts
+│   │   │   ├── getIcsBreakdown.ts
+│   │   │   ├── getAvailableBanks.ts
+│   │   │   ├── getBankStatus.ts
+│   │   │   └── createDefaultCategories.ts
+│   │   ├── categorization/        # 3-tier categorization engine
+│   │   │   ├── categorizer.ts     # Orchestrator
+│   │   │   ├── ruleEngine.ts      # User rule matching
+│   │   │   ├── merchantDatabase.ts # Built-in merchant mappings
+│   │   │   └── llmCategorizer.ts  # Claude AI categorization
+│   │   ├── enableBanking/         # Enable Banking API integration
+│   │   │   ├── client.ts          # API wrapper
+│   │   │   ├── auth.ts            # JWT generation
+│   │   │   └── types.ts           # API types
+│   │   ├── shared/
+│   │   │   └── aggregations.ts    # Transaction aggregation utilities
+│   │   ├── validation/
+│   │   │   └── schemas.ts         # Zod input validation schemas
+│   │   └── config.ts              # Environment variable management
 │   ├── package.json
 │   └── tsconfig.json
 ├── public/
 ├── .env.example
 ├── firebase.json
 ├── firestore.rules
+├── firestore.indexes.json
 ├── package.json
-├── tailwind.config.js
 ├── tsconfig.json
 ├── vite.config.ts
 └── README.md
@@ -473,14 +523,17 @@ free-lunch/
 
 ### Key Design Patterns
 
-| Pattern                            | Usage                                                                   |
-| ---------------------------------- | ----------------------------------------------------------------------- |
-| **Context API**                    | Global state for auth, transactions, categories                         |
-| **Custom Hooks**                   | Encapsulate Firebase queries and business logic                         |
-| **Optimistic Updates**             | Update UI immediately, sync with Firestore in background                |
-| **Rule-based + ML Categorization** | Merchant rules first, ML fallback for unknowns                          |
-| **Hierarchical Data**              | Categories stored with parent references, queried with compound queries |
-| **Soft Delete**                    | Transactions/categories marked deleted, not removed (for audit)         |
+| Pattern                              | Usage                                                                         |
+| ------------------------------------ | ----------------------------------------------------------------------------- |
+| **Context API**                      | Auth state (`AuthContext`) and month selection (`MonthContext`)                |
+| **TanStack Query**                   | All server state with 5-min stale time, caching, and optimistic updates       |
+| **Custom Hooks**                     | Encapsulate Firebase queries, mutations, and business logic                   |
+| **Optimistic Updates**               | Update UI immediately via mutation callbacks, sync with Firestore in background |
+| **3-Tier Categorization**            | User rules → Merchant DB → Claude AI LLM (each layer optional)               |
+| **Hierarchical Data**                | Categories stored with parent references, queried with compound queries       |
+| **User-Scoped Collections**          | All data under `users/{userId}/` for strict isolation                         |
+| **Cloud Functions for Aggregations** | Dashboard, spending explorer, and budget progress computed server-side        |
+| **Batch Operations**                 | Sync uses batch writes (249 per batch to stay under Firestore 500 limit)      |
 
 ### Firestore Data Model
 
@@ -501,7 +554,7 @@ interface User {
 interface BankConnection {
   id: string;
   provider: 'enable_banking';
-  bankId: 'abn_amro';
+  bankId: string; // 'abn_amro' | 'ing' | 'rabobank' | etc.
   status: 'active' | 'expired' | 'error';
   lastSync: Timestamp;
   consentExpiresAt: Timestamp;
@@ -533,7 +586,7 @@ interface Transaction {
   // Categorization
   categoryId: string | null;
   categoryConfidence: number; // 0-1, how confident auto-categorization was
-  categorySource: 'auto' | 'manual' | 'rule';
+  categorySource: 'auto' | 'manual' | 'rule' | 'merchant' | 'learned' | 'llm';
 
   // Splitting
   isSplit: boolean;
@@ -572,6 +625,25 @@ interface CategorizationRule {
   isLearned: boolean; // Auto-created from user corrections
   createdAt: Timestamp;
 }
+
+// Collection: users/{userId}/budgets/{budgetId}
+interface Budget {
+  id: string;
+  categoryId: string;
+  monthlyLimit: number;
+  alertThreshold: number; // 0-1, default 0.8 (80%)
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+interface BudgetProgress {
+  budgetId: string;
+  categoryId: string;
+  monthlyLimit: number;
+  spent: number;
+  percentage: number;
+  status: 'safe' | 'warning' | 'exceeded';
+}
 ```
 
 ---
@@ -584,17 +656,17 @@ interface CategorizationRule {
 
 **Components:**
 
-- **Summary Cards:** Total income, total expenses, net change for period
-- **Spending by Category:** Donut/pie chart with clickable segments
-- **Spending Over Time:** Bar chart (daily/weekly/monthly granularity)
-- **Recent Transactions:** Quick list of last 5-10 transactions
-- **Pending Reimbursements:** Count and total of outstanding reimbursables
+- **Summary Cards:** Total income, total expenses, net balance, pending reimbursements, transaction count
+- **Spending by Category:** Pie/bar chart with clickable segments
+- **Spending Over Time:** Timeline chart
+- **Recent Transactions:** Quick list of last 5-10 transactions with inline category editing
+- **Budget Overview:** Summary of budget status (exceeded, warning, safe counts)
 
 **Interactions:**
 
-- Click category in chart → Filter transactions to that category
-- Date range picker in header → Updates all charts
-- Quick period buttons: "This Month", "Last Month", "This Year"
+- Click category in chart → Navigate to spending explorer drill-down
+- Month selector in header → Updates all charts and data globally via MonthContext
+- Click counterparty → Navigate to counterparty detail page
 
 ---
 
@@ -745,12 +817,17 @@ interface CategorizationRule {
 
 **Purpose:** Minimize manual work for users.
 
-**Approach:**
+**3-Tier Categorization Pipeline:**
 
-1. **Rule Matching (First):** Check user-defined and system rules
-2. **Merchant Database:** Pre-populated Dutch merchant → category mappings
-3. **ML Fallback:** For unknown merchants, use transaction description patterns
-4. **User Learning:** When user corrects, create learned rule
+1. **User-Defined Rules (Highest Priority):** Pattern matching rules (contains/exact/regex) with priority ordering. Includes learned rules auto-created from user corrections.
+2. **Merchant Database:** Built-in Dutch merchant → category mappings using hierarchical category slugs.
+3. **AI/LLM Categorization (Fallback):** Claude AI integration via Anthropic SDK for intelligent categorization of unknown transactions, with confidence scoring.
+
+**Additional Features:**
+
+- Batch recategorization (all transactions or uncategorized only)
+- "Apply to Similar" dialog for bulk category updates by counterparty
+- Each categorization includes confidence percentage and source tracking (auto/manual/rule/merchant/learned/llm)
 
 **Dutch Merchant Database (Examples):**
 | Merchant Pattern | Category |
@@ -771,30 +848,86 @@ interface CategorizationRule {
 
 ### 7.7 Bank Sync
 
-**Purpose:** Automatically import transactions from ABN AMRO.
+**Purpose:** Automatically import transactions from Dutch banks.
 
 **Technology:** Enable Banking API
+
+**Supported Banks:** ABN AMRO, ING, Rabobank
 
 **Flow:**
 
 1. User initiates connection in Settings
-2. Redirect to Enable Banking → ABN AMRO OAuth
-3. User authenticates with bank
-4. Consent granted (typically 90 days per PSD2)
-5. Webhook triggers initial sync
-6. Daily scheduled sync for new transactions
-7. Re-auth flow when consent expires
+2. Selects bank from available list (fetched via `getAvailableBanks()`)
+3. Redirect to Enable Banking → Bank OAuth
+4. User authenticates with bank
+5. Consent granted (typically 90 days per PSD2)
+6. Bank callback handler processes OAuth completion and stores connection
+7. Initial sync fetches all available history
+8. Manual "Sync Now" button for on-demand sync
+9. Re-auth flow when consent expires
 
 **Sync Behavior:**
 
 - On initial connect: Fetch all available history (typically 90+ days)
-- Daily: Fetch new transactions
-- On user request: Manual "Sync Now" button
+- On user request: Manual "Sync Now" button (sync individual or all connections)
 - Handle duplicates: Match by external transaction ID
+- Batch writes (249 transactions per batch to stay under Firestore 500 limit)
+- Auto-categorization runs on each synced transaction
 
 ---
 
-### 7.8 Data Export
+### 7.8 ICS Credit Card Import
+
+**Purpose:** Import credit card transactions from ICS PDF statements.
+
+**Features:**
+
+- Upload ICS credit card statement PDFs
+- PDF parsing via pdfjs-dist extracts transaction data
+- Transactions auto-categorized using the same 3-tier engine
+- Statement breakdown view by category and counterparty
+- Option to exclude ICS transactions from spending totals
+- Delete entire ICS imports
+- Dedicated drill-down pages per statement
+
+---
+
+### 7.9 Budget Management
+
+**Purpose:** Set and track monthly spending limits by category.
+
+**Features:**
+
+- Create budgets with monthly spending limits per category
+- Customizable alert thresholds (default 80%)
+- Budget progress tracking with three statuses: safe, warning, exceeded
+- Dashboard budget overview widget
+- Summary statistics: total budgeted, total spent, exceeded count, warning count
+
+---
+
+### 7.10 Spending Explorer & Counterparty Analytics
+
+**Purpose:** Deep drill-down analytics into spending patterns.
+
+**Spending Explorer Features:**
+
+- Category-level spending breakdown with monthly trends
+- Navigate: top-level category → subcategory → counterparty
+- Works for both income and expenses
+- Monthly bar chart with interactive month selection
+
+**Counterparty Analytics Features:**
+
+- Per-merchant/person spending analysis
+- Current month spending highlight
+- Historical trend chart (spending by month)
+- Spending breakdown by category within a counterparty
+- Transaction count tracking
+
+---
+
+### 7.11 Data Export
 
 **Purpose:** User data ownership and interoperability.
 
@@ -827,10 +960,12 @@ interface CategorizationRule {
 | React Router    | 7.x     | Client-side routing       |
 | TanStack Query  | 5.x     | Server state management   |
 | Recharts        | 2.x     | Charts and visualizations |
-| date-fns        | 3.x     | Date manipulation         |
+| pdfjs-dist      | 5.x     | PDF parsing (ICS import)  |
+| date-fns        | 4.x     | Date manipulation         |
 | Lucide React    | latest  | Icons                     |
 | React Hook Form | 7.x     | Form handling             |
-| Zod             | 3.x     | Schema validation         |
+| Zod             | 4.x     | Schema validation         |
+| vite-plugin-pwa | latest  | PWA / service worker      |
 
 ### Backend (Firebase)
 
@@ -844,9 +979,10 @@ interface CategorizationRule {
 
 ### External Services
 
-| Service        | Purpose                  |
-| -------------- | ------------------------ |
-| Enable Banking | PSD2 bank connection API |
+| Service        | Purpose                                  |
+| -------------- | ---------------------------------------- |
+| Enable Banking | PSD2 bank connection API (multi-bank)    |
+| Anthropic API  | Claude AI for intelligent categorization |
 
 ### Development Tools
 
@@ -2077,18 +2213,21 @@ The MVP is successful when:
 
 ### Post-MVP Enhancements (v2.0)
 
-| Feature                                 | Priority | Complexity |
-| --------------------------------------- | -------- | ---------- |
-| Budget setting and alerts               | High     | Medium     |
-| Fixed costs / subscription tracking     | High     | Medium     |
-| ICS credit card support                 | High     | Low        |
-| Additional Dutch banks (ING, Rabobank)  | High     | Medium     |
-| Native mobile app (React Native)        | Medium   | High       |
-| Predictions / forecasting               | Medium   | High       |
-| Tags system (in addition to categories) | Medium   | Low        |
-| Recurring transaction detection         | Medium   | Medium     |
-| Dark mode                               | Low      | Low        |
-| Multi-currency                          | Low      | Medium     |
+| Feature                                 | Priority | Complexity | Status       |
+| --------------------------------------- | -------- | ---------- | ------------ |
+| Budget setting and alerts               | High     | Medium     | ✅ Delivered |
+| ICS credit card support                 | High     | Low        | ✅ Delivered |
+| Additional Dutch banks (ING, Rabobank)  | High     | Medium     | ✅ Delivered |
+| AI-powered categorization (Claude LLM)  | High     | Medium     | ✅ Delivered |
+| Spending explorer / counterparty analytics | High  | Medium     | ✅ Delivered |
+| PWA / offline support                   | Medium   | Low        | ✅ Delivered |
+| Fixed costs / subscription tracking     | High     | Medium     | Planned      |
+| Native mobile app (React Native)        | Medium   | High       | Planned      |
+| Predictions / forecasting               | Medium   | High       | Planned      |
+| Tags system (in addition to categories) | Medium   | Low        | Planned      |
+| Recurring transaction detection         | Medium   | Medium     | Planned      |
+| Dark mode                               | Low      | Low        | Planned      |
+| Multi-currency                          | Low      | Medium     | Planned      |
 
 ### Integration Opportunities
 
@@ -2277,6 +2416,6 @@ const DUTCH_MERCHANTS: Record<string, string> = {
 
 ---
 
-_Document Version: 1.0_
+_Document Version: 2.0_
 _Created: January 2026_
-_Last Updated: January 2026_
+_Last Updated: March 2026_
