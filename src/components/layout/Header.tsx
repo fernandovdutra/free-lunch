@@ -1,7 +1,14 @@
-import { RefreshCw, LogOut, Settings } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { RefreshCw, LogOut, Settings, EllipsisVertical } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useSyncAllConnections, useBankConnections } from '@/hooks/useBankConnection';
 import { useToast } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
@@ -9,6 +16,7 @@ import { MonthSelector } from './MonthSelector';
 
 export function Header() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const { data: connections = [] } = useBankConnections();
   const syncAll = useSyncAllConnections();
   const { toast } = useToast();
@@ -69,14 +77,6 @@ export function Header() {
 
         {/* Right side actions */}
         <div className="flex items-center gap-1 sm:gap-2">
-          {/* Settings (mobile only - removed from bottom nav) */}
-          <Link to="/settings" className="lg:hidden">
-            <Button variant="ghost" size="icon">
-              <Settings className="h-4 w-4" />
-              <span className="sr-only">Settings</span>
-            </Button>
-          </Link>
-
           {/* Sync button */}
           <Button
             variant="ghost"
@@ -89,14 +89,34 @@ export function Header() {
             <span className="hidden sm:inline">{syncAll.isPending ? 'Syncing...' : 'Sync'}</span>
           </Button>
 
-          {/* User menu */}
-          <div className="flex items-center gap-2">
-            <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
-            <Button variant="ghost" size="icon" onClick={() => void logout()}>
-              <LogOut className="h-4 w-4" />
-              <span className="sr-only">Sign out</span>
-            </Button>
-          </div>
+          {/* User menu dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <EllipsisVertical className="h-4 w-4" />
+                <span className="sr-only">Menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {user?.email && (
+                <>
+                  <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                    {user.email}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuItem onClick={() => navigate('/settings')}>
+                <Settings className="h-4 w-4" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => void logout()}>
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
