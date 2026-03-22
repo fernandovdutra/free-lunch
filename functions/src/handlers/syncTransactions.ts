@@ -134,35 +134,7 @@ export const syncTransactions = onCall(
           transactionData: ReturnType<typeof transformTransaction>;
         }> = [];
 
-        // Log first few raw transactions for debugging
-        if (allTransactions.length > 0) {
-          console.log('=== RAW API TRANSACTIONS (first 3) ===');
-          for (let i = 0; i < Math.min(3, allTransactions.length); i++) {
-            const tx = allTransactions[i];
-            console.log(
-              `Transaction ${i + 1}:`,
-              JSON.stringify(
-                {
-                  entry_reference: tx.entry_reference,
-                  transaction_amount: tx.transaction_amount,
-                  credit_debit_indicator: tx.credit_debit_indicator,
-                  creditor: tx.creditor,
-                  debtor: tx.debtor,
-                  creditor_account: tx.creditor_account,
-                  debtor_account: tx.debtor_account,
-                  remittance_information_unstructured: tx.remittance_information_unstructured,
-                  remittance_information: (tx as unknown as Record<string, unknown>)
-                    .remittance_information,
-                  bank_transaction_code: tx.bank_transaction_code,
-                  booking_date: tx.booking_date,
-                  status: tx.status,
-                },
-                null,
-                2
-              )
-            );
-          }
-        }
+
 
         for (const tx of allTransactions) {
           const externalId = tx.entry_reference;
