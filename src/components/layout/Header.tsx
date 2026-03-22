@@ -89,7 +89,7 @@ export function Header() {
             <span className="hidden sm:inline">{syncAll.isPending ? 'Syncing...' : 'Sync'}</span>
           </Button>
 
-          {/* User menu dropdown */}
+          {/* Menu dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">

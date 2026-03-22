@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { getYear, setMonth, setYear } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +21,7 @@ interface MonthSelectorProps {
 }
 
 export function MonthSelector({ className }: MonthSelectorProps) {
-  const { selectedMonth, setSelectedMonth, goToNextMonth, goToPreviousMonth, goToCurrentMonth, isCurrentMonth } = useMonth();
+  const { selectedMonth, setSelectedMonth, goToCurrentMonth, isCurrentMonth } = useMonth();
 
   const currentYear = getYear(selectedMonth);
   const currentMonthIndex = selectedMonth.getMonth();
@@ -40,17 +40,6 @@ export function MonthSelector({ className }: MonthSelectorProps) {
 
   return (
     <div className={cn('flex items-center gap-1', className)}>
-      {/* Previous month */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        onClick={goToPreviousMonth}
-        aria-label="Previous month"
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-
       {/* Month selector */}
       <Select value={String(currentMonthIndex)} onValueChange={handleMonthChange}>
         <SelectTrigger className="h-8 w-[110px] border-none bg-transparent px-2 font-medium shadow-none focus:ring-0">
@@ -78,17 +67,6 @@ export function MonthSelector({ className }: MonthSelectorProps) {
           ))}
         </SelectContent>
       </Select>
-
-      {/* Next month */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        onClick={goToNextMonth}
-        aria-label="Next month"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
 
       {/* Today button (shown when not on current month) */}
       {!isCurrentMonth && (
