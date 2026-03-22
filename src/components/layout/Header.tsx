@@ -77,6 +77,12 @@ export function Header() {
 
         {/* Right side actions */}
         <div className="flex items-center gap-1 sm:gap-2">
+          {/* Settings */}
+          <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+            <Settings className="h-4 w-4" />
+            <span className="sr-only">Settings</span>
+          </Button>
+
           {/* Sync button */}
           <Button
             variant="ghost"
@@ -106,11 +112,6 @@ export function Header() {
                   <DropdownMenuSeparator />
                 </>
               )}
-              <DropdownMenuItem onClick={() => navigate('/settings')}>
-                <Settings className="h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => void logout()}>
                 <LogOut className="h-4 w-4" />
                 Sign out
