@@ -236,7 +236,11 @@ export function Transactions() {
       } else if (result.updated > 0) {
         toast({ title: 'Categorized by rules' });
       } else {
-        toast({ title: 'Could not determine category', variant: 'destructive' });
+        toast({
+          title: 'Could not determine category',
+          description: result.errors?.length ? result.errors[0] : undefined,
+          variant: 'destructive',
+        });
       }
     } catch {
       toast({ title: 'AI categorization failed', variant: 'destructive' });
