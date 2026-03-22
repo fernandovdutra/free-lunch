@@ -238,7 +238,7 @@ export function Transactions() {
       } else {
         toast({
           title: 'Could not determine category',
-          description: result.errors?.length ? result.errors[0] : undefined,
+          ...(result.errors?.length ? { description: result.errors[0] } : {}),
           variant: 'destructive',
         });
       }
