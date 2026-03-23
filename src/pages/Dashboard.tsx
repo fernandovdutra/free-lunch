@@ -125,11 +125,11 @@ export function Dashboard() {
     0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Your financial overview for {periodLabel}</p>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h1>
+        <p className="hidden text-muted-foreground sm:block">Your financial overview for {periodLabel}</p>
       </div>
 
       {/* Summary cards */}

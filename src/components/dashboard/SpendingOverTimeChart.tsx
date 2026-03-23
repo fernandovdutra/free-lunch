@@ -1,6 +1,7 @@
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatAmount, cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import type { TimelineData } from '@/types';
 
 interface SpendingOverTimeChartProps {
@@ -11,13 +12,15 @@ interface SpendingOverTimeChartProps {
 }
 
 export function SpendingOverTimeChart({ data, isLoading, className, onDateClick }: SpendingOverTimeChartProps) {
+  const isMobile = useIsMobile();
+
   if (isLoading) {
-    return <Skeleton className={cn('h-[300px] w-full', className)} />;
+    return <Skeleton className={cn('h-[200px] w-full sm:h-[300px]', className)} />;
   }
 
   if (data.length === 0 || data.every((d) => d.expenses === 0 && d.income === 0)) {
     return (
-      <div className={cn('flex h-[300px] items-center justify-center', className)}>
+      <div className={cn('flex h-[200px] items-center justify-center sm:h-[300px]', className)}>
         <p className="text-muted-foreground">No transaction data for this period</p>
       </div>
     );
@@ -29,7 +32,7 @@ export function SpendingOverTimeChart({ data, isLoading, className, onDateClick 
 
   return (
     <div className={className}>
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={isMobile ? 200 : 300}>
         <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E2E5E3" vertical={false} />
           <XAxis

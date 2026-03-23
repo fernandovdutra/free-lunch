@@ -84,14 +84,14 @@ export function SpendingByCategoryChart({
 
   return (
     <div className={className}>
-      <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
+      <ResponsiveContainer width="100%" height={isMobile ? 180 : 300}>
         <PieChart>
           <Pie
             data={chartData}
             cx="50%"
             cy="50%"
-            innerRadius={isMobile ? 40 : 60}
-            outerRadius={isMobile ? 75 : 100}
+            innerRadius={isMobile ? 35 : 60}
+            outerRadius={isMobile ? 65 : 100}
             paddingAngle={2}
             dataKey="value"
             nameKey="name"
@@ -109,7 +109,7 @@ export function SpendingByCategoryChart({
       </ResponsiveContainer>
 
       {/* Legend */}
-      <div className="mt-4 space-y-1.5">
+      <div className="mt-3 space-y-1 sm:mt-4 sm:space-y-1.5">
         {chartData.map((entry) => (
           <div
             key={entry.name}
