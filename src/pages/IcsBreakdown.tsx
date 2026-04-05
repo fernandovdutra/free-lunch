@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { MonthlyBarChart, SpendingHeader, CategoryRow } from '@/components/spending';
 import { useIcsBreakdownExplorer } from '@/hooks/useIcsBreakdownExplorer';
-import { useMonth } from '@/contexts/MonthContext';
+import { useMonthHighlight } from '@/hooks/useMonthHighlight';
 import { deleteIcsImportFn } from '@/lib/bankingFunctions';
 import { useToast } from '@/components/ui/toaster';
 
@@ -15,12 +15,9 @@ export function IcsBreakdown() {
   const { statementId } = useParams<{ statementId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { selectedMonth } = useMonth();
+  const { selectedMonth, highlightedMonth, selectedMonthKey, handleMonthClick } = useMonthHighlight();
   const { toast } = useToast();
 
-  const globalMonthKey = format(selectedMonth, 'yyyy-MM');
-  const [highlightedMonth, setHighlightedMonth] = useState<string | undefined>(undefined);
-  const selectedMonthKey = highlightedMonth ?? globalMonthKey;
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -28,10 +25,6 @@ export function IcsBreakdown() {
     statementId,
     breakdownMonthKey: highlightedMonth,
   });
-
-  const handleMonthClick = (monthKey: string) => {
-    setHighlightedMonth(monthKey === globalMonthKey ? undefined : monthKey);
-  };
 
   const handleDelete = async () => {
     if (!statementId) return;

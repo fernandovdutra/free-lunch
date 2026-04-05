@@ -42,7 +42,7 @@ npm run firebase:deploy     # Deploy all Firebase services
 ### Frontend Stack
 
 - **React 19** with TypeScript and Vite
-- **TanStack Query** for server state (5-minute stale time default)
+- **TanStack Query** for server state (stale times vary per query)
 - **React Router v7** for routing with nested layouts
 - **Tailwind CSS** with shadcn/ui components (Radix UI primitives)
 - **React Hook Form + Zod** for forms and validation
@@ -60,6 +60,9 @@ npm run firebase:deploy     # Deploy all Firebase services
 - Auth state managed via `AuthContext` with `useAuth()` hook
 - Protected routes wrap content in `ProtectedRoute` component
 - Date range selection via `MonthContext` with `useMonth()` hook - components read selected month for filtering
+- Month bar-chart highlighting via `useMonthHighlight()` hook - shared across spending/ICS drill-down pages
+- Transaction mutations are in `src/hooks/useTransactionMutations.ts`, queries in `src/hooks/useTransactions.ts`
+- Merchant data lives in `src/data/merchantGroups.ts`, shared utility functions in `src/lib/`
 - Build uses manual chunks: vendor, firebase, charts, ui
 - Firebase emulator UI available at `http://localhost:4000` when running emulators
 

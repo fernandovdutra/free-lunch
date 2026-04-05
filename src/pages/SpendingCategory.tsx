@@ -1,26 +1,22 @@
-import { useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MonthlyBarChart, SpendingHeader, CategoryRow } from '@/components/spending';
 import { useSpendingExplorer } from '@/hooks/useSpendingExplorer';
 import { useCategories } from '@/hooks/useCategories';
-import { useMonth } from '@/contexts/MonthContext';
-import { formatAmount, formatDate } from '@/lib/utils';
+import { useMonthHighlight } from '@/hooks/useMonthHighlight';
+import { formatAmount } from '@/lib/utils';
+import { groupTransactionsByDate } from '@/lib/transactionGrouping';
 
 export function SpendingCategory() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { selectedMonth } = useMonth();
+  const { selectedMonth, highlightedMonth, selectedMonthKey, handleMonthClick } = useMonthHighlight();
   const { data: categories = [] } = useCategories();
 
   const direction = location.pathname.startsWith('/income') ? 'income' : 'expenses';
   const basePath = `/${direction}`;
-
-  const globalMonthKey = format(selectedMonth, 'yyyy-MM');
-  const [highlightedMonth, setHighlightedMonth] = useState<string | undefined>(undefined);
-  const selectedMonthKey = highlightedMonth ?? globalMonthKey;
 
   const { data, isLoading } = useSpendingExplorer({
     direction,
@@ -30,10 +26,6 @@ export function SpendingCategory() {
 
   const parentCategory = categories.find((c) => c.id === categoryId);
   const title = parentCategory?.name ?? 'Category';
-
-  const handleMonthClick = (monthKey: string) => {
-    setHighlightedMonth(monthKey === globalMonthKey ? undefined : monthKey);
-  };
 
   // Check if this is a leaf category (no subcategories → shows transactions)
   const hasTransactions = !!data?.transactions;
@@ -119,13 +111,7 @@ function TransactionList({
   const navigate = useNavigate();
 
   // Group by date
-  const grouped = new Map<string, typeof transactions>();
-  for (const tx of transactions) {
-    const dateKey = formatDate(tx.date, 'long');
-    const group = grouped.get(dateKey) ?? [];
-    group.push(tx);
-    grouped.set(dateKey, group);
-  }
+  const grouped = groupTransactionsByDate(transactions);
 
   return (
     <div className="space-y-4">

@@ -43,7 +43,7 @@ A free, open-source personal finance management app inspired by the beloved Grip
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/free-lunch.git
+git clone https://github.com/fernandovdutra/free-lunch.git
 cd free-lunch
 
 # Install dependencies
@@ -102,10 +102,11 @@ src/
 │   ├── reimbursements/  # Pending/cleared lists, mark/clear dialogs
 │   ├── spending/        # SpendingHeader, MonthlyBarChart, CategoryRow
 │   ├── analytics/       # Counterparty charts and summary cards
-│   └── settings/        # BankConnectionCard, IcsImportCard, BuiltInRulesCard
-├── pages/               # Route pages (14+ pages including drill-downs)
-├── hooks/               # TanStack Query hooks for all data operations
-├── lib/                 # Firebase init, utilities, colors
+│   └── settings/        # BankConnectionCard, IcsImportCard, BuiltInRulesCard, and more
+├── pages/               # Route pages (16 pages including drill-downs)
+├── hooks/               # TanStack Query hooks (queries + mutations split by domain)
+├── data/                # Static data (merchant groups database)
+├── lib/                 # Firebase init, utilities, transaction grouping, exports
 ├── types/               # TypeScript type definitions
 ├── contexts/            # AuthContext, MonthContext
 └── test/                # Test utilities and fixtures
