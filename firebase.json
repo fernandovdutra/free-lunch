@@ -6,8 +6,8 @@
     "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log"]
   },
   "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "rules": "firebase/firestore.rules",
+    "indexes": "firebase/firestore.indexes.json"
   },
   "hosting": {
     "public": "dist",

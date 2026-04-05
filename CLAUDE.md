@@ -8,7 +8,7 @@ Free Lunch is a personal finance management app for the Netherlands market. It c
 
 ## Key Documentation
 
-- **PRD.md** - Full product requirements document with user stories, feature specs, data models, API specs, and implementation phases
+- **docs/PRD.md** - Full product requirements document with user stories, feature specs, data models, API specs, and implementation phases
 - **.claude/reference/free-lunch-design-system.md** - Comprehensive design system (colors, typography, components, accessibility)
 
 ## Commands
