@@ -1,18 +1,15 @@
 import {
   MoreHorizontal,
-  Pencil,
-  Trash2,
   Split,
   Receipt,
-  Banknote,
   ArrowUpRight,
   ArrowDownRight,
-  Wand2,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
 import { CategoryPicker } from './CategoryPicker';
+import { TransactionRowActions } from './TransactionRowActions';
 import { cn, formatAmount, formatDate, getAmountColor } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import type { Transaction, Category } from '@/types';
@@ -165,55 +162,17 @@ export function TransactionRow({
   );
 
   const actionsMenu = (
-    <div className="absolute right-0 top-full z-10 mt-1 min-w-[180px] rounded-md border bg-popover p-1 shadow-md">
-      <button
-        type="button"
-        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
-        onClick={() => { onEdit(transaction); }}
-      >
-        <Pencil className="h-4 w-4" />
-        Edit
-      </button>
-      {onAICategorize && (
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-violet-600 hover:bg-accent dark:text-violet-400"
-          onClick={() => { onAICategorize(transaction); }}
-          disabled={isAICategorizing}
-        >
-          <Wand2 className="h-4 w-4" />
-          AI Categorize
-        </button>
-      )}
-      {isExpense && !transaction.reimbursement && onMarkReimbursable && (
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-secondary hover:bg-accent dark:text-secondary"
-          onClick={() => { onMarkReimbursable(transaction); }}
-        >
-          <Receipt className="h-4 w-4" />
-          Mark as Reimbursable
-        </button>
-      )}
-      {isIncome && onClearReimbursement && (
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary hover:bg-accent dark:text-primary"
-          onClick={() => { onClearReimbursement(transaction); }}
-        >
-          <Banknote className="h-4 w-4" />
-          Contains Reimbursement
-        </button>
-      )}
-      <button
-        type="button"
-        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-accent"
-        onClick={() => { onDelete(transaction); }}
-      >
-        <Trash2 className="h-4 w-4" />
-        Delete
-      </button>
-    </div>
+    <TransactionRowActions
+      transaction={transaction}
+      isExpense={isExpense}
+      isIncome={isIncome}
+      onEdit={onEdit}
+      onDelete={onDelete}
+      onMarkReimbursable={onMarkReimbursable}
+      onClearReimbursement={onClearReimbursement}
+      onAICategorize={onAICategorize}
+      isAICategorizing={isAICategorizing}
+    />
   );
 
   if (isMobile) {
@@ -345,54 +304,8 @@ export function TransactionRow({
             <MoreHorizontal className="h-4 w-4" />
             <span className="sr-only">Actions</span>
           </Button>
-          <div className="absolute right-0 top-full z-10 mt-1 hidden min-w-[180px] rounded-md border bg-popover p-1 shadow-md">
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
-              onClick={() => { onEdit(transaction); }}
-            >
-              <Pencil className="h-4 w-4" />
-              Edit
-            </button>
-            {onAICategorize && (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-violet-600 hover:bg-accent dark:text-violet-400"
-                onClick={() => { onAICategorize(transaction); }}
-                disabled={isAICategorizing}
-              >
-                <Wand2 className="h-4 w-4" />
-                AI Categorize
-              </button>
-            )}
-            {isExpense && !transaction.reimbursement && onMarkReimbursable && (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-secondary hover:bg-accent dark:text-secondary"
-                onClick={() => { onMarkReimbursable(transaction); }}
-              >
-                <Receipt className="h-4 w-4" />
-                Mark as Reimbursable
-              </button>
-            )}
-            {isIncome && onClearReimbursement && (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary hover:bg-accent dark:text-primary"
-                onClick={() => { onClearReimbursement(transaction); }}
-              >
-                <Banknote className="h-4 w-4" />
-                Contains Reimbursement
-              </button>
-            )}
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-accent"
-              onClick={() => { onDelete(transaction); }}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete
-            </button>
+          <div className="hidden">
+            {actionsMenu}
           </div>
         </div>
       </div>

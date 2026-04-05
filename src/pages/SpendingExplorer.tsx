@@ -1,32 +1,22 @@
-import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MonthlyBarChart, SpendingHeader, CategoryRow } from '@/components/spending';
 import { useSpendingExplorer } from '@/hooks/useSpendingExplorer';
-import { useMonth } from '@/contexts/MonthContext';
+import { useMonthHighlight } from '@/hooks/useMonthHighlight';
 
 export function SpendingExplorer() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { selectedMonth } = useMonth();
+  const { selectedMonth, highlightedMonth, selectedMonthKey, handleMonthClick } = useMonthHighlight();
 
   const direction = location.pathname.startsWith('/income') ? 'income' : 'expenses';
   const basePath = `/${direction}`;
-
-  // Local state for which bar is highlighted (defaults to global month)
-  const globalMonthKey = format(selectedMonth, 'yyyy-MM');
-  const [highlightedMonth, setHighlightedMonth] = useState<string | undefined>(undefined);
-  const selectedMonthKey = highlightedMonth ?? globalMonthKey;
 
   const { data, isLoading } = useSpendingExplorer({
     direction,
     breakdownMonthKey: highlightedMonth,
   });
-
-  const handleMonthClick = (monthKey: string) => {
-    setHighlightedMonth(monthKey === globalMonthKey ? undefined : monthKey);
-  };
 
   return (
     <div className="space-y-6">

@@ -1,11 +1,12 @@
-import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MonthlyBarChart, SpendingHeader } from '@/components/spending';
 import { useIcsBreakdownExplorer } from '@/hooks/useIcsBreakdownExplorer';
-import { useMonth } from '@/contexts/MonthContext';
+import { useMonthHighlight } from '@/hooks/useMonthHighlight';
 import { formatAmount, formatDate } from '@/lib/utils';
+import { groupTransactionsByDate } from '@/lib/transactionGrouping';
+import type { Transaction } from '@/types';
 
 export function IcsBreakdownCounterparty() {
   const { statementId, categoryId, counterparty } = useParams<{
@@ -14,13 +15,9 @@ export function IcsBreakdownCounterparty() {
     counterparty: string;
   }>();
   const navigate = useNavigate();
-  const { selectedMonth } = useMonth();
+  const { selectedMonth, highlightedMonth, selectedMonthKey, handleMonthClick } = useMonthHighlight();
 
   const decodedCounterparty = counterparty ? decodeURIComponent(counterparty) : '';
-
-  const globalMonthKey = format(selectedMonth, 'yyyy-MM');
-  const [highlightedMonth, setHighlightedMonth] = useState<string | undefined>(undefined);
-  const selectedMonthKey = highlightedMonth ?? globalMonthKey;
 
   const { data, isLoading } = useIcsBreakdownExplorer({
     statementId,
@@ -29,20 +26,7 @@ export function IcsBreakdownCounterparty() {
     breakdownMonthKey: highlightedMonth,
   });
 
-  const handleMonthClick = (monthKey: string) => {
-    setHighlightedMonth(monthKey === globalMonthKey ? undefined : monthKey);
-  };
-
-  // Group transactions by date
-  const grouped = new Map<string, NonNullable<typeof data>['transactions']>();
-  if (data?.transactions) {
-    for (const tx of data.transactions) {
-      const dateKey = formatDate(tx.date, 'long');
-      const group = grouped.get(dateKey) ?? [];
-      group.push(tx);
-      grouped.set(dateKey, group);
-    }
-  }
+  const grouped = data?.transactions ? groupTransactionsByDate(data.transactions) : new Map<string, Transaction[]>();
 
   return (
     <div className="space-y-6">
