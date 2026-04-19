@@ -14,13 +14,13 @@ if (getApps().length === 0) {
     console.log('🔐 Using service account:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
     initializeApp({
       credential: cert(process.env.GOOGLE_APPLICATION_CREDENTIALS),
-      projectId: 'free-lunch-85447',
+      projectId: process.env.FIREBASE_PROJECT_ID ?? 'your-project-id',
     });
   } else {
     console.log('🔐 Connecting to production Firestore with default credentials');
     initializeApp({
       credential: applicationDefault(),
-      projectId: 'free-lunch-85447',
+      projectId: process.env.FIREBASE_PROJECT_ID ?? 'your-project-id',
     });
   }
 }
@@ -31,7 +31,7 @@ async function debugTransactions() {
   console.log('\n=== Transaction Debug Report ===\n');
 
   // Get specific user with transactions
-  const userId = 'iTLsCrooi9MFYlKV7eP2nsVuffh2';
+  const userId = process.env.DEBUG_USER_ID ?? '';
   console.log(`📧 Analyzing User: ${userId}`);
   console.log('═'.repeat(60));
 

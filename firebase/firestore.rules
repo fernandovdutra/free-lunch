@@ -56,6 +56,34 @@ service cloud.firestore {
         allow delete: if isOwner(userId);
         allow create, update: if false;
       }
+
+      // Goals subcollection
+      match /goals/{goalId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Investments subcollection
+      match /investments/{investmentId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Investment transactions subcollection
+      match /investmentTransactions/{txnId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Insights subcollection (client can read + mark as read; create/update by Cloud Functions)
+      match /insights/{insightId} {
+        allow read: if isOwner(userId);
+        allow update: if isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+        allow create, delete: if false;
+      }
+
+      // Advisor memory (single doc, read-only for client)
+      match /advisorMemory/{docId} {
+        allow read: if isOwner(userId);
+        allow create, update, delete: if false;
+      }
     }
 
     // Deny all other access by default

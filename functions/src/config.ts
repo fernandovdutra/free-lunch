@@ -63,7 +63,7 @@ export const config = {
   get appUrl(): string {
     return getEnvOrDefault(
       'APP_URL',
-      isEmulator ? 'http://localhost:5173' : 'https://free-lunch-85447.web.app'
+      isEmulator ? 'http://localhost:5173' : `https://${process.env.FIREBASE_PROJECT_ID ?? 'your-project-id'}.web.app`
     );
   },
 };

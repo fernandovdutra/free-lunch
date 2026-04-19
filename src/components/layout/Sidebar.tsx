@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, Tags, PiggyBank, Receipt, Settings } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, Tags, PiggyBank, Receipt, Settings, Target, TrendingUp, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -8,6 +8,9 @@ const navItems = [
   { href: '/categories', label: 'Categories', icon: Tags },
   { href: '/budgets', label: 'Budgets', icon: PiggyBank },
   { href: '/reimbursements', label: 'Reimbursements', icon: Receipt },
+  { href: '/goals', label: 'Goals', icon: Target },
+  { href: '/investments', label: 'Net Worth', icon: TrendingUp },
+  { href: '/insights', label: 'Insights', icon: Sparkles },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

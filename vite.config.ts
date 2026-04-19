@@ -63,6 +63,20 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // Proxy Firebase emulator traffic through Vite so LAN clients (iPhone)
+    // only need to reach port 5173 (node.exe is firewall-allowed). Java-based
+    // emulators on 9099/8080 are firewall-blocked on this machine.
+    proxy: {
+      // Auth emulator
+      '/identitytoolkit.googleapis.com': { target: 'http://127.0.0.1:9099', changeOrigin: true },
+      '/securetoken.googleapis.com': { target: 'http://127.0.0.1:9099', changeOrigin: true },
+      '/emulator/v1': { target: 'http://127.0.0.1:9099', changeOrigin: true },
+      // Firestore emulator (REST + gRPC-Web)
+      '/google.firestore.v1.Firestore': { target: 'http://127.0.0.1:8080', changeOrigin: true, ws: true },
+      '/v1/projects': { target: 'http://127.0.0.1:8080', changeOrigin: true },
+      // Functions emulator
+      [`/${process.env.VITE_FIREBASE_PROJECT_ID ?? process.env.FIREBASE_PROJECT_ID ?? 'your-project-id'}/europe-west1`]: { target: 'http://127.0.0.1:5001', changeOrigin: true },
+    },
   },
   build: {
     sourcemap: true,
