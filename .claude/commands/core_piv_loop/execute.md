@@ -191,7 +191,7 @@ firebase deploy --only hosting      # Frontend only
 
 #### c. Verify Deployment
 
-- Check the Hosting URL: https://free-lunch-85447.web.app
+- Check the Hosting URL: https://<your-project-id>.web.app
 - Hard refresh (Cmd+Shift+R / Ctrl+Shift+R) to bypass browser cache
 - Test the new features in production
 - Monitor Firebase Console for any function errors

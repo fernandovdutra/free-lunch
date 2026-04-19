@@ -39,7 +39,9 @@ if (import.meta.env.VITE_USE_EMULATORS === 'true') {
   }
 
   // Connect functions emulator
-  connectFunctionsEmulator(functions, 'localhost', 5001);
+  const functionsUrl = import.meta.env.VITE_EMULATOR_FUNCTIONS_URL || 'http://localhost:5001';
+  const [fnHost, fnPort] = functionsUrl.replace(/^https?:\/\//, '').split(':');
+  connectFunctionsEmulator(functions, fnHost!, parseInt(fnPort!, 10));
 }
 
 export default app;

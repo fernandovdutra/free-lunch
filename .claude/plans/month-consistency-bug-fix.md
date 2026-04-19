@@ -179,7 +179,7 @@ Expected: all existing tests pass.
 
 ## MANUAL VALIDATION STEPS
 
-After deploying to https://free-lunch-85447.web.app:
+After deploying to https://<your-project-id>.web.app:
 
 1. Open Dashboard → note the selected month (e.g., February)
 2. Click "Expenses" to enter SpendingExplorer

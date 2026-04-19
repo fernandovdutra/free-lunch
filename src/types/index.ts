@@ -229,3 +229,192 @@ export interface PaginatedResponse<T> {
   pageSize: number;
   hasMore: boolean;
 }
+
+// ============================================================================
+// Goal Types
+// ============================================================================
+
+export interface Goal {
+  id: string;
+  name: string;
+  type: 'savings' | 'debt_payoff' | 'spending_limit' | 'investment';
+  targetAmount: number;
+  currentAmount: number;
+  startDate: Date;
+  targetDate: Date | null;
+  status: 'active' | 'completed' | 'paused' | 'abandoned';
+  linkedCategoryIds: string[] | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface GoalFormData {
+  name: string;
+  type: Goal['type'];
+  targetAmount: number;
+  currentAmount: number;
+  startDate: Date;
+  targetDate: Date | null;
+  linkedCategoryIds: string[] | null;
+  notes: string | null;
+}
+
+// ============================================================================
+// Investment Types
+// ============================================================================
+
+export interface InvestmentEntry {
+  date: Date;
+  marketValue: number;
+  costBasis: number;
+}
+
+export interface Investment {
+  id: string;
+  name: string;
+  platform: string;
+  type: 'etf' | 'stock' | 'bond' | 'crypto' | 'savings' | 'pension' | 'other';
+  entries: InvestmentEntry[];
+  currency: string;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface InvestmentFormData {
+  name: string;
+  platform: string;
+  type: Investment['type'];
+  currency: string;
+  notes: string | null;
+}
+
+export interface InvestmentTransaction {
+  id: string;
+  investmentId: string;
+  date: Date;
+  type: 'buy' | 'sell' | 'dividend' | 'fee' | 'deposit' | 'withdrawal';
+  amount: number;
+  units: number | null;
+  pricePerUnit: number | null;
+  notes: string | null;
+}
+
+export interface InvestmentTransactionFormData {
+  investmentId: string;
+  date: Date;
+  type: InvestmentTransaction['type'];
+  amount: number;
+  units: number | null;
+  pricePerUnit: number | null;
+  notes: string | null;
+}
+
+// ============================================================================
+// Debt / Liability Types
+// ============================================================================
+
+export interface Debt {
+  id: string;
+  name: string;
+  type: 'mortgage' | 'personal_loan' | 'student_loan' | 'credit_card' | 'other';
+  balance: number;
+  originalAmount: number | null;
+  interestRate: number | null;
+  monthlyPayment: number | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DebtFormData {
+  name: string;
+  type: Debt['type'];
+  balance: number;
+  originalAmount: number | null;
+  interestRate: number | null;
+  monthlyPayment: number | null;
+  notes: string | null;
+}
+
+// ============================================================================
+// Insight Types
+// ============================================================================
+
+export interface InsightHighlight {
+  label: string;
+  value: string;
+  trend?: 'up' | 'down' | 'stable';
+  sentiment: 'positive' | 'negative' | 'neutral';
+}
+
+export interface InsightRecommendation {
+  priority: 'high' | 'medium' | 'low';
+  category: string;
+  text: string;
+  potentialSavings?: number;
+}
+
+export interface InsightAnomaly {
+  description: string;
+  severity: 'info' | 'warning' | 'alert';
+  transactionId?: string;
+}
+
+export interface InsightGoalProgress {
+  goalId: string;
+  goalName: string;
+  progressPct: number;
+  onTrack: boolean;
+  note: string;
+}
+
+export interface InsightInvestmentSummary {
+  totalValue: number;
+  totalGain: number;
+  returnPct: number;
+  periodChange: number;
+}
+
+export interface Insight {
+  id: string;
+  type: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'on_demand';
+  periodStart: Date;
+  periodEnd: Date;
+  generatedAt: Date;
+  summary: string;
+  highlights: InsightHighlight[];
+  recommendations: InsightRecommendation[];
+  anomalies: InsightAnomaly[];
+  goalProgress: InsightGoalProgress[];
+  investmentSummary: InsightInvestmentSummary | null;
+  narrative: string;
+  emailSentAt: Date | null;
+  isRead: boolean;
+}
+
+// ============================================================================
+// Advisor Memory Types
+// ============================================================================
+
+export interface RecurringExpense {
+  counterparty: string;
+  amount: number;
+  frequency: string;
+}
+
+export interface PastAdvice {
+  date: Date;
+  advice: string;
+  outcome?: string;
+}
+
+export interface AdvisorMemory {
+  financialProfile: string;
+  recurringExpenses: RecurringExpense[];
+  activeGoals: { goalId: string; name: string; summary: string }[];
+  investmentProfile: string;
+  pastAdvice: PastAdvice[];
+  updatedAt: Date;
+}

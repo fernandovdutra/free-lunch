@@ -9,6 +9,7 @@ Free Lunch is a personal finance management app for the Netherlands market. It c
 ## Key Documentation
 
 - **docs/PRD.md** - Full product requirements document with user stories, feature specs, data models, API specs, and implementation phases
+- **docs/PHONE_DEV_WORKFLOW.md** - How to develop with Claude from an iPhone (LAN emulator stack + Vite proxy + seeded test data). Trigger phrases: "phone dev", "test on my phone", "start the emulator stack". Login that fails after idle = background processes got reaped; restart the stack per that doc.
 - **.claude/reference/free-lunch-design-system.md** - Comprehensive design system (colors, typography, components, accessibility)
 
 ## Commands
