@@ -24,3 +24,4 @@ export { generateOnDemandInsight } from './handlers/generateOnDemandInsight.js';
 export { getMonthlyAnalysisData } from './handlers/getMonthlyAnalysisData.js';
 export { getYearlyAnalysisData } from './handlers/getYearlyAnalysisData.js';
 export { storeInsightEndpoint } from './handlers/storeInsight.js';
+export { refreshAdvisorMemory } from './handlers/refreshAdvisorMemory.js';
