@@ -7,6 +7,7 @@ interface DailyPromptData {
   categorySpending: CategorySpendingResult[];
   anomalies: Anomaly[];
   previousInsightNarrative?: string;
+  advisorMemory?: string;
 }
 
 export interface FixedCost {
@@ -41,7 +42,7 @@ interface WeeklyPromptData {
 }
 
 export function buildDailyInsightPrompt(data: DailyPromptData): string {
-  const { date, summary, categorySpending, anomalies, previousInsightNarrative } = data;
+  const { date, summary, categorySpending, anomalies, previousInsightNarrative, advisorMemory } = data;
 
   const topCategories = categorySpending
     .slice(0, 5)
@@ -59,6 +60,8 @@ export function buildDailyInsightPrompt(data: DailyPromptData): string {
     ? `\n\nPREVIOUS DAILY INSIGHT (for continuity):\n${previousInsightNarrative}`
     : '';
 
+  const memory = advisorMemory ? `\n\nADVISOR MEMORY:\n${advisorMemory}` : '';
+
   return `You are a personal finance advisor analyzing daily transaction data for a user in the Netherlands.
 
 DATE: ${date}
@@ -75,11 +78,19 @@ ${topCategories || 'No expenses recorded'}
 
 ANOMALIES:
 ${anomalyList}
-${continuity}
+${memory}${continuity}
+
+BEHAVIORAL RULES — follow these strictly:
+1. INCOME TIMING: This user is a salaried employee. Salary arrives once a month on the last business day. €0 income on any given day is completely normal — NEVER comment on it, NEVER call it a "deficit day", NEVER say spending is "unsustainable" based on a single day's income. Judge spending against the monthly salary (~€7,950 net), not against daily income.
+2. FIXED COSTS — DO NOT TOUCH: Do not suggest cancelling, renegotiating, or terminating the Tesla financing or Kia lease (large early-termination penalties; Tesla financing ends October 2026). Do not suggest switching health insurance outside of November/December open enrollment in the Netherlands.
+3. FIXED COSTS — OK TO RESEARCH: For energy/utilities, subscriptions, online shopping (Amazon, bol.com), and non-health insurance: if spending is trending up or seems high, it IS appropriate to flag it and offer to research better deals or alternatives.
+4. DUPLICATE ALERTS: Only flag a potential duplicate if you have concrete evidence from the anomaly data. Do not speculate about duplicates.
+5. DAY OF WEEK: Never moralize about spending on weekends or holidays. A Sunday clothing purchase is not a problem.
+6. RELEVANCE: Only give recommendations that are actionable. Do not repeat advice from the previous insight unless there is new evidence.
 
 VERBOSITY RULE: Scale your response to the signal strength of today's data.
 - If there are NO anomalies AND total expenses are below €50 AND transaction count is 3 or fewer:
-  write a single short paragraph for "narrative" (1-2 sentences). Example: "Quiet Sunday — one uncategorized transaction (€24.50), nothing to flag."
+  write a single short paragraph for "narrative" (1-2 sentences). Example: "Quiet Sunday — coffee and a small purchase, nothing to flag."
   Keep highlights to at most 1 item and recommendations empty.
 - Only write 2-3 paragraphs if there is something genuinely notable (anomaly, high spend, unusual pattern).
 - Never pad with generic financial tips when there is nothing specific to say.

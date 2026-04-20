@@ -10,6 +10,7 @@ import {
 } from '../shared/aggregations.js';
 import { detectAnomalies } from '../shared/anomalyDetection.js';
 import { buildDailyInsightPrompt } from '../shared/promptTemplates.js';
+import { loadAdvisorMemory, formatMemoryForPrompt } from '../shared/memoryManager.js';
 import { storeInsight, getPreviousInsight, markInsightEmailed } from '../shared/insightStorage.js';
 import { sendInsightEmail } from '../shared/emailSender.js';
 import { buildDailyEmailHtml } from '../shared/emailTemplates.js';
@@ -48,7 +49,7 @@ export const generateDailyInsight = onSchedule(
     const historyStart = subDays(todayStart, 30);
 
     // Fetch data in parallel
-    const [todaySnap, historySnap, categoriesSnap] = await Promise.all([
+    const [todaySnap, historySnap, categoriesSnap, advisorMemory] = await Promise.all([
       db
         .collection('users')
         .doc(SINGLE_USER_ID)
@@ -68,6 +69,7 @@ export const generateDailyInsight = onSchedule(
         .doc(SINGLE_USER_ID)
         .collection('categories')
         .get(),
+      loadAdvisorMemory(SINGLE_USER_ID),
     ]);
 
     const todayTxns = todaySnap.docs.map((d) => ({
@@ -103,6 +105,7 @@ export const generateDailyInsight = onSchedule(
       categorySpending,
       anomalies,
       previousInsightNarrative: prev?.narrative,
+      advisorMemory: advisorMemory ? formatMemoryForPrompt(advisorMemory) : undefined,
     });
 
     const client = new Anthropic({ apiKey });
