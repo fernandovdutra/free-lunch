@@ -1,0 +1,32 @@
+name: lot_flow
+duration_s: 30.0
+events:
+  - at: 0.10
+    type: start_lot
+    wafer_ids: [W001, W002]
+    reticle_id: R001
+
+  - at: 5.0
+    assert:
+      reticle_stage.reticle_id: R001
+      reticle_stage.clamped: true
+
+  - at: 8.0
+    assert:
+      machine_control.wafer_in_progress: W001
+      wafer_stage_a.wafer_id: W001
+
+  - at: 11.0
+    assert:
+      machine_control.current_phase: expose
+      reticle_stage.mode: expose
+
+  - at: 20.0
+    assert:
+      machine_control.wafer_in_progress: W002
+      wafer_stage_b.wafer_id: W002
+
+  - at: 29.0
+    assert:
+      machine_control.lot_done: true
+      reticle_stage.reticle_id: ""
