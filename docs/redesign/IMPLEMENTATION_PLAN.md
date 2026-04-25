@@ -44,7 +44,7 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 | # | Phase | Status | Notes |
 |---|-------|--------|-------|
 | 0 | Foundations (tokens, fonts, tailwind, cleanup) | ☑ | desktop+iPhone verified 2026-04-25 |
-| 1 | Shell + nav (TopBar, TabBar, Sheet primitive, desktop side-rail) | ☑ | desktop verified 2026-04-25; iPhone walkthrough pending |
+| 1 | Shell + nav (TopBar, TabBar, Sheet primitive, desktop side-rail) | ☑ | desktop + iPhone verified 2026-04-25 |
 | 2 | Shared primitives (rows, section header, pill, progress bar, status glyph) | ☐ | |
 | 3 | Login (Google-only, blinking cursor, delete Register) | ☐ | |
 | 4 | Home | ☐ | |
@@ -114,7 +114,7 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 >
 > **Departures from plan:** TabBar shrinks to 4 slots (CAT dropped) — categories admin will be folded into Budget in Phase 8 per user direction. MORE menu carries the out-of-scope archive routes so nothing is orphaned during the migration. TopBar keeps a temporary `…` button for one-tap MORE access from any page; remove in Phase 10 once Settings/Sync/Logout are properly housed.
 >
-> **Open in this snapshot:** iPhone walkthrough still owed by user. `npm run typecheck` and `npm run lint` clean for new files. Existing screens (Dashboard etc.) render inside the new shell with old shadcn styling — broken-looking by design until rebuilt in Phases 4–10.
+> **Verified:** desktop preview (mobile 375×812 + 1280×800) and iPhone walkthrough on the seeded emulator stack via `test@freelunch.local`. `npm run typecheck` and `npm run lint` clean for new files. Existing screens (Dashboard etc.) render inside the new shell with old shadcn styling — broken-looking by design until rebuilt in Phases 4–10.
 >
 > Files: `src/components/ui/sheet.tsx`, `src/components/layout/{TopBar,TabBar,SideRail,MoreSheet,AppLayout}.tsx`, `src/components/layout/index.ts`. Deleted: `src/components/layout/{Header,BottomNav,Sidebar}.tsx`.
 
