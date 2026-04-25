@@ -1,10 +1,13 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const projectId = env.VITE_FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID || 'your-project-id';
+  return {
   plugins: [
     react(),
     VitePWA({
@@ -75,7 +78,7 @@ export default defineConfig({
       '/google.firestore.v1.Firestore': { target: 'http://127.0.0.1:8080', changeOrigin: true, ws: true },
       '/v1/projects': { target: 'http://127.0.0.1:8080', changeOrigin: true },
       // Functions emulator
-      [`/${process.env.VITE_FIREBASE_PROJECT_ID ?? process.env.FIREBASE_PROJECT_ID ?? 'your-project-id'}/europe-west1`]: { target: 'http://127.0.0.1:5001', changeOrigin: true },
+      [`/${projectId}/europe-west1`]: { target: 'http://127.0.0.1:5001', changeOrigin: true },
     },
   },
   build: {
@@ -97,4 +100,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });
