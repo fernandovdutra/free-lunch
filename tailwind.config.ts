@@ -1,12 +1,38 @@
 import type { Config } from 'tailwindcss';
 
+/*
+ * Calm Terminal theme. Token names mirror README §Color tokens + §Typography.
+ * Shadcn-compat keys (background, foreground, card, …) are kept so existing
+ * components render sensibly until they're rebuilt.
+ */
 export default {
   darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
-        // Semantic color mappings using CSS variables
+        // --- Calm Terminal (canonical) ---
+        bg: 'var(--bg)',
+        surface: 'var(--surface)',
+        surfaceHi: 'var(--surface-hi)',
+        rule: 'var(--rule)',
+        ruleHi: 'var(--rule-hi)',
+        textHi: 'var(--text-hi)',
+        textMid: 'var(--text-mid)',
+        textLo: 'var(--text-lo)',
+        textDim: 'var(--text-dim)',
+        accent: {
+          DEFAULT: 'var(--accent)',
+          dim: 'var(--accent-dim)',
+          // shadcn compat: components reference `accent-foreground`
+          foreground: 'var(--bg)',
+        },
+        warn: {
+          DEFAULT: 'var(--warn)',
+          dim: 'var(--warn-dim)',
+        },
+
+        // --- Shadcn compatibility layer (HSL-backed) ---
         background: 'hsl(var(--color-background))',
         foreground: 'hsl(var(--color-foreground))',
         card: {
@@ -29,10 +55,6 @@ export default {
           DEFAULT: 'hsl(var(--color-muted))',
           foreground: 'hsl(var(--color-muted-foreground))',
         },
-        accent: {
-          DEFAULT: 'hsl(var(--color-accent))',
-          foreground: 'hsl(var(--color-accent-foreground))',
-        },
         destructive: {
           DEFAULT: 'hsl(var(--color-destructive))',
           foreground: 'hsl(var(--color-destructive-foreground))',
@@ -40,37 +62,43 @@ export default {
         border: 'hsl(var(--color-border))',
         input: 'hsl(var(--color-input))',
         ring: 'hsl(var(--color-ring))',
-
-        // Amount colors (for financial data)
-        amount: {
-          positive: '#2D5A4A',
-          negative: '#C45C4A',
-          neutral: '#5C6661',
-          pending: '#C9A227',
-        },
-
-        // Category colors
-        category: {
-          income: '#2D5A4A',
-          housing: '#5B6E8A',
-          transport: '#4A6FA5',
-          food: '#C9A227',
-          shopping: '#A67B8A',
-          entertainment: '#7B6B8A',
-          health: '#4A9A8A',
-          personal: '#B87D4B',
-          utilities: '#6B7C72',
-          other: '#9CA3A0',
-        },
       },
       borderRadius: {
+        card: '10px',
+        sheet: '20px',
+        pill: '9999px',
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
+        mono: ['JetBrains Mono', 'ui-monospace', 'SF Mono', 'Menlo', 'monospace'],
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['JetBrains Mono', 'SF Mono', 'Menlo', 'monospace'],
+      },
+      fontSize: {
+        // Calm Terminal type scale (README §Typography)
+        'ct-headline': ['48px', { lineHeight: '1', letterSpacing: '-0.02em', fontWeight: '500' }],
+        'ct-section': ['14px', { lineHeight: '1', letterSpacing: '0.08em', fontWeight: '500' }],
+        'ct-row': ['13px', { lineHeight: '1', fontWeight: '500' }],
+        'ct-meta': ['10px', { lineHeight: '1.2', letterSpacing: '0.08em', fontWeight: '400' }],
+        'ct-tab': ['9px', { lineHeight: '1', letterSpacing: '0.12em', fontWeight: '500' }],
+      },
+      letterSpacing: {
+        tight2: '-0.02em',
+        'upper-tight': '0.08em',
+        'upper-wide': '0.12em',
+      },
+      spacing: {
+        'ct-topbar': '44px',
+        'ct-tabbar': '68px',
+        'ct-safe-top': '54px',
+      },
+      transitionTimingFunction: {
+        'ct-out': 'cubic-bezier(0.2, 0.6, 0.2, 1)',
+      },
+      transitionDuration: {
+        180: '180ms',
+        220: '220ms',
       },
       keyframes: {
         'fade-in': {
@@ -93,13 +121,18 @@ export default {
           from: { transform: 'translateX(10px)', opacity: '0' },
           to: { transform: 'translateX(0)', opacity: '1' },
         },
+        'sheet-up': {
+          from: { transform: 'translateY(100%)' },
+          to: { transform: 'translateY(0)' },
+        },
       },
       animation: {
-        'fade-in': 'fade-in 200ms ease-out',
+        'fade-in': 'fade-in 180ms cubic-bezier(0.2, 0.6, 0.2, 1)',
         'fade-out': 'fade-out 150ms ease-in',
-        'slide-in-from-top': 'slide-in-from-top 200ms ease-out',
-        'slide-in-from-bottom': 'slide-in-from-bottom 200ms ease-out',
-        'slide-in-from-right': 'slide-in-from-right 200ms ease-out',
+        'slide-in-from-top': 'slide-in-from-top 180ms cubic-bezier(0.2, 0.6, 0.2, 1)',
+        'slide-in-from-bottom': 'slide-in-from-bottom 180ms cubic-bezier(0.2, 0.6, 0.2, 1)',
+        'slide-in-from-right': 'slide-in-from-right 180ms cubic-bezier(0.2, 0.6, 0.2, 1)',
+        'sheet-up': 'sheet-up 220ms cubic-bezier(0.2, 0.6, 0.2, 1)',
       },
     },
   },
