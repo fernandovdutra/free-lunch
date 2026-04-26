@@ -1,181 +1,470 @@
-import { useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+  Sheet,
+  SheetContent,
+  SheetBody,
+} from '@/components/ui/sheet';
 import { CategoryPicker } from './CategoryPicker';
-import type { Transaction, TransactionFormData, Category } from '@/types';
-
-const transactionSchema = z.object({
-  date: z.string().min(1, 'Date is required'),
-  description: z.string().min(2, 'Description must be at least 2 characters'),
-  amount: z.coerce.number().refine((val) => val !== 0, 'Amount cannot be zero'),
-  categoryId: z.string().nullable(),
-});
-
-type FormValues = z.infer<typeof transactionSchema>;
+import { ManualResolveSheet } from './ManualResolveSheet';
+import { useUpdateTransaction, useUpdateTransactionCategory, useDeleteTransaction, useBulkUpdateCategory } from '@/hooks/useTransactions';
+import { useMarkAsReimbursable, useClearReimbursement } from '@/hooks/useReimbursements';
+import { useToast } from '@/components/ui/toaster';
+import { formatAmount, cn } from '@/lib/utils';
+import type { Category, Transaction } from '@/types';
 
 interface TransactionFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction?: Transaction | null;
   categories: Category[];
-  onSubmit: (data: TransactionFormData) => Promise<void>;
+  /** Legacy prop kept so the page wiring doesn't break — Phase 6 ignores it. */
+  onSubmit?: unknown;
+  /** Legacy prop kept for the same reason. */
   isSubmitting?: boolean;
 }
 
+/**
+ * Phase 6 Transaction Edit Sheet (replaces the modal Dialog).
+ *
+ * Layout per README §09:
+ *   [HEADLINE: merchant · amount · date]
+ *   CATEGORY        ›  → nested CategoryPicker sheet
+ *   FLAGS           [Reimbursable toggle]
+ *   NOTE            <textarea>
+ *   MERCHANT RULES  ›  → bulk-update similar txns
+ *   MANUAL RESOLVE  ›  → nested ManualResolveSheet (only when reimbursement.status === 'pending')
+ *   [DELETE TRANSACTION]
+ *
+ * Each section calls its own TanStack Query mutation. No global submit
+ * button. The Note textarea is the only field that's "dirty"-tracked;
+ * backdrop tap or Esc with a dirty note shows an inline confirm strip
+ * (`SAVE / DISCARD`) instead of closing.
+ *
+ * Split is deferred per resolved Q3 — the FLAGS section shows only the
+ * Reimbursable toggle.
+ */
 export function TransactionForm({
   open,
   onOpenChange,
   transaction,
   categories,
-  onSubmit,
-  isSubmitting = false,
 }: TransactionFormProps) {
-  const isEditing = !!transaction;
+  const { toast } = useToast();
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(transactionSchema),
-    defaultValues: {
-      date: format(new Date(), 'yyyy-MM-dd'),
-      description: '',
-      amount: 0,
-      categoryId: null,
-    },
-  });
+  const updateMutation = useUpdateTransaction();
+  const updateCategoryMutation = useUpdateTransactionCategory();
+  const markReimbursableMutation = useMarkAsReimbursable();
+  const bulkUpdateMutation = useBulkUpdateCategory();
+  const deleteMutation = useDeleteTransaction();
+  const clearReimbursementMutation = useClearReimbursement();
 
-  // Reset form when dialog opens/closes or transaction changes
+  const [note, setNote] = useState('');
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [resolveOpen, setResolveOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const initialNoteRef = useRef('');
+
+  const dirty = note !== initialNoteRef.current;
+
+  // Reset local state when the sheet opens / target txn changes
   useEffect(() => {
-    if (open) {
-      if (transaction) {
-        reset({
-          date: format(transaction.date, 'yyyy-MM-dd'),
-          description: transaction.description,
-          amount: transaction.amount,
-          categoryId: transaction.categoryId,
-        });
-      } else {
-        reset({
-          date: format(new Date(), 'yyyy-MM-dd'),
-          description: '',
-          amount: 0,
-          categoryId: null,
-        });
-      }
+    if (open && transaction) {
+      const startingNote = transaction.note ?? '';
+      setNote(startingNote);
+      initialNoteRef.current = startingNote;
+      setConfirmingDiscard(false);
+      setConfirmingDelete(false);
     }
-  }, [open, transaction, reset]);
+    if (!open) {
+      setPickerOpen(false);
+      setResolveOpen(false);
+    }
+  }, [open, transaction]);
 
-  const handleFormSubmit = async (data: FormValues) => {
-    const formData: TransactionFormData = {
-      date: new Date(data.date),
-      description: data.description,
-      amount: data.amount,
-      categoryId: data.categoryId,
-    };
-    await onSubmit(formData);
+  if (!transaction) return null;
+
+  const isExpense = transaction.amount < 0;
+  const isReimbursable = !!transaction.reimbursement;
+  const isPendingReimb = transaction.reimbursement?.status === 'pending';
+  const currentCategory = transaction.categoryId
+    ? categories.find((c) => c.id === transaction.categoryId)
+    : null;
+
+  const closeIfClean = () => {
+    if (dirty) {
+      setConfirmingDiscard(true);
+      return;
+    }
     onOpenChange(false);
   };
 
+  const saveNoteAndClose = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        id: transaction.id,
+        data: { note: note.trim() === '' ? null : note },
+      });
+    } catch {
+      toast({ title: 'Failed to save note', variant: 'destructive' });
+      return;
+    }
+    initialNoteRef.current = note;
+    setConfirmingDiscard(false);
+    onOpenChange(false);
+  };
+
+  const discardAndClose = () => {
+    setNote(initialNoteRef.current);
+    setConfirmingDiscard(false);
+    onOpenChange(false);
+  };
+
+  const handleCategoryPick = async (categoryId: string | null) => {
+    setPickerOpen(false);
+    try {
+      await updateCategoryMutation.mutateAsync({ id: transaction.id, categoryId });
+    } catch {
+      toast({ title: 'Failed to change category', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleReimbursable = async () => {
+    try {
+      if (isReimbursable) {
+        await updateMutation.mutateAsync({
+          id: transaction.id,
+          data: { reimbursement: null } as never,
+        });
+        toast({ title: 'Reimbursable flag cleared' });
+      } else {
+        await markReimbursableMutation.mutateAsync({
+          id: transaction.id,
+          type: 'work',
+        });
+        toast({ title: 'Marked as reimbursable' });
+      }
+    } catch {
+      toast({ title: 'Failed to update reimbursable', variant: 'destructive' });
+    }
+  };
+
+  const handleApplyMerchantRule = async () => {
+    if (!transaction.counterparty || !transaction.categoryId) return;
+    try {
+      await bulkUpdateMutation.mutateAsync({
+        counterparty: transaction.counterparty,
+        categoryId: transaction.categoryId,
+        excludeTransactionId: transaction.id,
+      });
+      toast({ title: `Applied to other ${transaction.counterparty} transactions` });
+    } catch {
+      toast({ title: 'Failed to apply rule', variant: 'destructive' });
+    }
+  };
+
+  const handleResolvePicked = async (incomeTransactionId: string) => {
+    setResolveOpen(false);
+    try {
+      await clearReimbursementMutation.mutateAsync({
+        incomeTransactionId,
+        expenseTransactionIds: [transaction.id],
+      });
+      toast({ title: 'Reimbursement resolved' });
+      onOpenChange(false);
+    } catch {
+      toast({ title: 'Failed to resolve reimbursement', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(transaction.id);
+      toast({ title: 'Transaction deleted' });
+      onOpenChange(false);
+    } catch {
+      toast({ title: 'Failed to delete', variant: 'destructive' });
+    }
+  };
+
+  const merchant = transaction.counterparty ?? transaction.description;
+  const amountText = formatAmount(transaction.amount, { showSign: false });
+  const sign = transaction.amount > 0 ? '+' : transaction.amount < 0 ? '−' : '';
+  const dateText = format(transaction.date, 'EEE · MMM d · yyyy').toUpperCase();
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Transaction' : 'Add Transaction'}</DialogTitle>
-          <DialogDescription>
-            {isEditing
-              ? 'Update the transaction details below.'
-              : 'Add a new transaction manually.'}
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={(e) => void handleSubmit(handleFormSubmit)(e)} className="space-y-4">
-          {/* Date */}
-          <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
-            <Input id="date" type="date" {...register('date')} />
-            {errors.date && <p className="text-sm text-destructive">{errors.date.message}</p>}
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Input
-              id="description"
-              placeholder="e.g., Grocery shopping"
-              {...register('description')}
-            />
-            {errors.description && (
-              <p className="text-sm text-destructive">{errors.description.message}</p>
-            )}
-          </div>
-
-          {/* Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount (EUR)</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              {...register('amount', { valueAsNumber: true })}
-            />
-            <p className="text-xs text-muted-foreground">
-              Use negative values for expenses (e.g., -50.00)
-            </p>
-            {errors.amount && <p className="text-sm text-destructive">{errors.amount.message}</p>}
-          </div>
-
-          {/* Category */}
-          <div className="space-y-2">
-            <Label>Category (optional)</Label>
-            <Controller
-              name="categoryId"
-              control={control}
-              render={({ field }) => (
-                <CategoryPicker
-                  value={field.value}
-                  onChange={field.onChange}
-                  categories={categories}
-                />
-              )}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
+    <>
+      <Sheet
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) {
+            closeIfClean();
+            return;
+          }
+          onOpenChange(next);
+        }}
+      >
+        <SheetContent
+          onPointerDownOutside={(e) => {
+            if (dirty) {
+              e.preventDefault();
+              setConfirmingDiscard(true);
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            if (dirty) {
+              e.preventDefault();
+              setConfirmingDiscard(true);
+            }
+          }}
+        >
+          <div className="flex justify-end px-4 pb-1">
+            <button
               type="button"
-              variant="outline"
-              onClick={() => {
-                onOpenChange(false);
-              }}
+              onClick={closeIfClean}
+              aria-label="Close"
+              className="press font-mono text-[14px] leading-none text-textLo"
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditing ? 'Save Changes' : 'Add Transaction'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+              ✕
+            </button>
+          </div>
+
+          <SheetBody>
+            {/* HEADLINE */}
+            <div className="px-4 pb-4">
+              <div className="font-sans text-[20px] font-medium text-textHi">{merchant}</div>
+              <div className="nums mt-1 font-mono text-[28px] font-medium text-textHi">
+                {sign}
+                {amountText}
+              </div>
+              <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-textLo">
+                {dateText}
+              </div>
+            </div>
+
+            {/* CATEGORY */}
+            <SectionHeader>CATEGORY</SectionHeader>
+            <RowButton
+              onClick={() => {
+                setPickerOpen(true);
+              }}
+              right="›"
+            >
+              <span className="font-sans text-[13.5px] text-textHi">
+                {currentCategory?.name ?? 'Uncategorized'}
+              </span>
+            </RowButton>
+
+            {/* FLAGS */}
+            <SectionHeader>FLAGS</SectionHeader>
+            <RowToggle
+              label="Reimbursable"
+              active={isReimbursable}
+              onToggle={() => void handleToggleReimbursable()}
+              disabled={markReimbursableMutation.isPending || updateMutation.isPending}
+            />
+
+            {/* NOTE */}
+            <SectionHeader>NOTE</SectionHeader>
+            <div className="hairline-b px-4 py-3">
+              <textarea
+                value={note}
+                onChange={(e) => {
+                  setNote(e.target.value);
+                }}
+                placeholder="Add a note…"
+                rows={3}
+                className={cn(
+                  'block w-full resize-none border border-rule bg-bg px-3 py-2',
+                  'font-sans text-[13px] text-textHi placeholder:text-textLo',
+                  'focus:outline-none focus:ring-1 focus:ring-accent'
+                )}
+              />
+            </div>
+
+            {/* MERCHANT RULES */}
+            {transaction.counterparty && transaction.categoryId && currentCategory && (
+              <>
+                <SectionHeader>MERCHANT RULES</SectionHeader>
+                <RowButton
+                  onClick={() => void handleApplyMerchantRule()}
+                  right="›"
+                  disabled={bulkUpdateMutation.isPending}
+                >
+                  <span className="font-sans text-[13.5px] text-textMid">
+                    Always categorize{' '}
+                    <span className="text-textHi">{transaction.counterparty}</span> as{' '}
+                    <span className="text-textHi">{currentCategory.name}</span>
+                  </span>
+                </RowButton>
+              </>
+            )}
+
+            {/* MANUAL RESOLVE */}
+            {isPendingReimb && (
+              <>
+                <SectionHeader>MANUAL RESOLVE</SectionHeader>
+                <RowButton
+                  onClick={() => {
+                    setResolveOpen(true);
+                  }}
+                  right="›"
+                >
+                  <span className="font-sans text-[13.5px] text-textHi">Mark as reimbursed</span>
+                </RowButton>
+              </>
+            )}
+
+            {/* DELETE */}
+            <div className="px-4 pb-6 pt-6">
+              {confirmingDelete ? (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingDelete(false);
+                    }}
+                    className="press hairline-b flex-1 border border-rule px-3 py-2 font-mono text-[12px] uppercase tracking-[0.08em] text-textMid"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete()}
+                    disabled={deleteMutation.isPending}
+                    className="press flex-1 border border-warn bg-warn-dim px-3 py-2 font-mono text-[12px] uppercase tracking-[0.08em] text-warn disabled:opacity-50"
+                  >
+                    Confirm Delete
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmingDelete(true);
+                  }}
+                  className="press w-full border border-rule px-3 py-3 text-center font-mono text-[12px] uppercase tracking-[0.08em] text-warn"
+                >
+                  Delete Transaction
+                </button>
+              )}
+            </div>
+
+            {/* type='expense' currently ignored on display; the toggle uses 'work' default */}
+            {!isExpense && isReimbursable && null}
+          </SheetBody>
+
+          {/* Discard confirm strip — pinned just above the sheet's safe-inset */}
+          {confirmingDiscard && (
+            <div className="hairline-t flex items-center gap-2 bg-surfaceHi px-4 py-3">
+              <span className="flex-1 font-mono text-[10px] uppercase tracking-[0.08em] text-textMid">
+                Unsaved note
+              </span>
+              <button
+                type="button"
+                onClick={discardAndClose}
+                className="press border border-rule px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-textMid"
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveNoteAndClose()}
+                disabled={updateMutation.isPending}
+                className="press border border-accent bg-accent-dim px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-accent disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      <CategoryPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        categories={categories}
+        currentCategoryId={transaction.categoryId}
+        onPick={(id) => void handleCategoryPick(id)}
+      />
+
+      <ManualResolveSheet
+        open={resolveOpen}
+        onOpenChange={setResolveOpen}
+        onPick={(id) => void handleResolvePicked(id)}
+      />
+    </>
+  );
+}
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="hairline-t hairline-b bg-bg/40 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-textLo">
+      {children}
+    </div>
+  );
+}
+
+interface RowButtonProps {
+  children: React.ReactNode;
+  onClick?: () => void;
+  right?: React.ReactNode;
+  disabled?: boolean;
+}
+
+function RowButton({ children, onClick, right, disabled }: RowButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'press hairline-b flex w-full items-center gap-3 px-4 py-3.5 text-left',
+        'disabled:opacity-50'
+      )}
+    >
+      <div className="min-w-0 flex-1">{children}</div>
+      {right && <span className="text-[16px] leading-none text-textLo">{right}</span>}
+    </button>
+  );
+}
+
+interface RowToggleProps {
+  label: string;
+  active: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}
+
+function RowToggle({ label, active, onToggle, disabled }: RowToggleProps) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      role="switch"
+      aria-checked={active}
+      className={cn(
+        'press hairline-b flex w-full items-center justify-between px-4 py-3.5 text-left',
+        'disabled:opacity-50'
+      )}
+    >
+      <span className="font-sans text-[13.5px] text-textHi">{label}</span>
+      <span
+        className={cn(
+          'inline-flex h-[22px] w-[40px] items-center border px-1 transition-colors duration-180',
+          active ? 'border-accent bg-accent-dim' : 'border-rule bg-bg'
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            'block h-[14px] w-[14px] transition-transform duration-180',
+            active ? 'translate-x-[18px] bg-accent' : 'translate-x-0 bg-textLo'
+          )}
+        />
+      </span>
+    </button>
   );
 }

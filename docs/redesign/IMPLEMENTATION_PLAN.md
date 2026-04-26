@@ -49,7 +49,7 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 | 3 | Login (Google-only, blinking cursor, delete Register) | ☑ | iPhone-verified 2026-04-26 after 4 corrective rounds against v8.html |
 | 4 | Home | ☑ | iPhone-verified 2026-04-26 after 4 corrective rounds against v8.html |
 | 5 | Transactions (sticky filters + month header) | ☑ | desktop preview verified 2026-04-26; iPhone walkthrough pending |
-| 6 | Transaction Edit Sheet | ☐ | |
+| 6 | Transaction Edit Sheet | ☑ | desktop preview verified 2026-04-26; iPhone walkthrough pending |
 | 7 | Drill L1/L2/L3 **(large)** | ☐ | |
 | 8 | Budget (read + edit modes) | ☐ | |
 | 9 | Reimbursements | ☐ | |
@@ -343,7 +343,37 @@ small at one resolution become visible on iPhone.
 - Keep existing mutations wiring in TanStack Query; swap only markup and layout.
 
 **State snapshot:**
-> *(empty)*
+> Session 2026-04-26: rewrite landed. `TransactionForm` is now a Phase 1 `Sheet` (Radix Dialog) with sections separated by hairlines: Headline (merchant + signed amount + date) · CATEGORY (row → nested CategoryPicker sheet) · FLAGS (Reimbursable toggle, Split deferred per resolved Q3) · NOTE (textarea, dirty-tracked) · MERCHANT RULES (row → bulk-update similar txns, only when both counterparty and category are set) · MANUAL RESOLVE (only when `reimbursement.status === 'pending'`, row → nested ManualResolveSheet) · DELETE TRANSACTION (warn-styled, with two-step confirm). Nested sheets stack natively via Radix; Esc closes the topmost only.
+>
+> **Dirty-state confirm-on-close:** the Note textarea is the only dirty-tracked field. `onPointerDownOutside` and `onEscapeKeyDown` intercept when dirty and show an inline `Unsaved note · Discard / Save` strip pinned just above the safe-inset padding (taps better than a stacked alert). Save → `useUpdateTransaction({ id, data: { note } })` → close. Discard → revert local note + close. All other fields (category, reimbursable, merchant rule, manual resolve, delete) are action-driven and persist immediately on tap with their own toasts.
+>
+> **Manual resolve UX:** `ManualResolveSheet` is a new nested sheet — opens above the Edit Sheet. Search input (300ms debounced) feeds `useRecentIncomeTransactions(searchText)`. List rows are `[ MMM D · Counterparty · +€<amount> ]`. Tap → `useClearReimbursement.mutate({ incomeTransactionId, expenseTransactionIds: [t.id] })`, then close both sheets (the txn is no longer pending so there's nothing to edit on the same view).
+>
+> **CategoryPicker rewrite:** the old shadcn-Select-based picker is replaced with a search-prefixed Radix-Dialog Sheet. Hierarchical layout (parent header → All <Parent> → indented children). Sentinel "Uncategorized" row at the top to clear the assignment. CURRENT badge marks the active row. Filter sheet on the Transactions page already had its own inline category sheet from Phase 5 — left as-is rather than parameterizing one component for two semantics (filter chooses what to filter BY; edit chooses what to ASSIGN).
+>
+> **Data model surgery:** added an optional top-level `note: string | null | undefined` field to `Transaction` (and `TransactionDocument`) so the README §09 generic Note section persists. Existing factories / fixtures don't need updating because the field is optional. Reading via `t.note ?? ''`. Writing via `useUpdateTransaction({ id, data: { note } })` (TransactionFormData.note widened from `string` to `string | null`).
+>
+> **Reimbursable type 'work' default:** toggling Reimbursable ON calls `useMarkAsReimbursable({ id, type: 'work', note: null })` per resolved Q (work as default; type-picker is a future enhancement). Toggling OFF calls `useUpdateTransaction({ id, data: { reimbursement: null } as never })` — the cast is needed because TransactionFormData doesn't include `reimbursement` but Firestore happily clears the field. Verified live (toggle OFF made the MANUAL RESOLVE section disappear).
+>
+> **Departures from plan:**
+> - Toast on every action mutation (category change, reimbursable toggle, merchant rule, delete) — not in the plan, but matches the prior page-level UX and is cheap user-confidence signal.
+> - Two-step confirm on Delete (`Delete Transaction` button → `Cancel / Confirm Delete` strip) instead of a separate alert dialog. Bottom-sheet ergonomics: stacking another modal on top of an already-stacked Edit Sheet is awkward.
+>
+> **Verified live (2026-04-26) on the seeded emulator:**
+> - `npm run typecheck` clean. `npm run lint` clean on Phase 6 files (the 2 pre-existing `no-non-null-assertion` warnings in `useTransactions.ts` are out of scope).
+> - Tap first APR row → `?id=<txnId>` URL → Edit Sheet opens with all six sections.
+> - Tap CATEGORY row → nested CategoryPicker opens above. Type "groc" in the search → list filters down to `Food & Drink → Groceries`. Tap Groceries → picker closes, Edit Sheet category row updates to "Groceries", merchant-rules line updates to "Always categorize NS as Groceries". (Optimistic — no flicker.)
+> - Toggle Reimbursable: aria-checked flips, MANUAL RESOLVE section appears. Toggle off → section disappears. Persistence verified across reopens.
+> - Tap MANUAL RESOLVE → ManualResolveSheet opens, listing all candidate income txns by date. Search/debounce wired. Esc closes only the resolve picker, not the Edit Sheet.
+> - Type a note in NOTE textarea → press Esc → close intercepted, inline `Unsaved note · Discard / Save` strip appears at sheet bottom. Tap Save → mutation runs, sheet closes, URL clears. Reopen the same row → textarea pre-filled with the saved note (note persists across `?id` reload).
+> - Browser screenshot tool times out as before; verification via accessibility-tree + computed-style queries.
+>
+> **Not exercised live:**
+> - Actual ManualResolveSheet pick-and-clear flow (would mutate seed data; deferred to iPhone walkthrough).
+> - Delete confirm flow (same reason).
+> - iPhone walkthrough — pending user-side per the iPhone-check protocol.
+>
+> **Files added:** `src/components/transactions/ManualResolveSheet.tsx`. **Files rewritten:** `src/components/transactions/TransactionForm.tsx`, `src/components/transactions/CategoryPicker.tsx`, `src/components/transactions/index.ts`, `src/components/reimbursements/index.ts`. **Files edited (additive `note` field):** `src/types/index.ts`, `src/hooks/useTransactions.ts`. **Files deleted:** `src/components/transactions/ApplyToSimilarDialog.tsx`, `src/components/reimbursements/MarkReimbursableDialog.tsx`, `src/components/reimbursements/ClearReimbursementDialog.tsx` — their UX is now inside the Edit Sheet. `CounterpartyDialog.tsx` left in place (unused but Phase 11 cleanup territory).
 
 **Commit:** `ui-redesign(edit-sheet): bottom sheet with nested category picker`
 

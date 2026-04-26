@@ -82,6 +82,10 @@ export interface Transaction {
   // Reimbursement
   reimbursement: ReimbursementInfo | null;
 
+  // Free-text user note (Phase 6 Edit Sheet writes this). Optional so existing
+  // factories / fixtures that pre-date this field don't need to be updated.
+  note?: string | null;
+
   // ICS Credit Card Import
   excludeFromTotals?: boolean | undefined;
   icsStatementId?: string | null | undefined;
@@ -194,7 +198,7 @@ export interface TransactionFormData {
   description: string;
   amount: number;
   categoryId: string | null;
-  note?: string;
+  note?: string | null;
 }
 
 export interface CategoryFormData {
