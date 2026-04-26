@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { format, parseISO, startOfMonth, subMonths } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import {
   Breadcrumb,
   buildDrillBreadcrumb,
@@ -10,7 +10,6 @@ import {
   type ScrubberBar,
 } from '@/components/redesign';
 import { useSpendingExplorer } from '@/hooks/useSpendingExplorer';
-import { useMonthHighlight } from '@/hooks/useMonthHighlight';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useBudgetProgress } from '@/hooks/useBudgetProgress';
 import { useCategories } from '@/hooks/useCategories';
@@ -19,26 +18,24 @@ import { formatAmount } from '@/lib/utils';
 /**
  * Phase 7b — L1 Drill (`/expenses` and `/income`).
  *
- * Layout per v8 frame 04 (DEEP §04):
- *   [In-page breadcrumb: ← EXPENSES]
- *   [DrillHeadline: €4,292.00 · APR 2026 · BUDGET €4,500]
- *   [Scrubber: 6-month bars + dashed budget line]
- *   [hairline]
- *   [BY CATEGORY · N TOTAL]
- *   [Numbered DrillRow list, descending by spend]
+ * Source of truth for the bar strip is the backend's `monthlyTotals`
+ * response, NOT the local `selectedMonth` (the Functions emulator runs
+ * in UTC and the frontend's `toISOString()` shifts CEST start-of-month
+ * by an hour — at month boundaries the backend bucket can be one
+ * month off from the frontend's local view). By driving the strip
+ * from `data.monthlyTotals + data.currentMonth`, the page stays
+ * internally consistent regardless of TZ. (The TopBar still shows
+ * the local-time month — that's a pre-existing app-wide quirk.)
  *
- * Month-nav split (per QA round 1):
+ * Month-nav split:
  *   - TopBar `‹ ›` chevrons drive `selectedMonth` (the WINDOW anchor).
- *   - Scrubber bar tap drives a local `breakdownMonthKey` only — bars stay
- *     in the same 6-month window, just the headline + rows refresh.
- *   - Wired via `useMonthHighlight()`: a tap that matches the global month
- *     clears the local highlight, so the page tracks the TopBar by default.
+ *   - Scrubber bar tap drives a local `highlightedMonth` only —
+ *     bars stay in the same window, just headline + rows refresh.
  */
 export function SpendingExplorer() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { selectedMonth, highlightedMonth, selectedMonthKey, handleMonthClick } =
-    useMonthHighlight();
+  const [highlightedMonth, setHighlightedMonth] = useState<string | undefined>(undefined);
 
   const direction = location.pathname.startsWith('/income') ? 'income' : 'expenses';
   const basePath = `/${direction}`;
@@ -57,32 +54,41 @@ export function SpendingExplorer() {
     [budgets]
   );
 
-  // Bars: backfill to exactly 6 months ending at the WINDOW anchor
-  // (selectedMonth from MonthContext, NOT the locally-highlighted breakdown
-  // month). Per QA round 1: tapping a bar must not shift the window.
+  // Bars derived directly from the backend's `monthlyTotals` (already 6
+  // entries, oldest → newest). When data is loading, render a placeholder
+  // 6-bar strip so the layout doesn't jump.
   const scrubberBars: ScrubberBar[] = useMemo(() => {
-    const byKey = new Map((data?.monthlyTotals ?? []).map((m) => [m.monthKey, m]));
-    const bars: ScrubberBar[] = [];
-    for (let i = 5; i >= 0; i -= 1) {
-      const d = startOfMonth(subMonths(selectedMonth, i));
-      const monthKey = format(d, 'yyyy-MM');
-      const existing = byKey.get(monthKey);
-      bars.push({
-        monthKey,
-        label: format(d, 'MMM').toUpperCase(),
-        amount: existing?.amount ?? 0,
-      });
+    const totals = data?.monthlyTotals ?? [];
+    if (totals.length === 6) {
+      return totals.map((t) => ({
+        monthKey: t.monthKey,
+        label: format(parseISO(`${t.monthKey}-01`), 'MMM').toUpperCase(),
+        amount: t.amount,
+      }));
     }
-    return bars;
-  }, [data, selectedMonth]);
+    // Loading or sparse: render 6 empty placeholder bars.
+    return Array.from({ length: 6 }, (_, i) => ({
+      monthKey: `placeholder-${i}`,
+      label: '',
+      amount: 0,
+    }));
+  }, [data]);
 
-  // The Scrubber's "selected" highlight tracks the locally-tapped month
-  // (or falls back to the global month). The headline & rows show data
-  // for that same month (because we passed it as breakdownMonthKey above).
+  // Backend's "current" month for the strip = the last entry of monthlyTotals.
+  // Falls back to placeholder while loading.
+  const backendCurrentMonthKey = scrubberBars[scrubberBars.length - 1]?.monthKey ?? '';
+  const selectedMonthKey = highlightedMonth ?? backendCurrentMonthKey;
+
+  // Headline label comes from `data.currentMonth` (e.g. "March 2026"), which
+  // is the backend's authoritative breakdown month. Format → "MAR 2026".
   const breakdownLabel = useMemo(() => {
-    const m = parseISO(`${selectedMonthKey}-01`);
-    return format(m, 'MMM yyyy').toUpperCase();
-  }, [selectedMonthKey]);
+    const cm = data?.currentMonth;
+    if (!cm) return '';
+    // `data.currentMonth` is "MMMM yyyy"; convert to "MMM yyyy" UPPER.
+    const parsed = new Date(`${cm} 1`);
+    if (Number.isNaN(parsed.getTime())) return cm.toUpperCase();
+    return format(parsed, 'MMM yyyy').toUpperCase();
+  }, [data]);
   const breakdownMonthShort = breakdownLabel.split(' ')[0] ?? '';
 
   // Per-category budget lookup → drives DrillRow's progress + over variant.
@@ -104,12 +110,15 @@ export function SpendingExplorer() {
     pathname: location.pathname,
     categories,
   });
-
-  // breadcrumbSegments may be empty briefly while routing settles; fall back
-  // to the page-name placeholder.
   const segments = breadcrumbSegments.length > 0 ? breadcrumbSegments : [{ label: directionLabel }];
 
   const total = data?.currentTotal ?? 0;
+
+  const handleSelectMonth = (monthKey: string) => {
+    // Tapping the backend's current month clears the highlight (= track
+    // global default).  Otherwise set as the local override.
+    setHighlightedMonth(monthKey === backendCurrentMonthKey ? undefined : monthKey);
+  };
 
   return (
     <div className="pb-8">
@@ -136,9 +145,7 @@ export function SpendingExplorer() {
           bars={scrubberBars}
           selectedMonthKey={selectedMonthKey}
           {...(direction === 'expenses' && totalBudget > 0 ? { budget: totalBudget } : {})}
-          onSelectMonth={(monthKey) => {
-            handleMonthClick(monthKey);
-          }}
+          onSelectMonth={handleSelectMonth}
         />
       </div>
 
@@ -162,8 +169,6 @@ export function SpendingExplorer() {
           const isOver = limit !== undefined && cat.amount > limit;
           const remaining = limit !== undefined ? limit - cat.amount : null;
           const pctLabel = `${cat.percentage.toFixed(1)}% OF ${breakdownMonthShort}`;
-          // Meta line per QA round 1: `N TXN · X% OF MMM · €Y LEFT` (or `· €Y OVER`).
-          // Drop the LEFT/OVER tail when the category has no budget.
           const tail =
             remaining === null
               ? ''
@@ -205,4 +210,3 @@ function DrillSectionHeader({ label, right }: { label: string; right?: string })
     </header>
   );
 }
-

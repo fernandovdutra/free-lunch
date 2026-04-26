@@ -60,6 +60,15 @@ export function Scrubber({
             const isSelected = bar.monthKey === selectedMonthKey;
             const isOver = budget !== undefined && bar.amount > budget;
             const heightPx = Math.max(2, (bar.amount / maxScale) * STRIP_HEIGHT_PX);
+            // 3-state fill (per QA round 2: selected = full painted bar):
+            //   - selected:                bg accent, no border
+            //   - over budget (unselected): bg alert-dim, border alert
+            //   - under/normal (unselected): bg transparent, border rule
+            const fillClass = isSelected
+              ? 'bg-accent'
+              : isOver
+                ? 'border border-alert bg-alert-dim'
+                : 'border border-rule bg-transparent';
             return (
               <button
                 key={bar.monthKey}
@@ -72,25 +81,10 @@ export function Scrubber({
                 className="press relative flex-shrink-0"
                 style={{ width: BAR_WIDTH_PX, height: STRIP_HEIGHT_PX }}
               >
-                {isSelected ? (
-                  <div
-                    className="absolute inset-x-0 bg-accent"
-                    style={{
-                      bottom: heightPx - 2,
-                      height: 2,
-                    }}
-                  />
-                ) : (
-                  <div
-                    className={cn(
-                      'absolute inset-x-0 bottom-0 border',
-                      isOver
-                        ? 'border-alert bg-alert-dim'
-                        : 'border-rule bg-transparent'
-                    )}
-                    style={{ height: heightPx }}
-                  />
-                )}
+                <div
+                  className={cn('absolute inset-x-0 bottom-0', fillClass)}
+                  style={{ height: heightPx }}
+                />
               </button>
             );
           })}
