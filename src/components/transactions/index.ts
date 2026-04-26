@@ -1,7 +1,6 @@
 export { CategoryPicker } from './CategoryPicker';
 export { CounterpartyDialog } from './CounterpartyDialog';
 export { ManualResolveSheet } from './ManualResolveSheet';
-export { MonthSummaryStickyBar } from './MonthSummaryStickyBar';
 export { TransactionFilters } from './TransactionFilters';
 export { TransactionForm } from './TransactionForm';
 export { TransactionList } from './TransactionList';

@@ -9,19 +9,17 @@ interface TransactionListProps {
   months: MonthBucket[];
   categories: Category[];
   onRowTap: (transactionId: string) => void;
-  /**
-   * Per-month section ref callback. Used by Transactions.tsx to install an
-   * IntersectionObserver that updates the sticky-bar's current month.
-   */
-  registerMonthSection?: (monthKey: string, el: HTMLElement | null) => void;
 }
 
-export function TransactionList({
-  months,
-  categories,
-  onRowTap,
-  registerMonthSection,
-}: TransactionListProps) {
+/**
+ * Phase 5 list rendering. Each month is its own `<section>`; the month
+ * header at the top of each section uses `position: sticky` so it pins
+ * to the top of the scroll viewport (just below the filter pill row)
+ * until the next month's header arrives and pushes it up — same as
+ * iOS Contacts / Photos. No global "month overlay" — each header is
+ * a real row in the flow.
+ */
+export function TransactionList({ months, categories, onRowTap }: TransactionListProps) {
   if (months.length === 0) {
     return (
       <div className="px-4 py-12 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-textLo">
@@ -35,13 +33,12 @@ export function TransactionList({
   return (
     <div className="pb-8">
       {months.map((month) => (
-        <section
-          key={month.key}
-          data-month={month.key}
-          ref={(el) => {
-            registerMonthSection?.(month.key, el);
-          }}
-        >
+        <section key={month.key} data-month={month.key}>
+          <MonthHeaderRow
+            label={month.label}
+            netTotal={month.netTotal}
+            count={month.count}
+          />
           {month.days.map((day) => (
             <Fragment key={day.key}>
               <DayHeader
@@ -76,6 +73,35 @@ export function TransactionList({
           ))}
         </section>
       ))}
+    </div>
+  );
+}
+
+interface MonthHeaderRowProps {
+  label: string;
+  netTotal: number;
+  count: number;
+}
+
+/**
+ * Single sticky month row. Sits at the top of each `<section data-month>`
+ * with `position: sticky; top: 90px` (44 TopBar + 46 filter pills). Uses
+ * `bg-bg` (page background) so when content scrolls beneath it the row
+ * remains opaque. v8 measurements: APR label font-mono 13px / weight 500
+ * / letterSpacing ~0.09em / textHi; total `€X · N TXN` font-mono 11px /
+ * letterSpacing ~0.04em / textLo.
+ */
+function MonthHeaderRow({ label, netTotal, count }: MonthHeaderRowProps) {
+  return (
+    <div
+      className="sticky z-10 flex items-baseline justify-between bg-bg px-4 py-2 hairline-b top-[calc(44px+46px+env(safe-area-inset-top,0px))]"
+    >
+      <span className="font-mono text-[13px] font-medium uppercase tracking-[0.09em] text-textHi">
+        {label}
+      </span>
+      <span className="nums font-mono text-[11px] tracking-[0.04em] text-textLo">
+        {formatAmount(netTotal, { showSign: false })} · {count} TXN
+      </span>
     </div>
   );
 }

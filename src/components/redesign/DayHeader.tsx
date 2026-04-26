@@ -11,7 +11,7 @@ export function DayHeader({ label, total, className }: DayHeaderProps) {
     <div
       className={cn(
         'flex items-baseline justify-between px-4 pt-[14px] pb-1.5',
-        'font-mono text-ct-meta text-textLo upper-tight',
+        'font-mono text-[10px] uppercase tracking-[0.08em] text-textLo',
         className
       )}
     >

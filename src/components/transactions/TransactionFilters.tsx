@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { format } from 'date-fns';
+import { format, isSameMonth, startOfMonth, subMonths } from 'date-fns';
 import { Pill } from '@/components/redesign';
 import {
   Sheet,
@@ -8,6 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { useMonth } from '@/contexts/MonthContext';
 import { buildCategoryTree } from '@/hooks/useCategories';
 import { cn } from '@/lib/utils';
 import type { Category } from '@/types';
@@ -37,7 +38,9 @@ export function TransactionFilters({
   categories,
   selectedMonth,
 }: TransactionFiltersProps) {
+  const { setSelectedMonth } = useMonth();
   const [catSheetOpen, setCatSheetOpen] = useState(false);
+  const [monthSheetOpen, setMonthSheetOpen] = useState(false);
 
   const isUncat = filters.categorizationStatus === 'uncategorized';
   const isReimb = filters.reimbursementStatus === 'pending';
@@ -95,15 +98,13 @@ export function TransactionFilters({
           <Pill active={isReimb} onClick={toggleReimb}>
             ◐ REIMB
           </Pill>
-          <span
-            aria-label={`Month: ${monthLabel}. Use the month arrows in the top bar to change.`}
-            className={cn(
-              'inline-flex h-[25px] items-center whitespace-nowrap border border-rule px-2.5',
-              'font-mono text-[10px] tracking-[0.06em] uppercase text-textMid'
-            )}
+          <Pill
+            onClick={() => {
+              setMonthSheetOpen(true);
+            }}
           >
             ▸ {monthLabel}
-          </span>
+          </Pill>
           <Pill
             active={!!selectedCategory}
             onClick={() => {
@@ -122,7 +123,89 @@ export function TransactionFilters({
         selectedId={filters.categoryId ?? null}
         onPick={setCategory}
       />
+
+      <MonthPickerSheet
+        open={monthSheetOpen}
+        onOpenChange={setMonthSheetOpen}
+        selectedMonth={selectedMonth}
+        onPick={(date) => {
+          setSelectedMonth(date);
+          setMonthSheetOpen(false);
+        }}
+      />
     </>
+  );
+}
+
+interface MonthPickerSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedMonth: Date;
+  onPick: (date: Date) => void;
+}
+
+/**
+ * 12-month grid picker. Shows the current calendar month plus the 11
+ * months before it, in a 4×3 grid. Tap a cell → set that month.
+ */
+function MonthPickerSheet({
+  open,
+  onOpenChange,
+  selectedMonth,
+  onPick,
+}: MonthPickerSheetProps) {
+  const months = useMemo(() => {
+    const today = startOfMonth(new Date());
+    return Array.from({ length: 12 }, (_, i) => subMonths(today, i));
+  }, []);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>SELECT MONTH</SheetTitle>
+        </SheetHeader>
+        <SheetBody>
+          <div className="grid grid-cols-4 gap-2 px-4 pb-4">
+            {months.map((m) => {
+              const isCurrent = isSameMonth(m, selectedMonth);
+              return (
+                <button
+                  key={m.toISOString()}
+                  type="button"
+                  onClick={() => {
+                    onPick(m);
+                  }}
+                  className={cn(
+                    'press flex h-[60px] flex-col items-center justify-center border',
+                    isCurrent
+                      ? 'border-accent bg-accent-dim'
+                      : 'border-rule bg-transparent'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'font-mono text-[13px] font-medium uppercase tracking-[0.08em]',
+                      isCurrent ? 'text-accent' : 'text-textHi'
+                    )}
+                  >
+                    {format(m, 'MMM')}
+                  </span>
+                  <span
+                    className={cn(
+                      'mt-0.5 font-mono text-[10px] tracking-[0.06em]',
+                      isCurrent ? 'text-accent' : 'text-textLo'
+                    )}
+                  >
+                    {format(m, 'yyyy')}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
   );
 }
 

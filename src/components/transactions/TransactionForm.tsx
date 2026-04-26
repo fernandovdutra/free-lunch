@@ -63,7 +63,6 @@ export function TransactionForm({
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const initialNoteRef = useRef('');
 
   const dirty = note !== initialNoteRef.current;
@@ -75,7 +74,6 @@ export function TransactionForm({
       setNote(startingNote);
       initialNoteRef.current = startingNote;
       setConfirmingDiscard(false);
-      setConfirmingDelete(false);
     }
     if (!open) {
       setPickerOpen(false);
@@ -316,39 +314,12 @@ export function TransactionForm({
               </>
             )}
 
-            {/* DELETE */}
+            {/* DELETE — slide-to-confirm to prevent accidental taps */}
             <div className="px-4 pb-6 pt-6">
-              {confirmingDelete ? (
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setConfirmingDelete(false);
-                    }}
-                    className="press hairline-b flex-1 border border-rule px-3 py-2 font-mono text-[12px] uppercase tracking-[0.08em] text-textMid"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleDelete()}
-                    disabled={deleteMutation.isPending}
-                    className="press flex-1 border border-warn bg-warn-dim px-3 py-2 font-mono text-[12px] uppercase tracking-[0.08em] text-warn disabled:opacity-50"
-                  >
-                    Confirm Delete
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmingDelete(true);
-                  }}
-                  className="press w-full border border-rule px-3 py-3 text-center font-mono text-[12px] uppercase tracking-[0.08em] text-warn"
-                >
-                  Delete Transaction
-                </button>
-              )}
+              <SlideToDelete
+                onConfirm={() => void handleDelete()}
+                disabled={deleteMutation.isPending}
+              />
             </div>
 
             {/* type='expense' currently ignored on display; the toggle uses 'work' default */}
@@ -466,5 +437,120 @@ function RowToggle({ label, active, onToggle, disabled }: RowToggleProps) {
         />
       </span>
     </button>
+  );
+}
+
+interface SlideToDeleteProps {
+  onConfirm: () => void;
+  disabled?: boolean;
+}
+
+/**
+ * Slide-to-confirm delete control. The user drags the warn-coloured thumb
+ * from left to right; once the drag passes ~85% of the track, deletion
+ * fires. Releasing before that snaps the thumb back. Pointer events make
+ * this work uniformly across mouse / touch / pen.
+ *
+ * Replaces the prior two-step `Delete → Confirm` button pair which was
+ * easy to mistap on iPhone.
+ */
+function SlideToDelete({ onConfirm, disabled }: SlideToDeleteProps) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [trackW, setTrackW] = useState(0);
+  const [progress, setProgress] = useState(0); // 0..1
+  const [committed, setCommitted] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef<{ pointerId: number; startX: number } | null>(null);
+
+  const COMMIT_THRESHOLD = 0.85;
+  const THUMB_W = 56;
+
+  // Measure track width (and re-measure on resize)
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const update = () => {
+      setTrackW(el.offsetWidth);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+    };
+  }, []);
+
+  const maxDx = Math.max(0, trackW - THUMB_W);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (disabled || committed) return;
+    const track = trackRef.current;
+    if (!track) return;
+    track.setPointerCapture(e.pointerId);
+    dragRef.current = { pointerId: e.pointerId, startX: e.clientX };
+    setDragging(true);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId || maxDx === 0) return;
+    const dx = e.clientX - drag.startX;
+    setProgress(Math.max(0, Math.min(1, dx / maxDx)));
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    setDragging(false);
+    if (progress >= COMMIT_THRESHOLD) {
+      setProgress(1);
+      setCommitted(true);
+      onConfirm();
+    } else {
+      setProgress(0);
+    }
+  };
+
+  const labelOpacity = Math.max(0, 1 - progress * 1.5);
+
+  return (
+    <div
+      ref={trackRef}
+      className={cn(
+        'relative h-12 w-full overflow-hidden border border-warn/40 bg-warn-dim',
+        disabled && 'opacity-50'
+      )}
+    >
+      <span
+        className="pointer-events-none absolute inset-0 flex items-center justify-center font-mono text-[12px] uppercase tracking-[0.08em] text-warn transition-opacity duration-100"
+        style={{ opacity: labelOpacity }}
+      >
+        {committed ? 'Deleting…' : 'Slide to delete'}
+      </span>
+      <button
+        type="button"
+        disabled={disabled || committed}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        aria-label="Slide to delete transaction"
+        className={cn(
+          'absolute inset-y-0 left-0 flex items-center justify-center bg-warn text-bg',
+          'touch-none cursor-grab active:cursor-grabbing',
+          // Smooth springback when not actively dragging
+          dragging ? '' : 'transition-transform duration-180 ease-out'
+        )}
+        style={{
+          width: `${THUMB_W}px`,
+          transform: `translateX(${progress * maxDx}px)`,
+        }}
+      >
+        <span aria-hidden className="font-mono text-[16px] leading-none">
+          ›
+        </span>
+      </button>
+    </div>
   );
 }

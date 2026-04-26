@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { endOfMonth, format, startOfMonth, subMonths } from 'date-fns';
+import { endOfMonth, startOfMonth, subMonths } from 'date-fns';
 import { TransactionFilters } from '@/components/transactions/TransactionFilters';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { groupByMonthThenDay } from '@/components/transactions/groupTransactions';
-import { MonthSummaryStickyBar } from '@/components/transactions/MonthSummaryStickyBar';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { useCategories } from '@/hooks/useCategories';
 import {
@@ -28,9 +27,10 @@ const FILTER_KEYS = [
 /**
  * How many months of data to render at once. The page anchors at the
  * MonthContext-selected month and pulls this many months going backward
- * (e.g. selectedMonth=APR 2026 → fetch Nov 2025 through Apr 2026). Lets
- * the IntersectionObserver-driven MonthSummaryStickyBar swap labels as
- * the user scrolls past month boundaries.
+ * (e.g. selectedMonth=APR 2026 → fetch Nov 2025 through Apr 2026). Each
+ * month section gets its own `position: sticky` header that pins below
+ * the filter pills as you scroll, then is pushed up by the next month's
+ * header — same pattern as iOS Contacts.
  */
 const TRANSACTIONS_MONTHS_WINDOW = 6;
 
@@ -40,21 +40,16 @@ const TRANSACTIONS_MONTHS_WINDOW = 6;
  * Layout per v8 mock + README §03:
  *   [TopBar]
  *   [sticky filter pill row]
- *   [sticky month summary bar]
- *   [day-grouped TransactionList]
+ *   [day-grouped TransactionList — each month has its own sticky header row]
  *
- * Row-tap opens the (still-current) TransactionForm dialog via ?id=…
- * deep-link. Phase 6 swaps the dialog for a bottom sheet and folds in the
- * reimbursement / merchant-rule / delete actions that used to live as
- * separate dialogs on this page.
+ * Row-tap opens the Phase 6 Edit Sheet via `?id=…` deep-link.
  */
 export function Transactions() {
   const { selectedMonth } = useMonth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // 6-month window ending at the selected month — drives the multi-month
-  // scroll + sticky-bar swap. selectedMonth still feeds the filter bar's
-  // anchor pill (`▸ APR 2026`) so the user knows which month they "picked".
+  // scroll. selectedMonth still feeds the filter bar's anchor pill.
   const dateRange = useMemo(
     () => ({
       startDate: startOfMonth(subMonths(selectedMonth, TRANSACTIONS_MONTHS_WINDOW - 1)),
@@ -182,100 +177,6 @@ export function Transactions() {
 
   const months = useMemo(() => groupByMonthThenDay(transactions), [transactions]);
 
-  // Sticky-bar month tracker — swaps `APR / MAR / FEB …` as the user scrolls
-  // past month-section boundaries.
-  //
-  // Originally tried IntersectionObserver but hit reliability gaps when sections
-  // are very tall (single ratio threshold sweeps don't always fire on slow
-  // scrolls). A throttled scroll listener with direct bounding-rect reads is
-  // simpler and exercises the same logic on every frame the user is scrolling.
-  const STICKY_OFFSET = 90; // 44 TopBar + 46 pill row (matches MonthSummaryStickyBar's top:90)
-  const [currentMonthKey, setCurrentMonthKey] = useState<string | null>(null);
-  const monthRefs = useRef(new Map<string, HTMLElement>());
-
-  const recomputeCurrentMonth = useCallback(() => {
-    // The "active" month is the topmost section whose bottom is still below
-    // the sticky bar (i.e. some content is still visible under the bar) AND
-    // whose top is above the viewport bottom (i.e. it hasn't fully scrolled
-    // up off-screen yet from above). When the user scrolls past a section
-    // completely, its bottom drops above the sticky bar — at that moment the
-    // next section takes over.
-    let bestKey: string | null = null;
-    let bestTop = Infinity;
-    for (const [key, el] of monthRefs.current.entries()) {
-      const r = el.getBoundingClientRect();
-      const intersecting = r.bottom > STICKY_OFFSET && r.top < window.innerHeight;
-      if (!intersecting) continue;
-      if (r.top < bestTop) {
-        bestKey = key;
-        bestTop = r.top;
-      }
-    }
-    if (bestKey) {
-      setCurrentMonthKey((prev) => (prev === bestKey ? prev : bestKey));
-    }
-  }, []);
-
-  // Single long-lived observer; ref callbacks observe/unobserve sections as
-  // they mount and unmount. Avoids races where useEffect tries to observe a
-  // map of refs that hasn't been populated yet.
-  const observerRef = useRef<IntersectionObserver | null>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      () => {
-        recomputeCurrentMonth();
-      },
-      { rootMargin: `-${STICKY_OFFSET}px 0px 0px 0px`, threshold: [0, 0.01, 0.5, 1] }
-    );
-    observerRef.current = observer;
-    // Observe whatever's already mounted (e.g. on hot reload)
-    for (const el of monthRefs.current.values()) observer.observe(el);
-
-    let frame = 0;
-    const onScroll = () => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(() => {
-        frame = 0;
-        recomputeCurrentMonth();
-      });
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll, { passive: true });
-
-    // Initial pass once layout settles
-    recomputeCurrentMonth();
-
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      observer.disconnect();
-      observerRef.current = null;
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, [recomputeCurrentMonth]);
-
-  const registerMonthSection = useCallback(
-    (key: string, el: HTMLElement | null) => {
-      const map = monthRefs.current;
-      const existing = map.get(key);
-      if (existing && observerRef.current) observerRef.current.unobserve(existing);
-      if (el) {
-        map.set(key, el);
-        observerRef.current?.observe(el);
-        // Recompute now — IO callback won't fire until threshold crossings, and
-        // we want the bar accurate as soon as the first section mounts.
-        recomputeCurrentMonth();
-      } else {
-        map.delete(key);
-      }
-    },
-    [recomputeCurrentMonth]
-  );
-
-  const stickyMonthKey = currentMonthKey ?? format(selectedMonth, 'yyyy-MM');
-  const stickyMonth = months.find((m) => m.key === stickyMonthKey) ?? months[0] ?? null;
-
   const handleFormSubmit = async (data: TransactionFormData) => {
     if (editingTransaction) {
       await updateMutation.mutateAsync({ id: editingTransaction.id, data });
@@ -301,25 +202,12 @@ export function Transactions() {
         selectedMonth={selectedMonth}
       />
 
-      {stickyMonth && (
-        <MonthSummaryStickyBar
-          monthLabel={stickyMonth.label}
-          netTotal={stickyMonth.netTotal}
-          count={stickyMonth.count}
-        />
-      )}
-
       {isLoading ? (
         <div className="px-4 py-12 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-textLo">
           Loading transactions…
         </div>
       ) : (
-        <TransactionList
-          months={months}
-          categories={categories}
-          onRowTap={openEdit}
-          registerMonthSection={registerMonthSection}
-        />
+        <TransactionList months={months} categories={categories} onRowTap={openEdit} />
       )}
 
       <TransactionForm
