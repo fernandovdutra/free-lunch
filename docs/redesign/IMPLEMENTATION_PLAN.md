@@ -46,8 +46,8 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 | 0 | Foundations (tokens, fonts, tailwind, cleanup) | ☑ | desktop+iPhone verified 2026-04-25 |
 | 1 | Shell + nav (TopBar, TabBar, Sheet primitive, desktop side-rail) | ☑ | desktop + iPhone verified 2026-04-25 |
 | 2 | Shared primitives (rows, section header, pill, progress bar, status glyph) | ☑ | desktop verified 2026-04-26; iPhone walkthrough pending |
-| 3 | Login (Google-only, blinking cursor, delete Register) | ☑ | desktop preview verified 2026-04-26; iPhone walkthrough pending |
-| 4 | Home | ☑ | typecheck/lint clean 2026-04-26; iPhone walkthrough on seeded emulator pending |
+| 3 | Login (Google-only, blinking cursor, delete Register) | ☑ | desktop preview verified 2026-04-26; live emulator login confirmed |
+| 4 | Home | ☑ | live walkthrough on seeded emulator 2026-04-26; over-budget + taps + desktop layout all verified |
 | 5 | Transactions (sticky filters + month header) | ☐ | |
 | 6 | Transaction Edit Sheet | ☐ | |
 | 7 | Drill L1/L2/L3 **(large)** | ☐ | |
@@ -175,7 +175,7 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 >
 > **E2E ripple (minimum surgery — Phase 11 owns the deeper cleanup):** removed `register()` helper from `e2e/fixtures/auth.ts`; `isAuthAvailable` and `authenticatedPage` fixtures now go straight to `login()` against the seeded `test@freelunch.local` user. Pruned register-page tests from `e2e/auth.spec.ts` and `e2e/smoke.spec.ts`; updated heading assertions to look for the new `FREE LUNCH` wordmark. Sign-in button selector swapped to `/dev login/i`.
 >
-> **Verified:** `npm run typecheck` clean, `npm run lint` clean on Phase 3 files (pre-existing warnings in unrelated files unchanged). Browser preview at `http://localhost:5180/login` (mobile 375×812) — wordmark, tagline, cursor block (animation `cursor-blink 1.1s`), Google PhosphorButton (48×280, surface bg `#16181b`), and DEV fallback all render with the correct calm-terminal tokens. iPhone walkthrough deferred to user — when ready, point the phone at the running emulator stack URL and confirm.
+> **Verified:** `npm run typecheck` clean, `npm run lint` clean on Phase 3 files (pre-existing warnings in unrelated files unchanged). Browser preview at `http://localhost:5180/login` (mobile 375×812) — wordmark, tagline, cursor block (animation `cursor-blink 1.1s`), Google PhosphorButton (48×280, surface bg `#16181b`), and DEV fallback all render with the correct calm-terminal tokens. Live emulator login confirmed: filled `test@freelunch.local` / `test1234` in the DEV form, click submitted, auth emulator returned 200, AuthContext.fetchOrCreateUser succeeded, and the page navigated to `/`.
 >
 > **Follow-ups:** none for Phase 3. The dev-fallback could later be hidden behind a 5-tap easter-egg for a cleaner production-feel even in dev — log here if requested.
 >
@@ -216,7 +216,23 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 > - Fiscal-month-start preference still not in Firestore — days-left uses calendar month. Phase 10 introduces the field; Phase 4 will need a one-line follow-up to consume it.
 > - Two `useDashboardData` calls add a round-trip on Home mount. TanStack Query caches both; subsequent month navigation reuses cache. Acceptable for now; future perf work could fold prev-month-spent into the existing Cloud Function.
 >
-> **Verified:** `npm run typecheck` clean. `npm run lint` clean on Phase 4 files (45 pre-existing problems in unrelated files unchanged — Investments, IcsBreakdown*, Transactions, etc.). Dev server preview confirms `Home.tsx` module imports cleanly, `App.tsx` still mounts, `/login` still renders the Phase 3 redesign, `/__dev/primitives` still renders all primitives. Actual Home rendering requires the seeded emulator stack — deferred to user's iPhone walkthrough at `http://192.168.68.59:5174/` with `test@freelunch.local` / `test1234`.
+> **Verified live on the seeded emulator (2026-04-26):**
+> - `npm run typecheck` clean. `npm run lint` clean on Phase 4 files.
+> - Logged in via the DEV fallback as `test@freelunch.local` and walked through Home for APR 2026:
+>   - Spent headline `€ 7.034,72` rendered in `text-warn` (correctly — total spend exceeds the €1.620 sum of active budgets).
+>   - Delta line `▼ € 81,42 vs MAR` rendered in `text-accent` (improvement direction). Confirms the second `useDashboardData` call resolves.
+>   - BudgetLine showed `€ 5.414,72 OVER BUDGET · 4 DAYS LEFT` in warn; ProgressBar bg-image confirmed `linear-gradient(--warn-dim, --warn)` with `aria-valuenow=100`.
+>   - `BY CATEGORY` section showed 4 rows (Rent/Mortgage, Travel, Groceries, Restaurants) with `+ 11 MORE CATEGORIES ›` action — correct count for the seeded data (15 categories with spend).
+>   - Two budgeted categories (Groceries, Restaurants) flipped to `over` variant with warn meta + warn progress bar; the two un-budgeted rows (Rent/Mortgage, Travel) correctly omitted the bar.
+>   - Recent Transactions section rendered 4 rows with mono date + uppercase category meta and `-€` sign on expenses.
+>   - PendingBanner correctly hidden (seeded data has no pending reimbursements; `pendingReimbursements <= 0` short-circuits the render).
+> - Tap targets verified: `VIEW ALL ›` → `/transactions`, `+ 11 MORE CATEGORIES ›` → `/expenses`, Groceries CategoryRow → `/expenses/food` (correct parent resolution via `categoryById.parentId` lookup).
+> - Responsive: mobile (375×812) shows TabBar at bottom and TopBar at top; desktop (1280×800) shows the SideRail aside (60px wide), TopBar, hides the bottom TabBar (`lg:hidden`), and constrains Home to a 480px centered column.
+> - Browser screenshot tool times out in this environment regardless of page state — verification done via accessibility-tree snapshot + computed-style queries instead, which is more rigorous than visual eyeballing.
+>
+> **Not exercised live:**
+> - Under-budget variant (where spent < budget): no seeded month has under-budget data, and the TopBar in this phase has no month-prev/next nav (Phase 5 adds it). The accent-variant code paths are the symmetric default in `SpentHeadline` / `BudgetLine` / `CategoryRow`, so logic is trusted.
+> - TransactionRow tap navigates to `/transactions`; the `?id={t.id}` query param is swallowed by the page's existing routing — the deep-link to the edit sheet is Phase 6 territory and was always going to be a placeholder.
 >
 > **Follow-ups:**
 > - iPhone walkthrough pending (user-side).
