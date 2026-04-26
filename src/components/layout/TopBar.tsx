@@ -1,12 +1,7 @@
-import { useLocation } from 'react-router-dom';
 import { useMonth } from '@/contexts/MonthContext';
 import { useBankConnections } from '@/hooks/useBankConnection';
-import { useCategories } from '@/hooks/useCategories';
 import { useToast } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
-import { buildDrillBreadcrumb } from '@/components/redesign/buildDrillBreadcrumb';
-
-const DRILL_PREFIXES = ['/expenses', '/income', '/counterparty', '/ics'];
 
 const MONTH_LABELS = [
   'JANUARY',
@@ -23,10 +18,6 @@ const MONTH_LABELS = [
   'DECEMBER',
 ];
 
-function pathIsDrill(pathname: string): boolean {
-  return DRILL_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-}
-
 function formatRelativeMinutes(when: Date | string | null | undefined): string | null {
   if (!when) return null;
   const t = when instanceof Date ? when.getTime() : Date.parse(when);
@@ -42,35 +33,20 @@ function formatRelativeMinutes(when: Date | string | null | undefined): string |
   return `${day}D AGO`;
 }
 
-function buildDrillTitle(pathname: string, categoryNames: ReturnType<typeof useCategories>['data']): string {
-  // /counterparty/:cp and /ics/:id don't have a categoryId-driven title; show
-  // the route's first segment as a fallback. Phase 11 can give those pages
-  // their own pretty titles.
-  if (pathname.startsWith('/counterparty/')) return 'COUNTERPARTY';
-  if (pathname.startsWith('/ics/')) return 'ICS BREAKDOWN';
-
-  const segs = buildDrillBreadcrumb({
-    pathname,
-    categories: categoryNames ?? [],
-  });
-  if (segs.length === 0) return '';
-  return segs[segs.length - 1]?.label ?? '';
-}
-
+/**
+ * Single-mode TopBar: month nav (`‹ APRIL 2026 ›`) on the left, sync indicator
+ * + search + add on the right. Identical chrome on home and drill pages — the
+ * drill page's own header (in-page Breadcrumb + DrillHeadline) provides the
+ * scope label, so the TopBar always serves the global month controls.
+ */
 export function TopBar() {
-  const location = useLocation();
   const { selectedMonth, goToPreviousMonth, goToNextMonth, isCurrentMonth } = useMonth();
   const { data: connections } = useBankConnections();
-  const { data: categories } = useCategories();
   const { toast } = useToast();
 
-  const drill = pathIsDrill(location.pathname);
   const monthLabel = MONTH_LABELS[selectedMonth.getMonth()] ?? '';
   const yearLabel = selectedMonth.getFullYear();
-  const drillTitle = drill ? buildDrillTitle(location.pathname, categories) : '';
 
-  // Most-recent sync across active bank connections. The Cloud Function
-  // wire format returns ISO strings even though the type says Date — accept either.
   const latestSync = (connections ?? [])
     .map((c) => c.lastSync as Date | string | null)
     .filter((d): d is NonNullable<typeof d> => d != null)
@@ -102,12 +78,12 @@ export function TopBar() {
             ‹
           </button>
           <span className="nums font-mono text-[11px] uppercase tracking-[0.12em] text-textHi">
-            {drill ? drillTitle : `${monthLabel} ${yearLabel}`}
+            {monthLabel} {yearLabel}
           </span>
           <button
             type="button"
             onClick={goToNextMonth}
-            disabled={!drill && isCurrentMonth}
+            disabled={isCurrentMonth}
             aria-label="Next month"
             className="font-mono text-[14px] leading-none text-textLo active:opacity-60 px-1 disabled:opacity-30"
           >
