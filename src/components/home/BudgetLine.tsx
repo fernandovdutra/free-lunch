@@ -4,38 +4,39 @@ import { cn, formatAmount } from '@/lib/utils';
 interface BudgetLineProps {
   spent: number;
   budget: number;
-  daysLeft: number | null;
   isOver: boolean;
 }
 
-export function BudgetLine({ spent, budget, daysLeft, isOver }: BudgetLineProps) {
+export function BudgetLine({ spent, budget, isOver }: BudgetLineProps) {
+  if (budget <= 0) return null;
   const remaining = Math.max(0, budget - spent);
   const over = Math.max(0, spent - budget);
-
-  const tail =
-    daysLeft !== null ? ` · ${daysLeft} ${daysLeft === 1 ? 'DAY' : 'DAYS'} LEFT` : '';
+  const pct = Math.round((spent / budget) * 100);
 
   return (
-    <div className="px-5 pt-3 pb-5">
-      <ProgressBar value={spent} max={Math.max(budget, 1)} variant={isOver ? 'warn' : 'accent'} />
+    <div className="mt-3">
       <div
         className={cn(
-          'mt-2 font-mono text-[10px] uppercase tracking-[0.12em]',
+          'flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.06em] mb-1.5',
           isOver ? 'text-warn' : 'text-textLo'
         )}
       >
-        {isOver ? (
-          <>
-            <span className="nums">{formatAmount(over, { showSign: false })}</span> OVER BUDGET
-            {tail}
-          </>
-        ) : (
-          <>
-            <span className="nums">{formatAmount(remaining, { showSign: false })}</span> LEFT
-            {tail}
-          </>
-        )}
+        <span>
+          {isOver ? (
+            <>
+              <span className="nums">{formatAmount(over, { showSign: false })}</span> OVER OF{' '}
+              <span className="nums">{formatAmount(budget, { showSign: false })}</span>
+            </>
+          ) : (
+            <>
+              <span className="nums">{formatAmount(remaining, { showSign: false })}</span> LEFT OF{' '}
+              <span className="nums">{formatAmount(budget, { showSign: false })}</span>
+            </>
+          )}
+        </span>
+        <span className="nums">{pct}%</span>
       </div>
+      <ProgressBar value={spent} max={budget} variant={isOver ? 'warn' : 'accent'} />
     </div>
   );
 }

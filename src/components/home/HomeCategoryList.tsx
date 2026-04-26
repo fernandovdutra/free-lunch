@@ -5,7 +5,8 @@ export interface HomeCategoryEntry {
   categoryId: string;
   name: string;
   amount: string;
-  meta: string;
+  amountTrailing?: string;
+  meta?: string;
   progress?: number;
   max?: number;
   variant: 'ok' | 'over';
@@ -13,29 +14,24 @@ export interface HomeCategoryEntry {
 
 interface HomeCategoryListProps {
   entries: HomeCategoryEntry[];
+  totalCount: number;
   moreCount: number;
   onCategoryClick: (categoryId: string) => void;
 }
 
 export function HomeCategoryList({
   entries,
+  totalCount,
   moreCount,
   onCategoryClick,
 }: HomeCategoryListProps) {
   return (
-    <section>
+    <section className="mt-6">
       <SectionHeader
-        tether
         right={
-          moreCount > 0 ? (
-            <Link to="/expenses" className="press text-textMid">
-              + {moreCount} MORE {moreCount === 1 ? 'CATEGORY' : 'CATEGORIES'} ›
-            </Link>
-          ) : (
-            <Link to="/expenses" className="press text-textMid">
-              VIEW ALL ›
-            </Link>
-          )
+          <span className="nums font-mono text-[10px] uppercase tracking-[0.06em] text-textLo">
+            {totalCount} TOTAL
+          </span>
         }
       >
         BY CATEGORY
@@ -45,7 +41,8 @@ export function HomeCategoryList({
           key={entry.categoryId}
           name={entry.name}
           amount={entry.amount}
-          meta={entry.meta}
+          {...(entry.amountTrailing ? { amountTrailing: entry.amountTrailing } : {})}
+          {...(entry.meta ? { meta: entry.meta } : {})}
           {...(entry.progress !== undefined ? { progress: entry.progress } : {})}
           {...(entry.max !== undefined ? { max: entry.max } : {})}
           variant={entry.variant}
@@ -54,6 +51,14 @@ export function HomeCategoryList({
           }}
         />
       ))}
+      {moreCount > 0 && (
+        <Link
+          to="/expenses"
+          className="press mt-3 flex items-center justify-center font-mono text-[11px] uppercase tracking-[0.08em] text-accent"
+        >
+          + {moreCount} MORE {moreCount === 1 ? 'CATEGORY' : 'CATEGORIES'} →
+        </Link>
+      )}
     </section>
   );
 }

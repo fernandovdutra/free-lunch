@@ -1,11 +1,9 @@
-import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  differenceInDays,
-  endOfMonth,
   format,
-  startOfMonth,
-  subMonths,
+  getDate,
+  getDaysInMonth,
+  isAfter,
 } from 'date-fns';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useCategories } from '@/hooks/useCategories';
@@ -18,21 +16,15 @@ import {
   BudgetLine,
   HomeCategoryList,
   PendingBanner,
-  SpentHeadline,
+  SpentBlock,
   type HomeCategoryEntry,
 } from '@/components/home';
 
 export function Home() {
   const navigate = useNavigate();
-  const { selectedMonth, dateRange, isCurrentMonth } = useMonth();
-
-  const prevRange = useMemo(() => {
-    const prev = subMonths(dateRange.startDate, 1);
-    return { startDate: startOfMonth(prev), endDate: endOfMonth(prev) };
-  }, [dateRange.startDate]);
+  const { selectedMonth, isCurrentMonth, dateRange } = useMonth();
 
   const { data: current, error } = useDashboardData(dateRange);
-  const { data: previous } = useDashboardData(prevRange);
   const { data: budgets = [] } = useBudgets();
   const { data: budgetProgress } = useBudgetProgress(dateRange);
   const { data: categories = [] } = useCategories();
@@ -46,7 +38,6 @@ export function Home() {
   }
 
   const monthAbbr = format(selectedMonth, 'MMM').toUpperCase();
-  const prevMonthAbbr = format(prevRange.startDate, 'MMM').toUpperCase();
 
   const summary = current?.summary ?? {
     totalIncome: 0,
@@ -62,10 +53,35 @@ export function Home() {
     .reduce((sum, b) => sum + b.monthlyLimit, 0);
   const isOver = budget > 0 && spent > budget;
 
-  const delta = previous ? spent - previous.summary.totalExpenses : null;
+  // Linear extrapolation for the current month: if 4 days into a 30-day month
+  // we've spent €100, project = €100 / 4 * 30 = €750. For past months, the
+  // projection collapses to the actual spent — we hide the right-stack to keep
+  // the headline calm.
+  const today = new Date();
+  const daysInMonth = getDaysInMonth(selectedMonth);
+  const dayOfMonth = isCurrentMonth ? getDate(today) : daysInMonth;
+  const isFutureMonth = isAfter(selectedMonth, today);
 
-  const daysLeft = isCurrentMonth
-    ? Math.max(0, differenceInDays(endOfMonth(new Date()), new Date()))
+  const projection: { amount: number; delta: number } | null =
+    isCurrentMonth && spent > 0 && dayOfMonth > 0 && !isFutureMonth
+      ? (() => {
+          const projectedAmount = (spent / dayOfMonth) * daysInMonth;
+          const delta = projectedAmount - budget;
+          return { amount: projectedAmount, delta };
+        })()
+      : null;
+
+  const projectionView = projection
+    ? {
+        amountFormatted: formatAmount(projection.amount, { showSign: false }),
+        deltaFormatted: formatAmount(Math.abs(projection.delta), { showSign: false }),
+        deltaSign:
+          projection.delta > 0
+            ? ('+' as const)
+            : projection.delta < 0
+              ? ('-' as const)
+              : ('·' as const),
+      }
     : null;
 
   const pendingTotal = summary.pendingReimbursements;
@@ -76,31 +92,24 @@ export function Home() {
   const topCategories = categorySpending.slice(0, 4);
   const moreCategoryCount = Math.max(0, categorySpending.length - topCategories.length);
 
-  const progressByCategory = new Map(budgetProgress.map((p) => [p.budget.categoryId, p]));
+  const progressByCategory = new Map((budgetProgress ?? []).map((p) => [p.budget.categoryId, p]));
 
   const categoryEntries: HomeCategoryEntry[] = topCategories.map((c) => {
     const bp = progressByCategory.get(c.categoryId);
     const isCatOver = bp ? c.amount > bp.budget.monthlyLimit : false;
 
-    const metaParts = [
-      `${c.transactionCount} TXN`,
-      `${c.percentage.toFixed(1)}% OF ${monthAbbr}`,
-    ];
+    let trailing: string | undefined;
     if (bp) {
-      if (isCatOver) {
-        metaParts.push(
-          `OVER ${formatAmount(c.amount - bp.budget.monthlyLimit, { showSign: false })}`
-        );
-      } else {
-        metaParts.push(`${formatAmount(bp.remaining, { showSign: false })} LEFT`);
-      }
+      trailing = isCatOver
+        ? `${formatAmount(c.amount - bp.budget.monthlyLimit, { showSign: false })} over`
+        : `${formatAmount(bp.remaining, { showSign: false })} left`;
     }
 
     return {
       categoryId: c.categoryId,
       name: c.categoryName,
       amount: formatAmount(c.amount, { showSign: false }),
-      meta: metaParts.join(' · '),
+      ...(trailing ? { amountTrailing: trailing } : {}),
       ...(bp ? { progress: c.amount, max: bp.budget.monthlyLimit } : {}),
       variant: isCatOver ? 'over' : 'ok',
     };
@@ -115,32 +124,39 @@ export function Home() {
     void navigate(`/expenses/${topLevelId}`);
   };
 
+  // Bank-account balance is not yet exposed by any current hook — useBankConnections
+  // returns connection metadata only. The BalanceRow primitive is in place
+  // (src/components/home/BalanceRow.tsx) and Phase 10 will wire it.
+
   return (
     <div className="pb-8">
       <PendingBanner amount={pendingTotal} count={pendingCount} />
 
-      <SpentHeadline
+      <SpentBlock
         spent={spent}
-        budget={budget}
-        delta={delta}
-        prevMonthLabel={prevMonthAbbr}
+        spentFormatted={formatAmount(spent, { showSign: false })}
+        monthLabel={monthAbbr}
+        projection={projectionView}
         isOver={isOver}
       />
 
-      <BudgetLine spent={spent} budget={budget} daysLeft={daysLeft} isOver={isOver} />
+      <BudgetLine spent={spent} budget={budget} isOver={isOver} />
 
       <HomeCategoryList
         entries={categoryEntries}
+        totalCount={categorySpending.length}
         moreCount={moreCategoryCount}
         onCategoryClick={handleCategoryClick}
       />
 
-      <section>
+      <section className="mt-6">
         <SectionHeader
-          tether
           right={
-            <Link to="/transactions" className="press text-textMid">
-              VIEW ALL ›
+            <Link
+              to="/transactions"
+              className="press nums font-mono text-[10px] uppercase tracking-[0.06em] text-accent"
+            >
+              ALL {summary.transactionCount} →
             </Link>
           }
         >
@@ -151,7 +167,7 @@ export function Home() {
           const isIncome = t.amount > 0;
           const isPending = t.reimbursement?.status === 'pending';
           const isUncat = !t.categoryId;
-          const dateLabel = format(t.date, 'MMM d').toUpperCase();
+          const time = format(t.date, 'HH:mm');
           const categoryLabel = category?.name.toUpperCase() ?? 'UNCATEGORIZED';
           const variant = isPending
             ? 'pending'
@@ -167,7 +183,8 @@ export function Home() {
               merchant={t.counterparty ?? t.description}
               amount={formatAmount(t.amount, { showSign: false })}
               sign={isIncome ? '+' : '-'}
-              meta={`${dateLabel} · ${categoryLabel}`}
+              meta={categoryLabel}
+              time={time}
               variant={variant}
               onClick={() => {
                 void navigate(`/transactions?id=${t.id}`);
