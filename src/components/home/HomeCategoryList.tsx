@@ -27,19 +27,20 @@ export function HomeCategoryList({
 }: HomeCategoryListProps) {
   return (
     <section className="relative">
-      {/* Tether ┗ glyph: small hairline-bottom box that visually connects the
-          spent-block hairline (above) to the BY CATEGORY header. Sits in the
-          left gutter, outside the indent. */}
+      {/* Tether ┗ glyph: small left-and-bottom-bordered box that visually
+          extends the spent-block's bottom hairline down to the BY CATEGORY
+          row's vertical center, with a rounded inner corner. */}
       <span
         aria-hidden
-        className="absolute font-mono leading-none text-textDim"
+        className="absolute"
         style={{
           left: 20,
-          top: 6,
+          top: 0,
           width: 18,
-          height: 20,
+          height: 19,
           borderLeft: '1px solid var(--rule-hi)',
           borderBottom: '1px solid var(--rule-hi)',
+          borderBottomLeftRadius: 4,
         }}
       />
       <div className="ml-11 mr-5">

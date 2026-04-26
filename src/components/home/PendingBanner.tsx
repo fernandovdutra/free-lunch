@@ -18,7 +18,16 @@ export function PendingBanner({ amount, count }: PendingBannerProps) {
         backgroundColor: 'rgba(196, 242, 90, 0.06)',
       }}
     >
-      <span aria-hidden className="block h-1.5 w-1.5 bg-accent" />
+      <span
+        aria-hidden
+        className="block bg-accent"
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 3,
+          boxShadow: '0 0 5px var(--accent)',
+        }}
+      />
       <span className="nums font-mono text-[11px] uppercase tracking-[0.04em] text-accent">
         +{formatAmount(amount, { showSign: false })} PENDING
       </span>

@@ -8,8 +8,8 @@ interface TabBarProps {
 
 const TABS = [
   { href: '/', label: 'HOME', glyph: '▤', exact: true },
-  { href: '/transactions', label: 'TXNS', glyph: '▣', exact: false },
-  { href: '/budgets', label: 'BUDGET', glyph: '◐', exact: false },
+  { href: '/transactions', label: 'TXNS', glyph: '≡', exact: false },
+  { href: '/budgets', label: 'BUDGET', glyph: '◧', exact: false },
 ] as const;
 
 export function TabBar({ onMoreClick, moreOpen }: TabBarProps) {
@@ -24,51 +24,55 @@ export function TabBar({ onMoreClick, moreOpen }: TabBarProps) {
   return (
     <nav
       className={cn(
-        'fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-surface',
+        'fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-bg',
         'pb-[env(safe-area-inset-bottom)] lg:hidden'
       )}
     >
-      <ul className="flex h-[68px]">
+      <ul className="flex h-[68px] items-center px-3">
         {TABS.map((tab) => (
-          <li key={tab.href} className="flex-1">
+          <li key={tab.href} className="flex flex-1 items-center justify-center">
             <NavLink
               to={tab.href}
               end={tab.exact}
               className={({ isActive }) =>
                 cn(
-                  'relative flex h-full flex-col items-center justify-center gap-1 active:opacity-60',
-                  isActive ? 'text-accent' : 'text-textLo'
+                  'flex flex-col items-center justify-center gap-1 px-3 py-2 active:opacity-60',
+                  isActive
+                    ? 'text-accent border border-ruleHi'
+                    : 'text-textLo border border-transparent'
                 )
               }
+              style={({ isActive }) =>
+                isActive
+                  ? { boxShadow: '0 0 8px rgba(196, 242, 90, 0.25)' }
+                  : undefined
+              }
             >
-              {({ isActive }) => (
-                <>
-                  {isActive && (
-                    <span aria-hidden className="absolute inset-x-0 top-0 h-[2px] bg-accent" />
-                  )}
-                  <span className="font-mono text-[16px] leading-none">{tab.glyph}</span>
-                  <span className="font-mono text-[9px] uppercase tracking-[0.12em] leading-none">
-                    {tab.label}
-                  </span>
-                </>
-              )}
+              <span className="font-mono text-[16px] leading-none">{tab.glyph}</span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.1em] leading-none">
+                {tab.label}
+              </span>
             </NavLink>
           </li>
         ))}
-        <li className="flex-1">
+        <li className="flex flex-1 items-center justify-center">
           <button
             type="button"
             onClick={onMoreClick}
             className={cn(
-              'relative flex h-full w-full flex-col items-center justify-center gap-1 active:opacity-60',
-              moreActive ? 'text-accent' : 'text-textLo'
+              'flex flex-col items-center justify-center gap-1 px-3 py-2 active:opacity-60',
+              moreActive
+                ? 'text-accent border border-ruleHi'
+                : 'text-textLo border border-transparent'
             )}
+            style={
+              moreActive
+                ? { boxShadow: '0 0 8px rgba(196, 242, 90, 0.25)' }
+                : undefined
+            }
           >
-            {moreActive && (
-              <span aria-hidden className="absolute inset-x-0 top-0 h-[2px] bg-accent" />
-            )}
-            <span className="font-mono text-[16px] leading-none">…</span>
-            <span className="font-mono text-[9px] uppercase tracking-[0.12em] leading-none">
+            <span className="font-mono text-[16px] leading-none">⋯</span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.1em] leading-none">
               MORE
             </span>
           </button>

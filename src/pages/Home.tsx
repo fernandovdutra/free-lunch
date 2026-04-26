@@ -123,10 +123,9 @@ export function Home() {
 
   // Bank-account balance is not yet exposed by any current hook —
   // useBankConnections returns connection metadata only. Until Phase 10 wires
-  // a real balance hook, fall back to net cashflow for the period (income −
-  // expenses) as a stand-in so the row matches the v8 layout. Labelled
-  // "ACCOUNT BALANCE" rather than the bank-specific name to avoid misleading.
-  const balance = { label: 'ACCOUNT BALANCE', amount: summary.netBalance };
+  // a real balance hook, fall back to net cashflow for the period as a
+  // stand-in. Label per v8 (only ABN AMRO is supported in MVP).
+  const balance = { label: 'ABN AMRO BALANCE', amount: summary.netBalance };
 
   return (
     <div className="-mx-4 pb-8">
