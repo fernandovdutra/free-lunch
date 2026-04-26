@@ -124,7 +124,16 @@ export function TopBar() {
 
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-textLo">
-                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent" />
+                <span
+                  aria-hidden
+                  className="block bg-accent"
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: 3,
+                    boxShadow: '0 0 5px var(--accent)',
+                  }}
+                />
                 <span className="hidden xs:inline">SYNC </span>
                 {syncLabel}
               </span>

@@ -27,17 +27,18 @@ export function HomeCategoryList({
 }: HomeCategoryListProps) {
   return (
     <section className="relative">
-      {/* Tether ┗ glyph: small left-and-bottom-bordered box that visually
-          extends the spent-block's bottom hairline down to the BY CATEGORY
-          row's vertical center, with a rounded inner corner. */}
+      {/* Tether ┗ glyph: small left-and-bottom-bordered box. Sits 6px below
+          the previous section's bottom hairline (small visual gap, per v8),
+          and its bottom edge aligns with the BY CATEGORY text vertical
+          center. Inner corner has a 4px radius. */}
       <span
         aria-hidden
         className="absolute"
         style={{
           left: 20,
-          top: 0,
+          top: 6,
           width: 18,
-          height: 19,
+          height: 13,
           borderLeft: '1px solid var(--rule-hi)',
           borderBottom: '1px solid var(--rule-hi)',
           borderBottomLeftRadius: 4,

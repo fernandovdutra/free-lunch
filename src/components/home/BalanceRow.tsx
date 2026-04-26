@@ -7,7 +7,7 @@ interface BalanceRowProps {
 
 export function BalanceRow({ label, amount }: BalanceRowProps) {
   return (
-    <div className="mx-4 mt-2 flex items-center justify-between border-y border-rule bg-surface px-4 py-3.5">
+    <div className="mx-4 mt-2 flex items-center justify-between border border-rule bg-surface px-4 py-3.5">
       <span className="font-mono text-[10.5px] uppercase tracking-[0.06em] text-textMid">
         {label}
       </span>
