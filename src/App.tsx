@@ -27,6 +27,7 @@ import { Insights } from '@/pages/Insights';
 import { InsightDetail } from '@/pages/InsightDetail';
 import { Login } from '@/pages/auth/Login';
 import { Register } from '@/pages/auth/Register';
+import { PrimitivesPlayground } from '@/pages/dev/PrimitivesPlayground';
 
 // Layout
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -51,6 +52,9 @@ export function App() {
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              {import.meta.env.DEV && (
+                <Route path="/__dev/primitives" element={<PrimitivesPlayground />} />
+              )}
 
               {/* Protected routes */}
               <Route

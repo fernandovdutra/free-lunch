@@ -45,7 +45,7 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 |---|-------|--------|-------|
 | 0 | Foundations (tokens, fonts, tailwind, cleanup) | ☑ | desktop+iPhone verified 2026-04-25 |
 | 1 | Shell + nav (TopBar, TabBar, Sheet primitive, desktop side-rail) | ☑ | desktop + iPhone verified 2026-04-25 |
-| 2 | Shared primitives (rows, section header, pill, progress bar, status glyph) | ☐ | |
+| 2 | Shared primitives (rows, section header, pill, progress bar, status glyph) | ☑ | desktop verified 2026-04-26; iPhone walkthrough pending |
 | 3 | Login (Google-only, blinking cursor, delete Register) | ☐ | |
 | 4 | Home | ☐ | |
 | 5 | Transactions (sticky filters + month header) | ☐ | |
@@ -140,7 +140,17 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 **Replacement policy:** on redesigned screens, prefer these primitives over shadcn `Button`/`Card` when they'd require heavy restyling. Where shadcn primitives are close-enough (`Dialog`, `DropdownMenu`, `Select`), keep them but pass new token classes.
 
 **State snapshot:**
-> *(empty)*
+> Session 2026-04-26: 8 primitives landed under `src/components/redesign/` — `SectionHeader`, `Pill`, `ProgressBar`, `CategoryRow`, `TransactionRow`, `DayHeader`, `StatusGlyph`, `PhosphorButton` — plus a barrel `index.ts`. All take pre-formatted strings (formatting belongs to the consumer); progress bars cap visually at 100% with a CSS gradient (dim → full at the tip) per spec. `TransactionRow` is a deliberate sibling of `src/components/transactions/TransactionRow.tsx`; the existing one stays for Phase 5 to migrate. New `Pill` warn-variant + `CategoryRow` over-variant verified to flip bar + meta tone to warn. `PhosphorButton` press flips bg to `surfaceHi`.
+>
+> Dev-only design-system reference page added at `/__dev/primitives` (gated by `import.meta.env.DEV` in `App.tsx`). Made it a **public** route — no auth gate — so it works as a low-friction visual check without seeded test data. Phase 11/12 cleanup removes both the route and the page.
+>
+> **Departures from plan:** `Scrubber` deferred to Phase 7a as planned (the IMPLEMENTATION_PLAN offered the option to stub or defer; defer is the right call — only Drill consumes it and a stubbed API would need rework once real data lands). No future-phase primitives pre-built (no `BalanceRow` / `SpentHeadline` / `PendingBanner` / `BudgetLine` — none clearly meet the "two future phases will both need this" bar).
+>
+> **Verified:** `npm run typecheck` clean. `npm run lint` clean across new files (the 14 remaining errors all pre-date Phase 2 — Investments, Transactions, IcsBreakdown*, etc.). Desktop preview at 375×812 (mobile) and 1280×800 (desktop) walked through `/__dev/primitives`: tokens render correctly (bg `#0e0f11`, JetBrains Mono, accent `#c4f25a`, warn `#ff6b4a`), tether `┗` glyph aligns at left:8px, progress-bar gradients render, all `CategoryRow` / `TransactionRow` variants flip tones as expected, `Pill` toggle interaction works. Existing `/` route still redirects to `/login` (ProtectedRoute unaffected).
+>
+> **iPhone walkthrough still pending** — user's running dev server is on a different worktree; to iPhone-check from this one, restart their LAN dev stack against the `serene-rhodes-bf9afb` worktree per [PHONE_DEV_WORKFLOW.md](docs/PHONE_DEV_WORKFLOW.md), then visit `/__dev/primitives` (no login needed). Will be done before commit per the phase protocol.
+>
+> Files: `src/components/redesign/{SectionHeader,Pill,ProgressBar,CategoryRow,TransactionRow,DayHeader,StatusGlyph,PhosphorButton,index}.ts(x)`, `src/pages/dev/PrimitivesPlayground.tsx`, `src/App.tsx` (added route + import). Local-only (gitignored): `.env.local` for emulator-mode standalone Vite startup.
 
 **Commit:** `ui-redesign(primitives): section header, rows, pill, progress bar, phosphor button`
 
