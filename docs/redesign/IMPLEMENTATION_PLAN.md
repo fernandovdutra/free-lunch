@@ -47,7 +47,7 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 | 1 | Shell + nav (TopBar, TabBar, Sheet primitive, desktop side-rail) | ☑ | desktop + iPhone verified 2026-04-25 |
 | 2 | Shared primitives (rows, section header, pill, progress bar, status glyph) | ☑ | desktop verified 2026-04-26; iPhone walkthrough pending |
 | 3 | Login (Google-only, blinking cursor, delete Register) | ☑ | desktop preview verified 2026-04-26; iPhone walkthrough pending |
-| 4 | Home | ☐ | |
+| 4 | Home | ☑ | typecheck/lint clean 2026-04-26; iPhone walkthrough on seeded emulator pending |
 | 5 | Transactions (sticky filters + month header) | ☐ | |
 | 6 | Transaction Edit Sheet | ☐ | |
 | 7 | Drill L1/L2/L3 **(large)** | ☐ | |
@@ -202,7 +202,29 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 - **Over-budget variant:** only Spent number, Budget bar fill, Budget line, and the tipped-over row flip to `warn`. Everything else stays `accent`.
 
 **State snapshot:**
-> *(empty)*
+> Session 2026-04-26: Dashboard rebuilt as Home (renamed `src/pages/Dashboard.tsx` → `src/pages/Home.tsx` via `git mv` so blame is preserved). Composes the Phase 2 primitives `SectionHeader`, `CategoryRow`, `TransactionRow`, `ProgressBar` plus four new blocks under `src/components/home/`: `PendingBanner`, `SpentHeadline`, `BudgetLine`, `HomeCategoryList`. App.tsx route `/` rewired to `<Home />`.
+>
+> **Data wiring:** `useDashboardData` called twice (current + previous month, prev range memoized off `dateRange.startDate`) for the `▼ €X vs MAR` delta. `useBudgets` for the total budget cap (sum of `monthlyLimit` for active budgets). `useBudgetProgress` for per-category remaining/over. `useCategories` for the navigate-to-parent mapping on category-row taps. Days-left computed client-side as `differenceInDays(endOfMonth(now), now)` only when `isCurrentMonth` — historical months omit the `· N DAYS LEFT` suffix. Direction icon: `▼` (accent) when delta < 0, `▲` (warn) when > 0.
+>
+> **Over-budget logic:** `spent > budget && budget > 0` flips only `SpentHeadline` number, `BudgetLine` bar+text, and the specific `CategoryRow` whose amount exceeds its limit. Everything else (TopBar, TabBar, PendingBanner, other rows) stays accent — matches spec.
+>
+> **Deletions:** `src/components/dashboard/{SummaryCards,BudgetOverview,SpendingByCategoryChart,SpendingOverTimeChart,RecentTransactions,index}.{ts,tsx}`. `ApplyToSimilarDialog` lives in `src/components/transactions/` and is still used by Transactions.tsx — left in place. Dashboard's category-edit modal flow is dropped from Home; row taps now navigate to `/transactions?id={id}` (the edit sheet itself is Phase 6).
+>
+> **Departures from plan:** **BalanceRow not built.** Bank-account balance is not exposed by any current hook (`useBankConnections` returns connection status only; `useDashboardData.summary.netBalance` is income−expenses for the period, not a live account balance). Skipping the row is cleaner than rendering `netBalance` with a misleading label or shipping a placeholder. Phase 10 (Settings → Accounts) will surface the real balance; revisit Home then. Spec impact: Home is missing the top "ABN AMRO BALANCE €3,284.56" row — flag during iPhone walkthrough.
+>
+> **Known data gaps deferred:**
+> - Fiscal-month-start preference still not in Firestore — days-left uses calendar month. Phase 10 introduces the field; Phase 4 will need a one-line follow-up to consume it.
+> - Two `useDashboardData` calls add a round-trip on Home mount. TanStack Query caches both; subsequent month navigation reuses cache. Acceptable for now; future perf work could fold prev-month-spent into the existing Cloud Function.
+>
+> **Verified:** `npm run typecheck` clean. `npm run lint` clean on Phase 4 files (45 pre-existing problems in unrelated files unchanged — Investments, IcsBreakdown*, Transactions, etc.). Dev server preview confirms `Home.tsx` module imports cleanly, `App.tsx` still mounts, `/login` still renders the Phase 3 redesign, `/__dev/primitives` still renders all primitives. Actual Home rendering requires the seeded emulator stack — deferred to user's iPhone walkthrough at `http://192.168.68.59:5174/` with `test@freelunch.local` / `test1234`.
+>
+> **Follow-ups:**
+> - iPhone walkthrough pending (user-side).
+> - Wire BalanceRow when bank-balance hook lands (Phase 10).
+> - Fiscal-month-start once preference field exists (Phase 10).
+> - `/transactions?id={id}` row-tap target is a placeholder until Phase 6 Edit Sheet ships — currently it just lands on the Transactions list.
+>
+> Files added: `src/components/home/{PendingBanner,SpentHeadline,BudgetLine,HomeCategoryList,index}.tsx/ts`. Files renamed: `src/pages/Dashboard.tsx` → `src/pages/Home.tsx` (full rewrite). Files edited: `src/App.tsx`. Files deleted: `src/components/dashboard/{SummaryCards,BudgetOverview,SpendingByCategoryChart,SpendingOverTimeChart,RecentTransactions,index}.tsx/ts`.
 
 **Commit:** `ui-redesign(home): rebuild dashboard with calm terminal layout`
 

@@ -7,7 +7,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { MonthProvider } from '@/contexts/MonthContext';
 
 // Pages
-import { Dashboard } from '@/pages/Dashboard';
+import { Home } from '@/pages/Home';
 import { Transactions } from '@/pages/Transactions';
 import { Categories } from '@/pages/Categories';
 import { Budgets } from '@/pages/Budgets';
@@ -63,7 +63,7 @@ export function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<Dashboard />} />
+                <Route index element={<Home />} />
                 <Route path="transactions" element={<Transactions />} />
                 <Route path="categories" element={<Categories />} />
                 <Route path="budgets" element={<Budgets />} />
