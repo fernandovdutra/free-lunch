@@ -1,149 +1,300 @@
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { Skeleton } from '@/components/ui/skeleton';
-import { MonthlyBarChart, SpendingHeader, CategoryRow } from '@/components/spending';
+import { Fragment, useCallback, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
+import {
+  Breadcrumb,
+  buildDrillBreadcrumb,
+  DayHeader,
+  DrillHeadline,
+  DrillRow,
+  Scrubber,
+  TransactionRow,
+  type ScrubberBar,
+} from '@/components/redesign';
 import { useSpendingExplorer } from '@/hooks/useSpendingExplorer';
+import { useBudgetProgress } from '@/hooks/useBudgetProgress';
 import { useCategories } from '@/hooks/useCategories';
-import { useMonthHighlight } from '@/hooks/useMonthHighlight';
+import { groupByMonthThenDay } from '@/components/transactions/groupTransactions';
+import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { formatAmount } from '@/lib/utils';
-import { groupTransactionsByDate } from '@/lib/transactionGrouping';
+import type { Category, Transaction } from '@/types';
 
+/**
+ * Phase 7c — L2 Drill (`/expenses/:categoryId` and the income mirror).
+ *
+ * Same shape as L1 (SpendingExplorer): in-page Breadcrumb, DrillHeadline,
+ * Scrubber, indexed DrillRow list. Differences:
+ *   - Breadcrumb: `← EXPENSES › <CATEGORY>` (resolved via buildDrillBreadcrumb).
+ *   - Scrubber budget = parent category's monthlyLimit (when one exists).
+ *   - Subcategory rows scale vs PARENT category budget. Subcats have no own
+ *     budget, so meta drops the `· LEFT`/`· OVER` tail and rows never use the
+ *     `over` variant.
+ *   - Leaf-category special case: when `data.categories` is empty but
+ *     `data.transactions` is present (a category with no subcategories — the
+ *     backend collapses txns under the parent), render the L3 layout
+ *     (TRANSACTIONS section + day-grouped rows + Phase 6 Edit Sheet) in-place.
+ *
+ * See the L1 doc-comment in SpendingExplorer.tsx for the backend-driven
+ * Scrubber pattern (sourcing bars from `data.monthlyTotals` to dodge the
+ * frontend-vs-Functions-emulator TZ quirk). Same pattern is used here.
+ */
 export function SpendingCategory() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { selectedMonth, highlightedMonth, selectedMonthKey, handleMonthClick } = useMonthHighlight();
-  const { data: categories = [] } = useCategories();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [highlightedMonth, setHighlightedMonth] = useState<string | undefined>(undefined);
 
   const direction = location.pathname.startsWith('/income') ? 'income' : 'expenses';
   const basePath = `/${direction}`;
 
-  const { data, isLoading } = useSpendingExplorer({
+  const { data } = useSpendingExplorer({
     direction,
     categoryId,
-    breakdownMonthKey: highlightedMonth,
+    ...(highlightedMonth ? { breakdownMonthKey: highlightedMonth } : {}),
+  });
+  const { data: budgetProgress } = useBudgetProgress();
+  const { data: categories } = useCategories();
+
+  const parentCategoryBudget = useMemo(() => {
+    if (!categoryId) return undefined;
+    const bp = budgetProgress.find((b) => b.budget.categoryId === categoryId);
+    return bp?.budget.monthlyLimit;
+  }, [budgetProgress, categoryId]);
+
+  const scrubberBars: ScrubberBar[] = useMemo(() => {
+    const totals = data?.monthlyTotals ?? [];
+    if (totals.length === 6) {
+      return totals.map((t) => ({
+        monthKey: t.monthKey,
+        label: format(parseISO(`${t.monthKey}-01`), 'MMM').toUpperCase(),
+        amount: t.amount,
+      }));
+    }
+    return Array.from({ length: 6 }, (_, i) => ({
+      monthKey: `placeholder-${i}`,
+      label: '',
+      amount: 0,
+    }));
+  }, [data]);
+
+  const backendCurrentMonthKey = scrubberBars[scrubberBars.length - 1]?.monthKey ?? '';
+  const selectedMonthKey = highlightedMonth ?? backendCurrentMonthKey;
+
+  const breakdownLabel = useMemo(() => {
+    const cm = data?.currentMonth;
+    if (!cm) return '';
+    const parsed = new Date(`${cm} 1`);
+    if (Number.isNaN(parsed.getTime())) return cm.toUpperCase();
+    return format(parsed, 'MMM yyyy').toUpperCase();
+  }, [data]);
+  const breakdownMonthShort = breakdownLabel.split(' ')[0] ?? '';
+
+  const breadcrumbSegments = buildDrillBreadcrumb({
+    pathname: location.pathname,
+    categories,
   });
 
-  const parentCategory = categories.find((c) => c.id === categoryId);
-  const title = parentCategory?.name ?? 'Category';
+  const sortedSubcategories = useMemo(
+    () => [...(data?.categories ?? [])].sort((a, b) => b.amount - a.amount),
+    [data]
+  );
 
-  // Check if this is a leaf category (no subcategories → shows transactions)
-  const hasTransactions = !!data?.transactions;
-  const hasCategories = !!data?.categories?.length;
+  const handleSelectMonth = (monthKey: string) => {
+    setHighlightedMonth(monthKey === backendCurrentMonthKey ? undefined : monthKey);
+  };
+
+  const total = data?.currentTotal ?? 0;
+
+  // Leaf-category fall-through: when the backend returns transactions instead
+  // of a subcategory breakdown, render the L3 layout right here.
+  const leafTransactions =
+    !data?.categories?.length && data?.transactions?.length ? data.transactions : null;
 
   return (
-    <div className="space-y-6">
-      <SpendingHeader
-        title={title}
-        total={data?.currentTotal ?? 0}
-        monthLabel={data?.currentMonth ?? format(selectedMonth, 'MMMM yyyy')}
-        onBack={() => void navigate(basePath)}
-        isLoading={isLoading}
-        direction={direction}
+    <div className="pb-8">
+      <Breadcrumb
+        segments={breadcrumbSegments}
+        onBack={() => {
+          void navigate(basePath);
+        }}
+        onSegmentClick={(href) => {
+          void navigate(href);
+        }}
       />
 
-      <MonthlyBarChart
-        data={data?.monthlyTotals ?? []}
-        selectedMonthKey={selectedMonthKey}
-        onMonthClick={handleMonthClick}
-        isLoading={isLoading}
-        color={parentCategory?.color ?? '#1D4739'}
+      <DrillHeadline
+        amountFormatted={formatAmount(total)}
+        monthLabel={breakdownLabel}
+        {...(direction === 'expenses' && parentCategoryBudget !== undefined
+          ? { budgetCaption: `BUDGET ${formatAmount(parentCategoryBudget, { showSign: false })}` }
+          : {})}
       />
 
-      {/* Subcategory breakdown or transaction list */}
-      <div className="space-y-1">
-        {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-lg p-3">
-              <Skeleton className="h-8 w-8 rounded" />
-              <div className="flex-1 space-y-1">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-20" />
-              </div>
-              <Skeleton className="h-4 w-16" />
-            </div>
-          ))
-        ) : hasCategories ? (
-          data.categories!.map((cat) => (
-            <CategoryRow
-              key={cat.categoryId}
-              categoryId={cat.categoryId}
-              name={cat.categoryName}
-              icon={cat.categoryIcon}
-              color={cat.categoryColor}
-              amount={cat.amount}
-              percentage={cat.percentage}
-              transactionCount={cat.transactionCount}
-              onClick={() =>
-                void navigate(`${basePath}/${categoryId}/${cat.categoryId}`)
-              }
-            />
-          ))
-        ) : hasTransactions ? (
-          <TransactionList
-            transactions={data.transactions!}
-            basePath={`${basePath}/${categoryId}/${categoryId}`}
-          />
-        ) : (
-          <div className="flex h-32 items-center justify-center">
-            <p className="text-muted-foreground">No data for this month</p>
-          </div>
-        )}
+      <div className="mt-6 flex justify-center px-4">
+        <Scrubber
+          bars={scrubberBars}
+          selectedMonthKey={selectedMonthKey}
+          {...(direction === 'expenses' && parentCategoryBudget !== undefined
+            ? { budget: parentCategoryBudget }
+            : {})}
+          onSelectMonth={handleSelectMonth}
+        />
       </div>
+
+      <div className="mt-4 h-px w-full bg-rule" />
+
+      {leafTransactions ? (
+        <LeafTransactions
+          transactions={leafTransactions}
+          categories={categories ?? []}
+          searchParams={searchParams}
+          setSearchParams={setSearchParams}
+        />
+      ) : (
+        <div className="mt-1">
+          <DrillSectionHeader
+            label="BY SUBCATEGORY"
+            right={`${sortedSubcategories.length} TOTAL`}
+          />
+
+          {sortedSubcategories.length === 0 && (
+            <div className="px-4 py-12 text-center font-mono text-[10px] uppercase tracking-[0.06em] text-textLo">
+              No {direction} for {breakdownLabel}.
+            </div>
+          )}
+
+          {sortedSubcategories.map((sub, i) => {
+            const meta = `${sub.transactionCount} TXN · ${sub.percentage.toFixed(1)}% OF ${breakdownMonthShort}`;
+            return (
+              <DrillRow
+                key={sub.categoryId}
+                index={i + 1}
+                name={sub.categoryName}
+                amount={formatAmount(sub.amount, { showSign: false })}
+                meta={meta}
+                {...(parentCategoryBudget !== undefined
+                  ? { progress: sub.amount, max: parentCategoryBudget }
+                  : {})}
+                variant="ok"
+                onClick={() => {
+                  void navigate(`${basePath}/${categoryId}/${sub.categoryId}`);
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
-// Simple transaction list for leaf categories
-function TransactionList({
-  transactions,
-  basePath,
-}: {
-  transactions: Array<{
-    id: string;
-    date: Date;
-    counterparty: string | null;
-    description: string;
-    amount: number;
-  }>;
-  basePath: string;
-}) {
-  const navigate = useNavigate();
+interface LeafTransactionsProps {
+  transactions: Transaction[];
+  categories: Category[];
+  searchParams: URLSearchParams;
+  setSearchParams: (
+    updater: (prev: URLSearchParams) => URLSearchParams,
+    opts?: { replace?: boolean }
+  ) => void;
+}
 
-  // Group by date
-  const grouped = groupTransactionsByDate(transactions);
+/**
+ * The leaf-category branch of L2: same content as the L3 page (TRANSACTIONS
+ * section, day-grouped rows, ?id-driven Edit Sheet) but mounted inside the L2
+ * page so the URL stays at `/expenses/:categoryId`.
+ */
+function LeafTransactions({ transactions, categories, searchParams, setSearchParams }: LeafTransactionsProps) {
+  const months = useMemo(() => groupByMonthThenDay(transactions), [transactions]);
+  const categoriesById = useMemo(() => new Map(categories.map((c) => [c.id, c] as const)), [categories]);
+
+  const editId = searchParams.get('id');
+  const editingTransaction = useMemo(
+    () => (editId ? transactions.find((t) => t.id === editId) ?? null : null),
+    [editId, transactions]
+  );
+
+  const openEdit = useCallback(
+    (id: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('id', id);
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
+  const closeEdit = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('id');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
+
+  const totalCount = transactions.length;
 
   return (
-    <div className="space-y-4">
-      {Array.from(grouped.entries()).map(([dateLabel, txs]) => (
-        <div key={dateLabel}>
-          <p className="mb-1 px-1 text-xs font-medium uppercase text-muted-foreground">
-            {dateLabel}
-          </p>
-          <div className="space-y-0.5">
-            {txs.map((tx) => (
-              <button
-                key={tx.id}
-                onClick={() => {
-                  if (tx.counterparty) {
-                    void navigate(
-                      `${basePath}/counterparty/${encodeURIComponent(tx.counterparty)}`
-                    );
-                  }
-                }}
-                className="flex w-full items-center justify-between rounded-lg p-2 text-left transition-colors hover:bg-muted/50"
-              >
-                <p className="truncate font-medium">
-                  {tx.counterparty || tx.description}
-                </p>
-                <p className="ml-2 shrink-0 font-semibold tabular-nums">
-                  {formatAmount(tx.amount, { showSign: false })}
-                </p>
-              </button>
-            ))}
-          </div>
-        </div>
+    <div className="mt-1">
+      <DrillSectionHeader label="TRANSACTIONS" right={`${totalCount} TXN`} />
+
+      {months.map((month) => (
+        <Fragment key={month.key}>
+          {month.days.map((day) => (
+            <Fragment key={day.key}>
+              <DayHeader
+                label={day.label}
+                total={
+                  day.isSelfCanceling
+                    ? '—'
+                    : `${day.netTotal > 0 ? '+' : day.netTotal < 0 ? '−' : ''}${formatAmount(day.netTotal, { showSign: false })}`
+                }
+              />
+              {day.txns.map((t) => {
+                const cat = t.categoryId ? categoriesById.get(t.categoryId) : undefined;
+                const meta = (cat?.name ?? 'UNCATEGORIZED').toUpperCase();
+                const sign: '+' | '-' | '' = t.amount > 0 ? '+' : t.amount < 0 ? '-' : '';
+                return (
+                  <TransactionRow
+                    key={t.id}
+                    merchant={t.counterparty ?? t.description}
+                    amount={formatAmount(t.amount, { showSign: false })}
+                    sign={sign}
+                    meta={meta}
+                    time={format(t.transactionDate ?? t.bookingDate ?? t.date, 'HH:mm')}
+                    variant={t.categoryId ? 'default' : 'uncat'}
+                    {...(t.categoryId ? {} : { flag: '!' })}
+                    onClick={() => {
+                      openEdit(t.id);
+                    }}
+                  />
+                );
+              })}
+            </Fragment>
+          ))}
+        </Fragment>
       ))}
+
+      <TransactionForm
+        open={!!editingTransaction}
+        onOpenChange={(open) => {
+          if (!open) closeEdit();
+        }}
+        transaction={editingTransaction}
+        categories={categories}
+      />
     </div>
+  );
+}
+
+function DrillSectionHeader({ label, right }: { label: string; right?: string }) {
+  return (
+    <header className="flex items-baseline justify-between px-4 pt-3 pb-2 font-mono text-[9.5px] uppercase tracking-[0.04em] text-textLo">
+      <span>{label}</span>
+      {right && <span className="nums">{right}</span>}
+    </header>
   );
 }
