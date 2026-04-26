@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import {
+  Breadcrumb,
   CategoryRow,
   DayHeader,
+  DrillHeadline,
+  DrillRow,
   PhosphorButton,
   Pill,
   ProgressBar,
+  Scrubber,
   SectionHeader,
   StatusGlyph,
   TransactionRow,
@@ -18,6 +22,23 @@ import {
  */
 export function PrimitivesPlayground() {
   const [activePill, setActivePill] = useState<'all' | 'uncat' | 'reimb'>('all');
+  const [scrubberMonth, setScrubberMonth] = useState('2026-04');
+  const scrubberBarsL1 = [
+    { monthKey: '2025-11', label: 'NOV', amount: 4180 },
+    { monthKey: '2025-12', label: 'DEC', amount: 4810 }, // over
+    { monthKey: '2026-01', label: 'JAN', amount: 4290 },
+    { monthKey: '2026-02', label: 'FEB', amount: 4020 },
+    { monthKey: '2026-03', label: 'MAR', amount: 4640 }, // over
+    { monthKey: '2026-04', label: 'APR', amount: 4292 },
+  ];
+  const scrubberBarsL3 = [
+    { monthKey: '2025-11', label: 'NOV', amount: 521 },
+    { monthKey: '2025-12', label: 'DEC', amount: 678 },
+    { monthKey: '2026-01', label: 'JAN', amount: 612 },
+    { monthKey: '2026-02', label: 'FEB', amount: 558 },
+    { monthKey: '2026-03', label: 'MAR', amount: 720 },
+    { monthKey: '2026-04', label: 'APR', amount: 641 },
+  ];
 
   return (
     <div className="min-h-screen bg-bg text-textHi">
@@ -191,7 +212,116 @@ export function PrimitivesPlayground() {
         </div>
       </Block>
 
-      <Block title="08 PHOSPHOR BUTTON">
+      <Block title="08 SCRUBBER">
+        <div className="space-y-6 px-4 pb-3">
+          <Labeled hint="L1 — total budget €4,500, current = APR">
+            <Scrubber
+              bars={scrubberBarsL1}
+              selectedMonthKey={scrubberMonth}
+              budget={4500}
+              budgetCaption="BUDGET €4,500"
+              onSelectMonth={setScrubberMonth}
+            />
+          </Labeled>
+          <Labeled hint="L2 — category budget €950, current = APR">
+            <Scrubber
+              bars={scrubberBarsL3.map((b) => ({
+                ...b,
+                amount: b.amount + 270,
+              }))}
+              selectedMonthKey={scrubberMonth}
+              budget={950}
+              budgetCaption="BUDGET €950"
+              onSelectMonth={setScrubberMonth}
+            />
+          </Labeled>
+          <Labeled hint="L3 — no budget line, no alert state">
+            <Scrubber
+              bars={scrubberBarsL3}
+              selectedMonthKey={scrubberMonth}
+              onSelectMonth={setScrubberMonth}
+            />
+          </Labeled>
+        </div>
+      </Block>
+
+      <Block title="09 BREADCRUMB">
+        <div className="space-y-2 pb-2">
+          <Breadcrumb segments={[{ label: 'EXPENSES' }]} onBack={() => undefined} />
+          <Breadcrumb
+            segments={[
+              { label: 'EXPENSES', href: '/expenses' },
+              { label: 'GROCERIES' },
+            ]}
+            onBack={() => undefined}
+            onSegmentClick={() => undefined}
+          />
+          <Breadcrumb
+            segments={[
+              { label: 'EXPENSES', href: '/expenses' },
+              { label: 'GROCERIES', href: '/expenses/x' },
+              { label: 'SUPERMARKET' },
+            ]}
+            onBack={() => undefined}
+            onSegmentClick={() => undefined}
+          />
+        </div>
+      </Block>
+
+      <Block title="10 DRILL HEADLINE">
+        <div className="space-y-4 pb-3">
+          <DrillHeadline
+            amountFormatted="€4,292.00"
+            monthLabel="APR 2026"
+            budgetCaption="BUDGET €4,500"
+          />
+          <DrillHeadline
+            amountFormatted="€919.00"
+            monthLabel="APR 2026"
+            budgetCaption="BUDGET €950"
+          />
+          <DrillHeadline amountFormatted="€641.00" monthLabel="APR 2026" />
+        </div>
+      </Block>
+
+      <Block title="11 DRILL ROW">
+        <DrillRow
+          index={1}
+          name="Groceries"
+          amount="€919"
+          meta="· €31 LEFT"
+          progress={919}
+          max={950}
+          onClick={() => undefined}
+        />
+        <DrillRow
+          index={2}
+          name="Car"
+          amount="€658"
+          meta="· €42 LEFT"
+          progress={658}
+          max={700}
+          onClick={() => undefined}
+        />
+        <DrillRow
+          index={3}
+          name="Entertainment"
+          amount="€242"
+          meta="· €42 OVER"
+          progress={242}
+          max={200}
+          variant="over"
+          onClick={() => undefined}
+        />
+        <DrillRow
+          index={4}
+          name="Subscriptions (no budget)"
+          amount="€87"
+          onClick={() => undefined}
+        />
+      </Block>
+
+      <Block title="12 PHOSPHOR BUTTON">
         <div className="space-y-3 px-4 pb-3">
           <PhosphorButton onClick={() => undefined}>
             ▸ CONTINUE WITH GOOGLE

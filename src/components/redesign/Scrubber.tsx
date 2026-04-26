@@ -1,0 +1,135 @@
+import { cn } from '@/lib/utils';
+
+export interface ScrubberBar {
+  monthKey: string;
+  label: string;
+  amount: number;
+}
+
+interface ScrubberProps {
+  bars: ScrubberBar[];
+  selectedMonthKey: string;
+  /** Budget cap for the strip's scope. Omit at L3 (subcategories). */
+  budget?: number;
+  /** Right-anchored caption above the strip (e.g. "BUDGET €4,500"). Omit at L3. */
+  budgetCaption?: string;
+  onSelectMonth: (monthKey: string) => void;
+  className?: string;
+}
+
+const STRIP_HEIGHT_PX = 73;
+const BAR_WIDTH_PX = 52;
+const COLUMN_GAP_PX = 6;
+
+/**
+ * 6-month bar strip with optional dashed budget line. Each bar is a button
+ * that selects its month. Selected month renders as a 2px solid-accent tip
+ * (no fill); over-budget months tint amber; under/no-budget months show as
+ * rule-bordered outlines. Per v8 frames 04/05/06.
+ */
+export function Scrubber({
+  bars,
+  selectedMonthKey,
+  budget,
+  budgetCaption,
+  onSelectMonth,
+  className,
+}: ScrubberProps) {
+  const maxAmount = bars.reduce((m, b) => Math.max(m, b.amount), 0);
+  const maxScale = Math.max(maxAmount, budget ?? 0) * 1.05 || 1;
+  const budgetPx = budget !== undefined ? (budget / maxScale) * STRIP_HEIGHT_PX : null;
+  const stripWidth = bars.length * BAR_WIDTH_PX + (bars.length - 1) * COLUMN_GAP_PX;
+
+  return (
+    <div
+      className={cn('relative', className)}
+      style={{ width: stripWidth }}
+    >
+      {budgetCaption && (
+        <div className="mb-1 text-right font-mono text-[8.5px] tracking-[0.4px] text-accent">
+          {budgetCaption}
+        </div>
+      )}
+
+      <div className="relative" style={{ height: STRIP_HEIGHT_PX }}>
+        <div
+          className="flex h-full items-end justify-start"
+          style={{ gap: COLUMN_GAP_PX }}
+        >
+          {bars.map((bar) => {
+            const isSelected = bar.monthKey === selectedMonthKey;
+            const isOver = budget !== undefined && bar.amount > budget;
+            const heightPx = Math.max(2, (bar.amount / maxScale) * STRIP_HEIGHT_PX);
+            return (
+              <button
+                key={bar.monthKey}
+                type="button"
+                onClick={() => {
+                  onSelectMonth(bar.monthKey);
+                }}
+                aria-label={`Select ${bar.label}`}
+                aria-pressed={isSelected}
+                className="press relative flex-shrink-0"
+                style={{ width: BAR_WIDTH_PX, height: STRIP_HEIGHT_PX }}
+              >
+                {isSelected ? (
+                  <div
+                    className="absolute inset-x-0 bg-accent"
+                    style={{
+                      bottom: heightPx - 2,
+                      height: 2,
+                    }}
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      'absolute inset-x-0 bottom-0 border',
+                      isOver
+                        ? 'border-alert bg-alert-dim'
+                        : 'border-rule bg-transparent'
+                    )}
+                    style={{ height: heightPx }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {budgetPx !== null && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0"
+            style={{ bottom: budgetPx }}
+          >
+            <div
+              className="border-t border-dashed"
+              style={{ borderColor: 'rgba(196, 242, 90, 0.55)' }}
+            />
+          </div>
+        )}
+      </div>
+
+      <div
+        className="mt-[12px] flex"
+        style={{ gap: COLUMN_GAP_PX }}
+      >
+        {bars.map((bar) => {
+          const isSelected = bar.monthKey === selectedMonthKey;
+          return (
+            <div
+              key={bar.monthKey}
+              className={cn(
+                'flex-shrink-0 text-center font-mono text-[9.5px] tracking-[0.6px]',
+                isSelected ? 'text-accent' : 'text-textLo'
+              )}
+              style={{ width: BAR_WIDTH_PX }}
+            >
+              {bar.label}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

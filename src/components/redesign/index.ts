@@ -6,3 +6,8 @@ export { TransactionRow } from './TransactionRow';
 export { DayHeader } from './DayHeader';
 export { StatusGlyph } from './StatusGlyph';
 export { PhosphorButton } from './PhosphorButton';
+export { Scrubber, type ScrubberBar } from './Scrubber';
+export { Breadcrumb, type BreadcrumbSegment } from './Breadcrumb';
+export { buildDrillBreadcrumb } from './buildDrillBreadcrumb';
+export { DrillRow } from './DrillRow';
+export { DrillHeadline } from './DrillHeadline';

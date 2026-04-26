@@ -50,7 +50,7 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 | 4 | Home | ☑ | iPhone-verified 2026-04-26 after 4 corrective rounds against v8.html |
 | 5 | Transactions (sticky filters + month header) | ☑ | desktop preview verified 2026-04-26; iPhone walkthrough pending |
 | 6 | Transaction Edit Sheet | ☑ | desktop preview verified 2026-04-26; iPhone walkthrough pending |
-| 7 | Drill L1/L2/L3 **(large)** | ☐ | |
+| 7 | Drill L1/L2/L3 **(large)** | ◐ | 7a + 7b + 7e desktop-verified 2026-04-26; iPhone walkthrough pending. 7c/7d deferred to next session. |
 | 8 | Budget (read + edit modes) | ☐ | |
 | 9 | Reimbursements | ☐ | |
 | 10 | Settings hub + 6 sub-pages **(large)** | ☐ | |
@@ -400,7 +400,32 @@ small at one resolution become visible on iPhone.
 - `/income/*` mirrors use the same drill component — parameterize on `kind: 'expenses' | 'income'`.
 
 **State snapshot:**
-> *(empty — expect notes per sub-checkpoint)*
+> Session 2026-04-26 (1/2): 7a / 7b / 7e landed as one bundled commit (tight coupling; the trio together gives a usable top-of-funnel drill). Five new redesign primitives: `Scrubber`, `Breadcrumb`, `DrillRow`, `DrillHeadline`, plus a `buildDrillBreadcrumb` helper. `SpendingExplorer.tsx` rewritten as L1 `/expenses` + (via runtime detection) `/income`. `TopBar` drill-mode chrome flipped to v8 — same `‹ <PAGE_NAME> › ... SYNC ⌕ ⊕` layout as main mode, with the title slot showing the current drill page name; the dedicated `‹ BACK` button + `buildBreadcrumb …` placeholder are gone (back-arrow lives in-page on the new Breadcrumb).
+>
+> **v8 measurement decisions** (read off `designs/Free Lunch v8.html` DEEP frames 04/05/06 via `preview_eval`):
+> - Scrubber: 6 columns × 52px wide × 6px gap (strip total 342px). Strip height 73px. Inactive bar = `border 1px solid var(--rule)`, transparent bg. Over-budget bar = `bg var(--alert-dim) + border 1px var(--alert)` (amber, NOT warn-red). Selected month = 2px solid-accent tip at the bar height (no border, no fill — just a ceiling). Dashed budget line = `border-top: 1px dashed rgba(196,242,90,0.55)` spanning the strip, hidden at L3.
+> - Big number: 38px JBM tracking-tight + cents at 17px JBM textLo (split-cents), with a right-stack of `APR 2026` + (optional) `BUDGET €X` in 8.5px accent.
+> - Drill row: `01` index (mono 10px textLo) + name (Inter Tight 14px textHi) + amount (mono 14px textHi) + chevron `›` (mono 12px textLo); meta line `· €31 LEFT` (or `· €58 OVER` for warn) on the second line; 2px progress bar below.
+> - In-page breadcrumb: `← <parent> › <current>` truncated to last 2 segments at L3 (drops EXPENSES). Back-arrow in accent (lime). Mono 10px segments, parent textLo / current textHi tracking-1.2px.
+> - **Major divergence from the prose README**: at L3 v8 shows day-grouped TRANSACTIONS, not merchant aggregations. README §06 ("Rows = individual merchants") loses; v8 wins. 7d will reuse Phase 5 primitives (`DayHeader`, `TransactionRow`, `groupByMonthThenDay`) and tap → Phase 6 Edit Sheet. `SpendingCounterparty` stays in the route table for direct URLs but becomes orphaned from the drill funnel; Phase 11 decides whether to restyle, redirect, or delete.
+>
+> **Departures from plan:**
+> - Bundled 7a/7b/7e as a single commit instead of three. Per the plan's "If 7b and 7e land together cleanly, commit them as one — otherwise split" — they did. The brief's three-commit suggestion was relaxed because the bundles share `redesign/index.ts` and `dev/PrimitivesPlayground.tsx` edits, splitting them required tedious per-line staging.
+> - **DrillRow built as a new primitive instead of extending CategoryRow.** v8 frame 04 puts `€31 LEFT` on the meta line (`· €31 LEFT`) — Home's CategoryRow puts the same data in an `amountTrailing` slot next to the amount. Two layouts diverge enough that extending CategoryRow with index/chevron/metaPrefix props would require conflicting layout branches. Separate component, no behavior change to the existing CategoryRow.
+> - **DrillHeadline built as a new primitive** instead of reusing Phase 4's `SpentBlock` — the latter is Inter sans 44px with a projection right-stack; v8's drill headline is JBM mono 38px with a budget caption. Separate concerns.
+> - **Income mirror routes preserved via runtime direction detection** (existing pattern in App.tsx). No `kind: 'expenses'|'income'` parameter on the component — that would have been pure architecture-for-architecture's-sake; runtime detection works.
+> - **Constant-budget assumption** for the Scrubber: bars tinted alert-amber if their amount exceeds the *current* budget config (sourced from `useBudgets`). Historical-budget tracking is out of scope. Acceptable for v1.
+>
+> **Verified (desktop, 375×812):**
+> - `npm run typecheck` clean. `npm run lint` clean on touched files (the 41 warnings/errors elsewhere all pre-date Phase 7 — Investments, Home, IcsBreakdown*, etc.).
+> - `/__dev/primitives` smoke-checked via `preview_eval`: Scrubber renders 3 variants (under-budget L1 with €4500 line + 2 over-budget bars in alert-amber; L2 with €950 line; L3 no-line variant). All bar widths 52px, strip total 342px, dashed line 342px wide matching `rgba(196,242,90,0.55)`. Selected month tip = 2px accent fill. DrillRow renders index/name/amount/chevron + meta + bar; `over` variant flips meta to warn. Breadcrumb truncates to last 2 segments at the 3-segment example (`← GROCERIES › SUPERMARKET`, no `EXPENSES`). DrillHeadline split-cents render at 38px/17px JBM.
+> - `/expenses` page itself NOT exercised live (the desktop dev preview at port 5180 has no firebase emulator backend; the user's emulator stack runs at 192.168.68.59:5173 from a different worktree). TypeScript + lint + the playground primitives are the only desktop signal here. **iPhone walkthrough is the live-data signal** and runs against the user's seeded emulator stack.
+>
+> **Files added:** `src/components/redesign/{Scrubber,Breadcrumb,DrillRow,DrillHeadline}.tsx`, `src/components/redesign/buildDrillBreadcrumb.ts`. **Files modified:** `src/components/redesign/index.ts` (5 new exports), `src/components/layout/TopBar.tsx` (drill chrome → v8), `src/pages/SpendingExplorer.tsx` (full rewrite to L1 v8 layout), `src/pages/dev/PrimitivesPlayground.tsx` (added 4 new sample blocks: Scrubber 3 variants, Breadcrumb 3 variants, DrillHeadline 3 variants, DrillRow 4 variants). `.env.local` re-created from a sibling worktree (gitignored, not part of the commit).
+>
+> **iPhone walkthrough pending** — needs the user's emulator stack running on the LAN dev server. Look for: TopBar shows `‹ EXPENSES ›` (not `‹ BACK`), in-page breadcrumb has accent `←` arrow, Scrubber tap on a different month updates the headline, indexed rows tap into the existing (Phase-7c-pending) SpendingCategory page.
+>
+> **Next: 7c (L2 SpendingCategory rewrite) + 7d (L3 SpendingSubcategory rewrite)**, deferred to next session per the brief's bundle recommendation. Both will reuse the primitives that just landed; 7c gets a category-scoped Scrubber budget line (`useBudgetProgress` lookup) + subcategory rows scaled against parent budget, 7d gets day-grouped transactions + Edit Sheet integration.
 
 **Commits:** one per sub-checkpoint, prefixed `ui-redesign(drill)`.
 
