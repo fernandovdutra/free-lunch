@@ -48,7 +48,7 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 | 2 | Shared primitives (rows, section header, pill, progress bar, status glyph) | ☑ | desktop verified 2026-04-26; v8-fixes-2 added TxnRow `time` slot + CategoryRow `amountTrailing` slot |
 | 3 | Login (Google-only, blinking cursor, delete Register) | ☑ | iPhone-verified 2026-04-26 after 4 corrective rounds against v8.html |
 | 4 | Home | ☑ | iPhone-verified 2026-04-26 after 4 corrective rounds against v8.html |
-| 5 | Transactions (sticky filters + month header) | ☐ | |
+| 5 | Transactions (sticky filters + month header) | ☑ | desktop preview verified 2026-04-26; iPhone walkthrough pending |
 | 6 | Transaction Edit Sheet | ☐ | |
 | 7 | Drill L1/L2/L3 **(large)** | ☐ | |
 | 8 | Budget (read + edit modes) | ☐ | |
@@ -297,7 +297,34 @@ small at one resolution become visible on iPhone.
 - Row tap opens Edit sheet (Phase 6).
 
 **State snapshot:**
-> *(empty)*
+> Session 2026-04-26: rewrite landed. New `TransactionFilters` is a horizontal-scroll Pill row with the v8 set (`! UNCAT / ◐ REIMB / ▸ <month> / ◱ ALL CATS`) — explicitly NOT the README §03 set, since v8 is canonical and shows no `ALL` pill, no date-range range, glyph-prefixed labels. Month pill is display-only (rendered as a span, not a button) per resolved Q2 — month nav lives in TopBar `‹ ›`. Category pill (`◱ ALL CATS`) opens a nested category sheet (single-select; multi-select gated on a future `categoryIds[]` query extension). New `TransactionList` consumes pre-grouped data via `groupByMonthThenDay` (extracted to `src/components/transactions/groupTransactions.ts` so the component file only exports components — fast-refresh friendly). Each day renders a `DayHeader` with right-aligned signed day total (em-dash `—` for self-canceling transfer days). Rows use the redesign `TransactionRow` primitive with `time` slot, variant mapping (`income | uncat | pending | transfer | default`), and reimbursable badge appended to meta as `· REIMB €X.XX`. New `MonthSummaryStickyBar` sticks below the filter row at `top: calc(44px + 46px)`; an IntersectionObserver in `Transactions.tsx` watches each `<section data-month>` and updates the bar's monthKey as users scroll.
+>
+> **Pill primitive v8 fixup landed in this commit** (no separate commit since the diff is tiny): `Pill.tsx` lost `rounded-pill`, dropped to `h-[25px]` / `px-2.5`, and uses `text-[10px] tracking-[0.06em] uppercase` directly (twMerge was collapsing `text-ct-meta` against `text-textMid` so the font-size class was being silently dropped). Result matches v8 measurements exactly: 25px height, square, 1px border-rule on all sides, `rgba(255,255,255,0.07)` border color, `text-textMid` color, 10px JBM, 0.6px letter-spacing.
+>
+> **Page wires `?id=…` deep link** — Phase 4's Home `RecentTransactions` row-tap (which navigated to `/transactions?id=X`) now opens the edit modal on mount. URL stays the source of truth; closing the modal clears `id`. Filter state still URL+sessionStorage-persisted via the same `transactions-filters` key.
+>
+> **Departures from plan / known regressions:**
+> - The IntersectionObserver bar-swap is dormant in practice because `useTransactions` filters to `MonthContext.dateRange` (one month at a time). The IO code is in place — Phase 7 (or a small follow-up) can widen the date range to make multi-month scroll work; Phase 5 just defaults the bar to `format(selectedMonth, 'yyyy-MM')`.
+> - **Edit happens via the existing `TransactionForm` Dialog** — Phase 6 swaps it for the bottom sheet. Reimbursement / merchant-rule / delete-from-row UX is temporarily unavailable between Phases 5 and 6 (the row action menu is gone; the new sheet hasn't shipped). On `ui-redesign` only, contained between two adjacent commits.
+> - Old `TransactionRow.tsx` and `TransactionRowActions.tsx` deleted (the redesign primitive is the row now). Old dialogs (`MarkReimbursableDialog`, `ClearReimbursementDialog`, `ApplyToSimilarDialog`, `CounterpartyDialog`) stay in the tree until Phase 6 folds their logic into the edit sheet.
+> - `.env.local` (gitignored) had to be created in this worktree — the file lives only in worktrees that previously ran the emulator stack.
+>
+> **Verified live (2026-04-26):**
+> - `npm run typecheck` clean. `npm run lint` clean on touched files.
+> - Browser preview at `http://localhost:5180/transactions` (mobile 375×812) against the seeded emulator stack:
+>   - Filter pills computed-style verified vs v8: `h:25 / border:1px all / borderColor: rgba(255,255,255,0.07) / borderRadius:0 / fontSize:10px / letterSpacing:0.6px / color: textMid`. ✓
+>   - Sticky filter row at top:44, sticky month bar at top:90 (44 + 46) — both keep position through 1500px of scroll.
+>   - Pill toggles: `! UNCAT` flips bg to `bg-warn-dim` + text/border to warn + URL `?categorizationStatus=uncategorized` ✓; toggling off clears URL + sessionStorage ✓.
+>   - Row tap on first APR row → URL becomes `/transactions?id=<txnId>` and the edit Dialog opens with that txn loaded.
+>   - DayHeader signed totals (e.g. `SAT · APR 25  −€ 127,53`) rendered correctly; income-net days show `+€…` in textMid.
+>   - Reimbursable rows append `· REIMB € 5,29` to category meta; income rows render with `+€…` accent; uncat rows would use the `'uncat'` variant (none in seed).
+> - Browser screenshot tool times out in this environment regardless of state (same Phase 4 limitation) — verification is via accessibility-tree + computed-style queries.
+>
+> **Not exercised live:**
+> - Multi-month scroll (data-layer scopes to `MonthContext.dateRange`).
+> - iPhone walkthrough — pending user-side per the iPhone-check protocol.
+>
+> **Files added:** `src/components/transactions/MonthSummaryStickyBar.tsx`, `src/components/transactions/groupTransactions.ts`. **Files rewritten:** `src/pages/Transactions.tsx`, `src/components/transactions/TransactionFilters.tsx`, `src/components/transactions/TransactionList.tsx`, `src/components/transactions/index.ts`, `src/components/redesign/Pill.tsx`. **Files deleted:** `src/components/transactions/TransactionRow.tsx`, `src/components/transactions/TransactionRowActions.tsx`. **Untracked but required for emulator-mode dev (gitignored):** `.env.local`.
 
 **Commit:** `ui-redesign(transactions): sticky filters, sticky month summary, day groups`
 

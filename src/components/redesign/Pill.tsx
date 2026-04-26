@@ -31,8 +31,8 @@ export function Pill({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'press inline-flex h-7 items-center whitespace-nowrap rounded-pill border px-3',
-        'font-mono text-ct-meta upper-tight',
+        'press inline-flex h-[25px] items-center whitespace-nowrap border px-2.5 leading-none',
+        'font-mono text-[10px] tracking-[0.06em] uppercase',
         'disabled:cursor-not-allowed disabled:opacity-50',
         active ? onClasses : offClasses,
         className

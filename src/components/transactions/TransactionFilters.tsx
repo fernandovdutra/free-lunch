@@ -1,203 +1,222 @@
-import { useState, useEffect, useRef } from 'react';
-import { Search, X, Calendar, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { CategoryPicker } from './CategoryPicker';
-import type { TransactionFilters as Filters } from '@/hooks/useTransactions';
-import type { Category } from '@/types';
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
+import { Pill } from '@/components/redesign';
+import {
+  Sheet,
+  SheetContent,
+  SheetBody,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { buildCategoryTree } from '@/hooks/useCategories';
+import { cn } from '@/lib/utils';
+import type { Category } from '@/types';
+import type { TransactionFilters as Filters } from '@/hooks/useTransactions';
 
 interface TransactionFiltersProps {
   filters: Filters;
   onChange: (filters: Filters) => void;
   categories: Category[];
+  selectedMonth: Date;
 }
 
-export function TransactionFilters({ filters, onChange, categories }: TransactionFiltersProps) {
-  const [searchValue, setSearchValue] = useState(filters.searchText ?? '');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+/**
+ * Phase 5 filter bar. Horizontal-scroll row of four pills:
+ *   ! UNCAT      — toggles categorizationStatus = 'uncategorized'
+ *   ◐ REIMB      — toggles reimbursementStatus = 'pending'
+ *   ▸ <month>    — display-only; month nav lives in TopBar arrows
+ *   ◱ ALL CATS   — opens nested category sheet (single-select)
+ *
+ * v8 mock measurements: pills are square (no radius), 25px tall, 1px
+ * border-rule on all sides, font-mono 10px, 6px gap, transparent bg
+ * (active state per README §03 = accentDim bg + accent text + accent border).
+ */
+export function TransactionFilters({
+  filters,
+  onChange,
+  categories,
+  selectedMonth,
+}: TransactionFiltersProps) {
+  const [catSheetOpen, setCatSheetOpen] = useState(false);
 
-  // Debounced search
-  useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(() => {
-      const newFilters = { ...filters };
-      if (searchValue) {
-        newFilters.searchText = searchValue;
-      } else {
-        delete newFilters.searchText;
-      }
-      onChange(newFilters);
-    }, 300);
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchValue]);
+  const isUncat = filters.categorizationStatus === 'uncategorized';
+  const isReimb = filters.reimbursementStatus === 'pending';
 
-  const handleCategoryChange = (categoryId: string | null) => {
-    const newFilters = { ...filters };
-    if (categoryId) {
-      // Include both regular category IDs and the special uncategorized filter
-      newFilters.categoryId = categoryId;
+  const monthLabel = `${format(selectedMonth, 'MMM').toUpperCase()} ${format(selectedMonth, 'yyyy')}`;
+
+  const selectedCategory = filters.categoryId
+    ? categories.find((c) => c.id === filters.categoryId) ?? null
+    : null;
+  const catLabel = selectedCategory ? selectedCategory.name.toUpperCase() : 'ALL CATS';
+
+  const toggleUncat = () => {
+    if (isUncat) {
+      const { categorizationStatus: _drop, ...rest } = filters;
+      void _drop;
+      onChange(rest);
     } else {
-      delete newFilters.categoryId;
+      onChange({ ...filters, categorizationStatus: 'uncategorized' });
     }
-    onChange(newFilters);
   };
 
-  const clearFilters = () => {
-    setSearchValue('');
-    const dateOnly: Filters = {};
-    if (filters.startDate) dateOnly.startDate = filters.startDate;
-    if (filters.endDate) dateOnly.endDate = filters.endDate;
-    onChange(dateOnly);
+  const toggleReimb = () => {
+    if (isReimb) {
+      const { reimbursementStatus: _drop, ...rest } = filters;
+      void _drop;
+      onChange(rest);
+    } else {
+      onChange({ ...filters, reimbursementStatus: 'pending' });
+    }
   };
 
-  const hasActiveFilters =
-    !!filters.searchText ||
-    !!filters.categoryId ||
-    !!filters.direction ||
-    !!filters.categorizationStatus ||
-    !!filters.reimbursementStatus;
-
-  const getDateRangeText = () => {
-    if (!filters.startDate || !filters.endDate) return 'All time';
-    return `${format(filters.startDate, 'MMM d')} - ${format(filters.endDate, 'MMM d, yyyy')}`;
+  const setCategory = (categoryId: string | null) => {
+    if (categoryId === null) {
+      const { categoryId: _drop, ...rest } = filters;
+      void _drop;
+      onChange(rest);
+    } else {
+      onChange({ ...filters, categoryId });
+    }
+    setCatSheetOpen(false);
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Date range indicator */}
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Calendar className="h-4 w-4" />
-          <span>{getDateRangeText()}</span>
-        </div>
-
-        {/* Search */}
-        <div className="relative min-w-[200px] flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search transactions..."
-            value={searchValue}
-            onChange={(e) => {
-              setSearchValue(e.target.value);
-            }}
-            className="pl-9"
-          />
-        </div>
-
-        {/* Category filter */}
-        <CategoryPicker
-          value={filters.categoryId ?? null}
-          onChange={handleCategoryChange}
-          categories={categories}
-          placeholder="All categories"
-          className="w-[180px]"
-          showAllOption
-        />
-
-        {/* Direction filter */}
-        <Select
-          value={filters.direction ?? 'all'}
-          onValueChange={(value: 'income' | 'expense' | 'all') => {
-            const newFilters = { ...filters };
-            if (value === 'all') {
-              delete newFilters.direction;
-            } else {
-              newFilters.direction = value;
-            }
-            onChange(newFilters);
-          }}
-        >
-          <SelectTrigger className="w-[140px]" data-testid="direction-filter">
-            <SelectValue placeholder="Direction" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="income">
-              <span className="flex items-center gap-1">
-                <ArrowUpRight className="h-3 w-3 text-emerald-500" />
-                Income
-              </span>
-            </SelectItem>
-            <SelectItem value="expense">
-              <span className="flex items-center gap-1">
-                <ArrowDownRight className="h-3 w-3 text-red-500" />
-                Expense
-              </span>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Categorization status filter */}
-        <Select
-          value={filters.categorizationStatus ?? 'all'}
-          onValueChange={(value: 'auto' | 'manual' | 'uncategorized' | 'all') => {
-            const newFilters = { ...filters };
-            if (value === 'all') {
-              delete newFilters.categorizationStatus;
-            } else {
-              newFilters.categorizationStatus = value;
-            }
-            onChange(newFilters);
-          }}
-        >
-          <SelectTrigger className="w-[160px]" data-testid="categorization-filter">
-            <SelectValue placeholder="Cat. Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="manual">Manually Set</SelectItem>
-            <SelectItem value="auto">Auto-categorized</SelectItem>
-            <SelectItem value="uncategorized">Uncategorized</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Reimbursement filter */}
-        <Select
-          value={filters.reimbursementStatus ?? 'all'}
-          onValueChange={(value: 'none' | 'pending' | 'cleared' | 'all') => {
-            const newFilters = { ...filters };
-            if (value === 'all') {
-              delete newFilters.reimbursementStatus;
-            } else {
-              newFilters.reimbursementStatus = value;
-            }
-            onChange(newFilters);
-          }}
-        >
-          <SelectTrigger className="w-[160px]" data-testid="reimbursement-filter">
-            <SelectValue placeholder="Reimbursement" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="none">No Reimbursement</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="cleared">Cleared</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Clear filters */}
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X className="mr-1 h-4 w-4" />
-            Clear
-          </Button>
+    <>
+      <div
+        className={cn(
+          'sticky z-30 bg-bg hairline-b',
+          'top-[calc(44px+env(safe-area-inset-top,0px))]'
         )}
+      >
+        <div className="scrollbar-hide flex gap-1.5 overflow-x-auto px-4 py-2.5">
+          <Pill active={isUncat} variant="warn" onClick={toggleUncat}>
+            ! UNCAT
+          </Pill>
+          <Pill active={isReimb} onClick={toggleReimb}>
+            ◐ REIMB
+          </Pill>
+          <span
+            aria-label={`Month: ${monthLabel}. Use the month arrows in the top bar to change.`}
+            className={cn(
+              'inline-flex h-[25px] items-center whitespace-nowrap border border-rule px-2.5',
+              'font-mono text-[10px] tracking-[0.06em] uppercase text-textMid'
+            )}
+          >
+            ▸ {monthLabel}
+          </span>
+          <Pill
+            active={!!selectedCategory}
+            onClick={() => {
+              setCatSheetOpen(true);
+            }}
+          >
+            ◱ {catLabel}
+          </Pill>
+        </div>
       </div>
-    </div>
+
+      <CategoryFilterSheet
+        open={catSheetOpen}
+        onOpenChange={setCatSheetOpen}
+        categories={categories}
+        selectedId={filters.categoryId ?? null}
+        onPick={setCategory}
+      />
+    </>
+  );
+}
+
+interface CategoryFilterSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  categories: Category[];
+  selectedId: string | null;
+  onPick: (id: string | null) => void;
+}
+
+function CategoryFilterSheet({
+  open,
+  onOpenChange,
+  categories,
+  selectedId,
+  onPick,
+}: CategoryFilterSheetProps) {
+  const tree = useMemo(() => buildCategoryTree(categories), [categories]);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>FILTER · CATEGORY</SheetTitle>
+        </SheetHeader>
+        <SheetBody>
+          <ul className="pb-2">
+            <li>
+              <button
+                type="button"
+                className={cn(
+                  'press hairline-b flex w-full items-center justify-between px-4 py-3 text-left',
+                  selectedId === null && 'bg-surface'
+                )}
+                onClick={() => {
+                  onPick(null);
+                }}
+              >
+                <span className="font-sans text-[13.5px] text-textHi">All categories</span>
+                {selectedId === null && (
+                  <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-accent">
+                    ON
+                  </span>
+                )}
+              </button>
+            </li>
+            {tree.map((parent) => (
+              <li key={parent.id}>
+                <div className="mt-3 px-4 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-textLo">
+                  {parent.name}
+                </div>
+                <button
+                  type="button"
+                  className={cn(
+                    'press hairline-b flex w-full items-center justify-between px-4 py-3 text-left',
+                    selectedId === parent.id && 'bg-surface'
+                  )}
+                  onClick={() => {
+                    onPick(parent.id);
+                  }}
+                >
+                  <span className="font-sans text-[13.5px] text-textHi">All {parent.name}</span>
+                  {selectedId === parent.id && (
+                    <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-accent">
+                      ON
+                    </span>
+                  )}
+                </button>
+                {parent.children.map((child) => (
+                  <button
+                    key={child.id}
+                    type="button"
+                    className={cn(
+                      'press hairline-b flex w-full items-center justify-between py-2.5 pl-7 pr-4 text-left',
+                      selectedId === child.id && 'bg-surface'
+                    )}
+                    onClick={() => {
+                      onPick(child.id);
+                    }}
+                  >
+                    <span className="font-sans text-[13px] text-textMid">{child.name}</span>
+                    {selectedId === child.id && (
+                      <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-accent">
+                        ON
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
   );
 }
