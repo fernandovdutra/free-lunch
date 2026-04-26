@@ -44,10 +44,10 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 | # | Phase | Status | Notes |
 |---|-------|--------|-------|
 | 0 | Foundations (tokens, fonts, tailwind, cleanup) | ☑ | desktop+iPhone verified 2026-04-25 |
-| 1 | Shell + nav (TopBar, TabBar, Sheet primitive, desktop side-rail) | ☑ | desktop + iPhone verified 2026-04-25 |
-| 2 | Shared primitives (rows, section header, pill, progress bar, status glyph) | ☑ | desktop verified 2026-04-26; iPhone walkthrough pending |
-| 3 | Login (Google-only, blinking cursor, delete Register) | ☑ | desktop preview verified 2026-04-26; live emulator login confirmed |
-| 4 | Home | ☑ | live walkthrough on seeded emulator 2026-04-26; over-budget + taps + desktop layout all verified |
+| 1 | Shell + nav (TopBar, TabBar, Sheet primitive, desktop side-rail) | ☑ | desktop + iPhone verified 2026-04-25; TopBar reworked v8-fixes-1 (month-nav + sync indicator) |
+| 2 | Shared primitives (rows, section header, pill, progress bar, status glyph) | ☑ | desktop verified 2026-04-26; v8-fixes-2 added TxnRow `time` slot + CategoryRow `amountTrailing` slot |
+| 3 | Login (Google-only, blinking cursor, delete Register) | ☑ | iPhone-verified 2026-04-26 after 4 corrective rounds against v8.html |
+| 4 | Home | ☑ | iPhone-verified 2026-04-26 after 4 corrective rounds against v8.html |
 | 5 | Transactions (sticky filters + month header) | ☐ | |
 | 6 | Transaction Edit Sheet | ☐ | |
 | 7 | Drill L1/L2/L3 **(large)** | ☐ | |
@@ -56,6 +56,27 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 | 10 | Settings hub + 6 sub-pages **(large)** | ☐ | |
 | 11 | Polish, out-of-scope token pass, cleanup, tests | ☐ | |
 | 12 | PR prep | ☐ | |
+
+### Process note (added after Phases 3 + 4)
+
+**Always open `designs/Free Lunch v8.html` before starting a phase.** The
+README is explicit that v8.html is the canonical visual source — the prose
+spec is supplementary. Phases 3 + 4 were initially built from prose alone
+and required **four** corrective rounds (`v8-fixes-1` through `v8-fixes-4`)
+to converge with v8 once the gap was caught. The pattern that works:
+
+1. Copy `designs/Free Lunch v8.html` to `public/__v8_preview.html` (Vite
+   serves `public/` at the dev-server root) so it can be loaded into a
+   preview iframe.
+2. Use `preview_eval` on the canonical screen to read computed styles,
+   border colors, font sizes, exact pixel positions — don't eyeball.
+3. Implement against those measurements.
+4. Delete `public/__v8_preview.html` before committing (it's a 1.8MB
+   asset that doesn't belong in production).
+
+The handoff README still says "high-fidelity, all colors / typography /
+spacing / borders are intentional" — believe it. Differences that look
+small at one resolution become visible on iPhone.
 
 ### Open questions to resolve as phases arrive
 - **Phase 1 / MORE menu — Reports row:** hide entirely or show greyed-out with "Coming soon"? *(handoff open question)*
@@ -183,6 +204,12 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 
 **Commit:** `ui-redesign(login): google-only login, blinking cursor, remove register`
 
+**Subsequent corrective commits:**
+- `8232258 ui-redesign(login-fix): align Phase 3 Login with v8` — Inter Tight 42px wordmark, inline 10×14 cursor after READY label, full-width Google button pinned bottom with colored Google G SVG, dev fallback gated behind `?dev=1` query param
+- `5faee4a ui-redesign(login-fix): point e2e fixture at /login?dev=1` — fixture follow-up
+- `1424cca ui-redesign(v8-fixes-2): close remaining gaps from canonical mockup` — wordmark top-anchored (no vertical center), tagline directly below
+- iPhone-verified 2026-04-26.
+
 ---
 
 ## Phase 4 — Home
@@ -243,6 +270,18 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 > Files added: `src/components/home/{PendingBanner,SpentHeadline,BudgetLine,HomeCategoryList,index}.tsx/ts`. Files renamed: `src/pages/Dashboard.tsx` → `src/pages/Home.tsx` (full rewrite). Files edited: `src/App.tsx`. Files deleted: `src/components/dashboard/{SummaryCards,BudgetOverview,SpendingByCategoryChart,SpendingOverTimeChart,RecentTransactions,index}.tsx/ts`.
 
 **Commit:** `ui-redesign(home): rebuild dashboard with calm terminal layout`
+
+**Subsequent corrective commits (all iPhone-verified 2026-04-26):**
+- `11bef73 ui-redesign(shell-fix): align Phase 1 TopBar with v8` — month-nav `‹ APRIL 2026 ›` + sync indicator with phosphor-glow dot + search/add stub buttons; drop legacy wordmark and `…` button
+- `562f756 ui-redesign(primitives-fix): align Phase 2 row primitives with v8` — `time` slot on TransactionRow, `amountTrailing` on CategoryRow, sans for category names
+- `eab5978 ui-redesign(home-fix): align Phase 4 Home with v8` — drop month-over-month delta in favour of PROJ APR linear-extrapolation forecast, `SPENT · APR` label, split-cents treatment
+- `1424cca ui-redesign(v8-fixes-2): close remaining gaps from canonical mockup` — restored `┗` tether glyph (was dropped in error), full-width hairline below spent block, BY CATEGORY indented to `ml-11` with hairlines under header / each row / `+ N MORE CATEGORIES`, txn category meta tightened to 9.5px JBM
+- `7dc3287 ui-redesign(v8-fixes-3): pending dot glow, balance bg, spent right-stack, tether radius, tab glyphs` — pending dot rounded with phosphor glow, BalanceRow `bg-surface` + `ABN AMRO BALANCE` label, SpentBlock right-stack anchored to top of big amount (not above SPENT label), tether `border-bottom-left-radius:4px` + height aligned to BY CATEGORY text vertical center, TabBar glyphs `≡ ◧ ⋯`
+- `4c5c15a ui-redesign(v8-fixes-4): sync glow, balance all-borders, tether gap, tab text-only` — sync dot phosphor glow added, BalanceRow borders on all 4 sides (not just top+bottom), 6px gap between tether and previous hairline, TabBar active state stripped back to color-only (no border, no glow)
+
+**Known gaps remaining:** BalanceRow renders `summary.netBalance` as a stand-in until Phase 10 wires a real bank-balance hook. Fiscal-month-start preference still calendar-only — Phase 10 introduces it.
+
+**Dev tooling added:** `scripts/_dev_bump_budgets.mjs` — for visually verifying the Home under-budget state with the seeded emulator, since the default seed has spend > total budget. Run after `npm run firebase:emulators` + `node scripts/seed-emulator.mjs`. See `docs/PHONE_DEV_WORKFLOW.md`.
 
 ---
 
