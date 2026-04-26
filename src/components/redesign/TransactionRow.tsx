@@ -41,7 +41,7 @@ export function TransactionRow({
       ? 'text-accent'
       : 'text-textHi';
 
-  const metaColor = isUncat ? 'text-warn' : isTransfer ? 'text-textLo' : 'text-textMid';
+  const metaColor = isUncat ? 'text-alert' : isTransfer ? 'text-textLo' : 'text-textMid';
 
   const bodyContent = (
     <>
@@ -58,7 +58,7 @@ export function TransactionRow({
           )}
         >
           {flag && (
-            <span className="mr-1.5 font-mono font-medium text-warn">{flag}</span>
+            <span className="mr-1.5 font-mono font-semibold text-alert">{flag}</span>
           )}
           {merchant}
         </div>

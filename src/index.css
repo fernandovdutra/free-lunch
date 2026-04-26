@@ -28,6 +28,8 @@
     --accent-dim: rgba(196, 242, 90, 0.18);
     --warn: #ff6b4a;
     --warn-dim: rgba(255, 107, 74, 0.18);
+    --alert: #ffb547; /* uncategorized + needs-attention amber (v8) */
+    --alert-dim: rgba(255, 181, 71, 0.18);
 
     /* Shadcn compatibility (HSL triplets consumed via `hsl(var(--color-*))`).
      * These let un-rebuilt shadcn components render sensibly in the dark

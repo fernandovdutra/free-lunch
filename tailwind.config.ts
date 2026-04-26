@@ -31,6 +31,10 @@ export default {
           DEFAULT: 'var(--warn)',
           dim: 'var(--warn-dim)',
         },
+        alert: {
+          DEFAULT: 'var(--alert)',
+          dim: 'var(--alert-dim)',
+        },
 
         // --- Shadcn compatibility layer (HSL-backed) ---
         background: 'hsl(var(--color-background))',
