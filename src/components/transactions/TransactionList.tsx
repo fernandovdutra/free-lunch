@@ -62,6 +62,7 @@ export function TransactionList({ months, categories, onRowTap }: TransactionLis
                     sign={sign}
                     meta={meta}
                     time={format(t.transactionDate ?? t.bookingDate ?? t.date, 'HH:mm')}
+                    {...(variant === 'uncat' ? { flag: '!' } : {})}
                     variant={variant}
                     onClick={() => {
                       onRowTap(t.id);

@@ -9,6 +9,11 @@ interface TransactionRowProps {
   meta?: string;
   /** Optional left-aligned mono time column (e.g. "14:22"). */
   time?: string;
+  /**
+   * Optional small glyph rendered between the time slot and the merchant
+   * name, in warn colour. Used for `!` on uncategorized rows in v8.
+   */
+  flag?: string;
   variant?: TransactionRowVariant;
   onClick?: () => void;
   className?: string;
@@ -20,6 +25,7 @@ export function TransactionRow({
   sign = '',
   meta,
   time,
+  flag,
   variant = 'default',
   onClick,
   className,
@@ -51,6 +57,9 @@ export function TransactionRow({
             isTransfer && 'italic'
           )}
         >
+          {flag && (
+            <span className="mr-1.5 font-mono font-medium text-warn">{flag}</span>
+          )}
           {merchant}
         </div>
         {meta && (

@@ -456,49 +456,53 @@ interface SlideToDeleteProps {
  */
 function SlideToDelete({ onConfirm, disabled }: SlideToDeleteProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const [trackW, setTrackW] = useState(0);
   const [progress, setProgress] = useState(0); // 0..1
   const [committed, setCommitted] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const dragRef = useRef<{ pointerId: number; startX: number } | null>(null);
+  const dragRef = useRef<{ pointerId: number } | null>(null);
 
   const COMMIT_THRESHOLD = 0.85;
   const THUMB_W = 56;
 
-  // Measure track width (and re-measure on resize)
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    const update = () => {
-      setTrackW(el.offsetWidth);
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => {
-      ro.disconnect();
-    };
-  }, []);
+  // Pointer events live on the track itself (the bigger touch target).
+  // The thumb is purely visual (pointer-events: none). Drag progress is
+  // computed from the live `getBoundingClientRect` of the track on every
+  // event — this avoids the stale-trackW bug that bit when the sheet's
+  // slide-up animation finished AFTER the SlideToDelete component first
+  // mounted (ResizeObserver did fire eventually, but state updates didn't
+  // reach the active drag closure). Reading the rect on each event is
+  // cheap and always correct.
+  //
+  // Thumb position is rendered with `calc((100% - thumb) * progress)` so
+  // CSS handles the layout — no JS-side pixel math needed for the visual.
 
-  const maxDx = Math.max(0, trackW - THUMB_W);
+  const handleProgressFromEvent = (e: React.PointerEvent<HTMLDivElement>) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const rect = track.getBoundingClientRect();
+    const max = rect.width - THUMB_W;
+    if (max <= 0) return;
+    const x = e.clientX - rect.left - THUMB_W / 2;
+    setProgress(Math.max(0, Math.min(1, x / max)));
+  };
 
-  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (disabled || committed) return;
     const track = trackRef.current;
     if (!track) return;
     track.setPointerCapture(e.pointerId);
-    dragRef.current = { pointerId: e.pointerId, startX: e.clientX };
+    dragRef.current = { pointerId: e.pointerId };
     setDragging(true);
+    handleProgressFromEvent(e);
   };
 
-  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
-    if (!drag || drag.pointerId !== e.pointerId || maxDx === 0) return;
-    const dx = e.clientX - drag.startX;
-    setProgress(Math.max(0, Math.min(1, dx / maxDx)));
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    handleProgressFromEvent(e);
   };
 
-  const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
     dragRef.current = null;
@@ -517,40 +521,41 @@ function SlideToDelete({ onConfirm, disabled }: SlideToDeleteProps) {
   return (
     <div
       ref={trackRef}
+      role="button"
+      tabIndex={disabled || committed ? -1 : 0}
+      aria-label="Slide to delete transaction"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
       className={cn(
         'relative h-12 w-full overflow-hidden border border-warn/40 bg-warn-dim',
-        disabled && 'opacity-50'
+        'touch-none select-none',
+        disabled || committed
+          ? 'opacity-50'
+          : 'cursor-grab active:cursor-grabbing'
       )}
     >
       <span
+        aria-hidden
         className="pointer-events-none absolute inset-0 flex items-center justify-center font-mono text-[12px] uppercase tracking-[0.08em] text-warn transition-opacity duration-100"
         style={{ opacity: labelOpacity }}
       >
         {committed ? 'Deleting…' : 'Slide to delete'}
       </span>
-      <button
-        type="button"
-        disabled={disabled || committed}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        aria-label="Slide to delete transaction"
+      <span
+        aria-hidden
         className={cn(
-          'absolute inset-y-0 left-0 flex items-center justify-center bg-warn text-bg',
-          'touch-none cursor-grab active:cursor-grabbing',
-          // Smooth springback when not actively dragging
-          dragging ? '' : 'transition-transform duration-180 ease-out'
+          'pointer-events-none absolute inset-y-0 flex items-center justify-center bg-warn text-bg',
+          dragging ? '' : 'transition-[left] duration-180 ease-out'
         )}
         style={{
           width: `${THUMB_W}px`,
-          transform: `translateX(${progress * maxDx}px)`,
+          left: `calc((100% - ${THUMB_W}px) * ${progress})`,
         }}
       >
-        <span aria-hidden className="font-mono text-[16px] leading-none">
-          ›
-        </span>
-      </button>
+        <span className="font-mono text-[16px] leading-none">›</span>
+      </span>
     </div>
   );
 }

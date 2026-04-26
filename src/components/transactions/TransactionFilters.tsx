@@ -131,6 +131,9 @@ export function TransactionFilters({
         onPick={(date) => {
           setSelectedMonth(date);
           setMonthSheetOpen(false);
+          // Scroll to top so the picked month is at the top of the list,
+          // not wherever the user was scrolled previously.
+          window.scrollTo({ top: 0 });
         }}
       />
     </>
