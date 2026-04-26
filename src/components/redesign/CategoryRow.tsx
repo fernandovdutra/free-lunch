@@ -4,6 +4,8 @@ import { ProgressBar } from './ProgressBar';
 interface CategoryRowProps {
   name: string;
   amount: string;
+  /** Small de-emphasized label rendered after the amount (e.g. "€31 left"). */
+  amountTrailing?: string;
   meta?: string;
   progress?: number;
   max?: number;
@@ -15,6 +17,7 @@ interface CategoryRowProps {
 export function CategoryRow({
   name,
   amount,
+  amountTrailing,
   meta,
   progress,
   max,
@@ -24,12 +27,20 @@ export function CategoryRow({
 }: CategoryRowProps) {
   const isOver = variant === 'over';
   const showBar = progress !== undefined && max !== undefined;
+  const trailingTone = isOver ? 'text-warn' : 'text-textLo';
 
   const bodyContent = (
     <>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="font-mono text-ct-row text-textHi">{name}</span>
-        <span className="nums font-mono text-ct-row text-textHi">{amount}</span>
+        <span className="font-sans text-[13px] text-textHi">{name}</span>
+        <span className="flex items-baseline gap-2">
+          <span className="nums font-mono text-ct-row text-textHi">{amount}</span>
+          {amountTrailing && (
+            <span className={cn('nums font-mono text-[10px]', trailingTone)}>
+              {amountTrailing}
+            </span>
+          )}
+        </span>
       </div>
       {meta && (
         <div

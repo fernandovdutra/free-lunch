@@ -7,6 +7,8 @@ interface TransactionRowProps {
   amount: string;
   sign?: '+' | '-' | '';
   meta?: string;
+  /** Optional left-aligned mono time column (e.g. "14:22"). */
+  time?: string;
   variant?: TransactionRowVariant;
   onClick?: () => void;
   className?: string;
@@ -17,6 +19,7 @@ export function TransactionRow({
   amount,
   sign = '',
   meta,
+  time,
   variant = 'default',
   onClick,
   className,
@@ -36,6 +39,11 @@ export function TransactionRow({
 
   const bodyContent = (
     <>
+      {time && (
+        <div className="nums font-mono text-[10px] leading-tight text-textLo">
+          {time}
+        </div>
+      )}
       <div className="min-w-0">
         <div
           className={cn(
@@ -64,7 +72,8 @@ export function TransactionRow({
   );
 
   const baseClasses = cn(
-    'grid w-full grid-cols-[1fr_auto] items-center gap-3 px-4 py-3 hairline-b text-left',
+    'grid w-full items-center gap-3 px-4 py-3 hairline-b text-left',
+    time ? 'grid-cols-[40px_1fr_auto]' : 'grid-cols-[1fr_auto]',
     isTransfer && 'opacity-70'
   );
 
