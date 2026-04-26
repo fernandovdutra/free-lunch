@@ -17,7 +17,7 @@ export function BudgetLine({ spent, budget, isOver }: BudgetLineProps) {
     <div className="mt-3">
       <div
         className={cn(
-          'flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.06em] mb-1.5',
+          'flex items-baseline justify-between font-mono text-[10.5px] uppercase tracking-[0.04em] mb-1.5',
           isOver ? 'text-warn' : 'text-textLo'
         )}
       >

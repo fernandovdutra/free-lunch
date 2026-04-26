@@ -27,8 +27,8 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-svh flex-col bg-bg text-textHi">
-      <div className="flex items-center gap-2 px-5 pt-5">
+    <div className="flex min-h-svh flex-col bg-bg text-textHi px-7 pb-8 pt-6">
+      <div className="flex items-center gap-2">
         <span aria-hidden className="font-mono text-[11px] text-textLo">▸</span>
         <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-textLo">
           READY
@@ -40,20 +40,18 @@ export function Login() {
         />
       </div>
 
-      <main className="flex flex-1 flex-col px-7 pb-10">
-        <div className="flex flex-1 flex-col justify-center">
-          <h1
-            className="font-sans font-medium text-textHi"
-            style={{ fontSize: 42, lineHeight: 1, letterSpacing: '-0.03em' }}
-          >
-            <span className="block">Free</span>
-            <span className="block">Lunch</span>
-          </h1>
-          <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.12em] text-textLo">
-            Personal Finance, Smartly.
-          </p>
-        </div>
+      <h1
+        className="mt-3 font-sans font-medium text-textHi"
+        style={{ fontSize: 42, lineHeight: 1, letterSpacing: '-0.03em' }}
+      >
+        <span className="block">Free</span>
+        <span className="block">Lunch</span>
+      </h1>
+      <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.12em] text-textLo">
+        Personal Finance, Smartly.
+      </p>
 
+      <main className="mt-auto flex flex-col gap-3">
         <div className="flex flex-col gap-3">
           <button
             type="button"
@@ -88,6 +86,7 @@ export function Login() {
     </div>
   );
 }
+
 
 function GoogleGlyph() {
   return (

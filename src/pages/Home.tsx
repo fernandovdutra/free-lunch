@@ -1,18 +1,15 @@
 import { Link, useNavigate } from 'react-router-dom';
-import {
-  format,
-  getDate,
-  getDaysInMonth,
-  isAfter,
-} from 'date-fns';
+import { format, getDate, getDaysInMonth, isAfter } from 'date-fns';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useCategories } from '@/hooks/useCategories';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useBudgetProgress } from '@/hooks/useBudgetProgress';
+import { usePendingReimbursements } from '@/hooks/useReimbursements';
 import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount } from '@/lib/utils';
-import { SectionHeader, TransactionRow } from '@/components/redesign';
+import { TransactionRow } from '@/components/redesign';
 import {
+  BalanceRow,
   BudgetLine,
   HomeCategoryList,
   PendingBanner,
@@ -28,6 +25,7 @@ export function Home() {
   const { data: budgets = [] } = useBudgets();
   const { data: budgetProgress } = useBudgetProgress(dateRange);
   const { data: categories = [] } = useCategories();
+  const { data: pendingReimbursements = [] } = usePendingReimbursements();
 
   if (error) {
     return (
@@ -53,10 +51,6 @@ export function Home() {
     .reduce((sum, b) => sum + b.monthlyLimit, 0);
   const isOver = budget > 0 && spent > budget;
 
-  // Linear extrapolation for the current month: if 4 days into a 30-day month
-  // we've spent €100, project = €100 / 4 * 30 = €750. For past months, the
-  // projection collapses to the actual spent — we hide the right-stack to keep
-  // the headline calm.
   const today = new Date();
   const daysInMonth = getDaysInMonth(selectedMonth);
   const dayOfMonth = isCurrentMonth ? getDate(today) : daysInMonth;
@@ -76,17 +70,20 @@ export function Home() {
         amountFormatted: formatAmount(projection.amount, { showSign: false }),
         deltaFormatted: formatAmount(Math.abs(projection.delta), { showSign: false }),
         deltaSign:
-          projection.delta > 0
-            ? ('+' as const)
-            : projection.delta < 0
-              ? ('-' as const)
-              : ('·' as const),
+          projection.delta > 0 ? ('+' as const) : projection.delta < 0 ? ('-' as const) : ('·' as const),
       }
     : null;
 
-  const pendingTotal = summary.pendingReimbursements;
-  const pendingCount =
-    current?.recentTransactions.filter((t) => t.reimbursement?.status === 'pending').length ?? 0;
+  // Pending reimbursements: derive from the dedicated hook so the banner
+  // shows even when the dashboard summary aggregator is stale (e.g., right
+  // after a transaction was tagged via mutation). Sum of absolute amounts
+  // since pending txns are normally negative (an expense the user is owed
+  // back for).
+  const pendingCount = pendingReimbursements.length;
+  const pendingTotal = pendingReimbursements.reduce(
+    (sum, t) => sum + Math.abs(t.amount),
+    0
+  );
 
   const categorySpending = current?.categorySpending ?? [];
   const topCategories = categorySpending.slice(0, 4);
@@ -124,23 +121,27 @@ export function Home() {
     void navigate(`/expenses/${topLevelId}`);
   };
 
-  // Bank-account balance is not yet exposed by any current hook — useBankConnections
-  // returns connection metadata only. The BalanceRow primitive is in place
-  // (src/components/home/BalanceRow.tsx) and Phase 10 will wire it.
+  // Bank-account balance is not yet exposed by any current hook —
+  // useBankConnections returns connection metadata only. Until Phase 10 wires
+  // a real balance hook, fall back to net cashflow for the period (income −
+  // expenses) as a stand-in so the row matches the v8 layout. Labelled
+  // "ACCOUNT BALANCE" rather than the bank-specific name to avoid misleading.
+  const balance = { label: 'ACCOUNT BALANCE', amount: summary.netBalance };
 
   return (
-    <div className="pb-8">
+    <div className="-mx-4 pb-8">
       <PendingBanner amount={pendingTotal} count={pendingCount} />
+      <BalanceRow label={balance.label} amount={balance.amount} />
 
-      <SpentBlock
-        spent={spent}
-        spentFormatted={formatAmount(spent, { showSign: false })}
-        monthLabel={monthAbbr}
-        projection={projectionView}
-        isOver={isOver}
-      />
-
-      <BudgetLine spent={spent} budget={budget} isOver={isOver} />
+      <section className="mt-5 border-b border-rule px-5 pb-4">
+        <SpentBlock
+          spentFormatted={formatAmount(spent, { showSign: false })}
+          monthLabel={monthAbbr}
+          projection={projectionView}
+          isOver={isOver}
+        />
+        <BudgetLine spent={spent} budget={budget} isOver={isOver} />
+      </section>
 
       <HomeCategoryList
         entries={categoryEntries}
@@ -149,19 +150,18 @@ export function Home() {
         onCategoryClick={handleCategoryClick}
       />
 
-      <section className="mt-6">
-        <SectionHeader
-          right={
-            <Link
-              to="/transactions"
-              className="press nums font-mono text-[10px] uppercase tracking-[0.06em] text-accent"
-            >
-              ALL {summary.transactionCount} →
-            </Link>
-          }
-        >
-          RECENT TRANSACTIONS
-        </SectionHeader>
+      <section className="mt-5 px-5">
+        <header className="flex items-baseline justify-between py-3">
+          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-textLo">
+            RECENT TRANSACTIONS
+          </span>
+          <Link
+            to="/transactions"
+            className="press nums font-mono text-[10px] uppercase tracking-[0.06em] text-accent"
+          >
+            ALL {summary.transactionCount} →
+          </Link>
+        </header>
         {recentTransactions.map((t) => {
           const category = t.categoryId ? categoryById.get(t.categoryId) : null;
           const isIncome = t.amount > 0;
@@ -180,6 +180,7 @@ export function Home() {
           return (
             <TransactionRow
               key={t.id}
+              className="!px-0"
               merchant={t.counterparty ?? t.description}
               amount={formatAmount(t.amount, { showSign: false })}
               sign={isIncome ? '+' : '-'}

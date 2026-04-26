@@ -67,7 +67,7 @@ export function TopBar() {
     .filter((t) => !Number.isNaN(t))
     .sort((a, b) => b - a)[0];
   const syncLabel =
-    latestSync !== undefined ? formatRelativeMinutes(new Date(latestSync)) : null;
+    latestSync !== undefined ? formatRelativeMinutes(new Date(latestSync)) : 'NOT YET';
 
   const stub = (label: string) => () => {
     toast({ title: `${label} — coming soon` });
@@ -123,12 +123,11 @@ export function TopBar() {
             </div>
 
             <div className="flex items-center gap-3">
-              {syncLabel && (
-                <span className="hidden items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-textLo sm:inline-flex">
-                  <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent" />
-                  SYNC {syncLabel}
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-textLo">
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent" />
+                <span className="hidden xs:inline">SYNC </span>
+                {syncLabel}
+              </span>
               <button
                 type="button"
                 onClick={stub('Search')}

@@ -56,7 +56,7 @@ export function TransactionRow({
         {meta && (
           <div
             className={cn(
-              'mt-1 font-mono text-ct-meta upper-tight',
+              'mt-1 font-mono text-[9.5px] uppercase tracking-[0.04em]',
               metaColor
             )}
           >

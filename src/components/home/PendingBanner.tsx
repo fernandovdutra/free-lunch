@@ -12,17 +12,21 @@ export function PendingBanner({ amount, count }: PendingBannerProps) {
   return (
     <Link
       to="/reimbursements"
-      className="press mt-2 flex items-center gap-2 border border-accent/40 px-3.5 py-2.5 font-mono text-[11px] tracking-[0.04em] text-accent"
-      style={{ backgroundColor: 'rgba(196, 242, 90, 0.06)' }}
+      className="press mx-4 mt-3 flex items-center gap-2 border px-3.5 py-2.5"
+      style={{
+        borderColor: 'rgba(196, 242, 90, 0.22)',
+        backgroundColor: 'rgba(196, 242, 90, 0.06)',
+      }}
     >
       <span aria-hidden className="block h-1.5 w-1.5 bg-accent" />
-      <span className="nums">+{formatAmount(amount, { showSign: false })}</span>
-      <span className="font-mono uppercase tracking-[0.08em]">PENDING</span>
+      <span className="nums font-mono text-[11px] uppercase tracking-[0.04em] text-accent">
+        +{formatAmount(amount, { showSign: false })} PENDING
+      </span>
       <span className="text-textLo">·</span>
-      <span className="font-sans text-textLo">
+      <span className="font-sans text-[12px] text-textMid">
         {count} {count === 1 ? 'item' : 'items'} to reimburse
       </span>
-      <span className="ml-auto text-accent" aria-hidden>→</span>
+      <span className="ml-auto font-mono text-[14px] text-accent" aria-hidden>→</span>
     </Link>
   );
 }
