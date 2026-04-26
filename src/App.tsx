@@ -26,7 +26,6 @@ import { Investments } from '@/pages/Investments';
 import { Insights } from '@/pages/Insights';
 import { InsightDetail } from '@/pages/InsightDetail';
 import { Login } from '@/pages/auth/Login';
-import { Register } from '@/pages/auth/Register';
 import { PrimitivesPlayground } from '@/pages/dev/PrimitivesPlayground';
 
 // Layout
@@ -51,7 +50,6 @@ export function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
               {import.meta.env.DEV && (
                 <Route path="/__dev/primitives" element={<PrimitivesPlayground />} />
               )}

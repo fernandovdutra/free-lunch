@@ -2,11 +2,9 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
   signOut,
-  updateProfile,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import {
@@ -36,7 +34,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -152,16 +149,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const register = async (email: string, password: string, displayName: string) => {
-    setIsLoading(true);
-    try {
-      const { user: fbUser } = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(fbUser, { displayName });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const logout = async () => {
     await signOut(auth);
     setUser(null);
@@ -177,7 +164,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isAuthenticated: !!user,
         login,
         loginWithGoogle,
-        register,
         logout,
       }}
     >

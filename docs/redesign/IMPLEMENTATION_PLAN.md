@@ -46,7 +46,7 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 | 0 | Foundations (tokens, fonts, tailwind, cleanup) | ☑ | desktop+iPhone verified 2026-04-25 |
 | 1 | Shell + nav (TopBar, TabBar, Sheet primitive, desktop side-rail) | ☑ | desktop + iPhone verified 2026-04-25 |
 | 2 | Shared primitives (rows, section header, pill, progress bar, status glyph) | ☑ | desktop verified 2026-04-26; iPhone walkthrough pending |
-| 3 | Login (Google-only, blinking cursor, delete Register) | ☐ | |
+| 3 | Login (Google-only, blinking cursor, delete Register) | ☑ | desktop preview verified 2026-04-26; iPhone walkthrough pending |
 | 4 | Home | ☐ | |
 | 5 | Transactions (sticky filters + month header) | ☐ | |
 | 6 | Transaction Edit Sheet | ☐ | |
@@ -167,7 +167,19 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 - Add keyframes to [index.css](src/index.css): `@keyframes blink { 50% { opacity: 0 } }`.
 
 **State snapshot:**
-> *(empty)*
+> Session 2026-04-26: Login rewritten to spec. Composes `StatusGlyph` (READY ▤ top-left) and `PhosphorButton` (▸ CONTINUE WITH GOOGLE). Black `bg-bg`, centered column max-w-[280px], 28px accent block above wordmark animated via the existing `.cursor-blink` class (1.1s step-end — the keyframe was already in src/index.css from Phase 0, no new CSS needed). Wordmark mono 40px / 0.08em / textHi, tagline mono 11px / 0.12em / textLo. All computed styles verified against spec via preview_eval. `/register` returns no-match (blank) — Phase 11 can add a proper 404 page.
+>
+> **Email/password fallback decision:** kept email/password in `AuthContext.login` (e2e fixtures and phone dev workflow both depend on it), gated the form UI behind `import.meta.env.DEV`. Production builds tree-shake the `DevLoginFallback` inline subcomponent out. The form uses `aria-label` on inputs so Playwright `getByLabel(/email/i)` keeps working.
+>
+> **Deletions:** `src/pages/auth/Register.tsx`, `/register` route + import in `src/App.tsx`, `register()` method + `createUserWithEmailAndPassword`/`updateProfile` imports in `AuthContext.tsx`.
+>
+> **E2E ripple (minimum surgery — Phase 11 owns the deeper cleanup):** removed `register()` helper from `e2e/fixtures/auth.ts`; `isAuthAvailable` and `authenticatedPage` fixtures now go straight to `login()` against the seeded `test@freelunch.local` user. Pruned register-page tests from `e2e/auth.spec.ts` and `e2e/smoke.spec.ts`; updated heading assertions to look for the new `FREE LUNCH` wordmark. Sign-in button selector swapped to `/dev login/i`.
+>
+> **Verified:** `npm run typecheck` clean, `npm run lint` clean on Phase 3 files (pre-existing warnings in unrelated files unchanged). Browser preview at `http://localhost:5180/login` (mobile 375×812) — wordmark, tagline, cursor block (animation `cursor-blink 1.1s`), Google PhosphorButton (48×280, surface bg `#16181b`), and DEV fallback all render with the correct calm-terminal tokens. iPhone walkthrough deferred to user — when ready, point the phone at the running emulator stack URL and confirm.
+>
+> **Follow-ups:** none for Phase 3. The dev-fallback could later be hidden behind a 5-tap easter-egg for a cleaner production-feel even in dev — log here if requested.
+>
+> Files: `src/pages/auth/Login.tsx`, `src/contexts/AuthContext.tsx`, `src/App.tsx`, `e2e/fixtures/auth.ts`, `e2e/auth.spec.ts`, `e2e/smoke.spec.ts`. Deleted: `src/pages/auth/Register.tsx`.
 
 **Commit:** `ui-redesign(login): google-only login, blinking cursor, remove register`
 
