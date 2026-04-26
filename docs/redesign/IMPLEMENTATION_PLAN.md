@@ -435,18 +435,22 @@ small at one resolution become visible on iPhone.
 
 **Goal:** planning-first screen per README §07.
 
+**Sub-checkpoints:**
+1. **8a** — `AllocationStrip` primitive + `Budgets.tsx` read-mode shell. EDIT pill stub, no mutations. ✅
+2. **8b** — Edit-mode steppers, draft state, SAVE/DISCARD footer with batched mutation diff.
+
 **Touches:**
 - **Rewrite** `src/pages/Budgets.tsx`.
-- Header strip (total cap, unallocated — no live spend).
-- `AllocationStrip.tsx` — horizontal stacked bar, colored slices, dashed unallocated tail.
-- Category list with expandable sub-rows showing allocation breakdown.
+- Header (`MONTHLY PLAN` label + `○ EDIT` pill) + hero `€{cap}` `/MONTH`.
+- `AllocationStrip.tsx` — horizontal stacked bar with flex-grow proportional slices, opacity-stepped accent fills, dashed unallocated tail.
+- `BY CATEGORY` numbered list (`01`..`NN`), expandable to subcategory list (each child shows budget or `NO BUDGET`).
 - Edit-mode toggle → rows get `+`/`−` steppers; SAVE/DISCARD footer.
 - No rollover logic.
 
 **State snapshot:**
-> *(empty)*
+> **8a landed (2026-04-27):** AllocationStrip primitive built with canonical opacity progression (0.95 → 0.20). Budgets page rewritten to match v8 frame: top header + EDIT pill, hero `€{cap}` + `/MONTH`, ALLOCATION section with strip + caption (`N CATEGORIES · €X/DAY`), `BY CATEGORY · N · TAP TO EXPAND` header, numbered DrillRow-style entries with `N SUBCATEGORIES` meta, tap-to-expand reveals child list with per-child amount or `NO BUDGET`. EDIT pill is a disabled stub for 8b. Read-mode uses `useBudgets` + `useCategories` only — no `useBudgetProgress` (planning, not tracking). Verified on iPhone walkthrough.
 
-**Commit:** `ui-redesign(budget): planning screen with read/edit modes`
+**Commit:** one per sub-checkpoint, prefixed `ui-redesign(budget-…)`.
 
 ---
 
