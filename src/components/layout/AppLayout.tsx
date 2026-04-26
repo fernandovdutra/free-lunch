@@ -14,7 +14,7 @@ export function AppLayout() {
   return (
     <div className="min-h-screen bg-bg text-textHi">
       <SideRail onMoreClick={openMore} moreOpen={moreOpen} />
-      <TopBar onMoreClick={openMore} />
+      <TopBar />
 
       <main
         className="pt-[calc(env(safe-area-inset-top)+44px)] pb-[calc(env(safe-area-inset-bottom)+68px)] lg:pl-[60px] lg:pb-6"
