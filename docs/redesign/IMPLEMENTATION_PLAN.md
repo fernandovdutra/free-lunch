@@ -449,6 +449,8 @@ small at one resolution become visible on iPhone.
 
 **State snapshot:**
 > **8a landed (2026-04-27):** AllocationStrip primitive built with canonical opacity progression (0.95 → 0.20). Budgets page rewritten to match v8 frame: top header + EDIT pill, hero `€{cap}` + `/MONTH`, ALLOCATION section with strip + caption (`N CATEGORIES · €X/DAY`), `BY CATEGORY · N · TAP TO EXPAND` header, numbered DrillRow-style entries with `N SUBCATEGORIES` meta, tap-to-expand reveals child list with per-child amount or `NO BUDGET`. EDIT pill is a disabled stub for 8b. Read-mode uses `useBudgets` + `useCategories` only — no `useBudgetProgress` (planning, not tracking). Verified on iPhone walkthrough.
+>
+> **8b landed (2026-04-27):** EDIT pill toggles to `● EDITING` (active accent state); rows auto-expand and editing happens at the LEAF level (subcategories where they exist, top-level otherwise). When a parent category also carries its own direct budget, it is surfaced as a `(general)` leaf alongside the children so nothing gets dropped silently. Steppers (`−` / `+`, step €50, 28×28 tap targets) flank a tabular-nums amount; AllocationStrip + caption + cap recompute live from draft state. Sticky `DISCARD / SAVE` PhosphorButton footer above the TabBar; SAVE is the warn variant, disabled until dirty. Save semantics are batched: per changed leaf, single-doc updates if exactly one match exists, otherwise delete-all + create one fresh budget at the leaf's categoryId. `useBudgetProgress` still not consulted. Verified on iPhone walkthrough.
 
 **Commit:** one per sub-checkpoint, prefixed `ui-redesign(budget-…)`.
 

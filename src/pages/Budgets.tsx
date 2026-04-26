@@ -1,29 +1,49 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getDaysInMonth } from 'date-fns';
-import { useBudgets } from '@/hooks/useBudgets';
+import {
+  useBudgets,
+  useCreateBudget,
+  useDeleteBudget,
+  useUpdateBudget,
+} from '@/hooks/useBudgets';
 import { useCategories } from '@/hooks/useCategories';
 import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount } from '@/lib/utils';
-import { AllocationStrip, type AllocationSlice } from '@/components/redesign';
+import { AllocationStrip, PhosphorButton, type AllocationSlice } from '@/components/redesign';
 import type { Budget, Category } from '@/types';
 
 const CAP_FALLBACK = 5000;
+const STEP_VALUE = 50;
+
+interface LeafEntry {
+  id: string;
+  name: string;
+  budget: number;
+  matches: Budget[];
+}
 
 interface CategoryEntry {
   id: string;
   name: string;
-  budget: number;
-  children: { id: string; name: string; budget: number }[];
+  /**
+   * If the top-level has subcategories, leafs are the children. Otherwise
+   * the top-level itself is the only leaf and holds its own budget.
+   */
+  leafs: LeafEntry[];
+  /** Whether this top-level has real children (vs being a leaf itself). */
+  hasChildren: boolean;
 }
 
 function composeCategories(
   budgets: Budget[],
   categories: Category[]
 ): CategoryEntry[] {
-  const budgetByCat = new Map<string, number>();
-  for (const b of budgets) {
-    if (!b.isActive) continue;
-    budgetByCat.set(b.categoryId, (budgetByCat.get(b.categoryId) ?? 0) + b.monthlyLimit);
+  const activeBudgets = budgets.filter((b) => b.isActive);
+  const budgetByCat = new Map<string, Budget[]>();
+  for (const b of activeBudgets) {
+    const arr = budgetByCat.get(b.categoryId) ?? [];
+    arr.push(b);
+    budgetByCat.set(b.categoryId, arr);
   }
 
   const top = categories.filter((c) => !c.parentId);
@@ -35,38 +55,84 @@ function composeCategories(
     byParent.set(c.parentId, arr);
   }
 
+  const buildLeaf = (cat: Category, nameOverride?: string): LeafEntry => {
+    const matches = budgetByCat.get(cat.id) ?? [];
+    return {
+      id: cat.id,
+      name: nameOverride ?? cat.name,
+      budget: matches.reduce((s, b) => s + b.monthlyLimit, 0),
+      matches,
+    };
+  };
+
   return top
-    .map((cat) => {
-      const children = (byParent.get(cat.id) ?? []).map((child) => ({
-        id: child.id,
-        name: child.name,
-        budget: budgetByCat.get(child.id) ?? 0,
-      }));
-      const childTotal = children.reduce((s, c) => s + c.budget, 0);
-      const direct = budgetByCat.get(cat.id) ?? 0;
+    .map((cat): CategoryEntry => {
+      const childCats = byParent.get(cat.id) ?? [];
+      const hasChildren = childCats.length > 0;
+      const leafs = hasChildren
+        ? [
+            // Surface a parent-level budget (when one exists) as a `(general)`
+            // leaf so it remains editable alongside the children.
+            ...((budgetByCat.get(cat.id) ?? []).length > 0
+              ? [buildLeaf(cat, '(general)')]
+              : []),
+            ...childCats.map((c) => buildLeaf(c)),
+          ]
+        : [buildLeaf(cat)];
       return {
         id: cat.id,
         name: cat.name,
-        budget: Math.max(direct, childTotal),
-        children,
+        leafs,
+        hasChildren,
       };
     })
-    .filter((e) => e.budget > 0 || e.children.length > 0)
-    .sort((a, b) => b.budget - a.budget);
+    .filter((e) => e.leafs.some((l) => l.budget > 0) || e.hasChildren || e.leafs.length > 0)
+    .sort((a, b) => {
+      const aSum = a.leafs.reduce((s, l) => s + l.budget, 0);
+      const bSum = b.leafs.reduce((s, l) => s + l.budget, 0);
+      return bSum - aSum;
+    });
 }
 
 export function Budgets() {
   const { selectedMonth } = useMonth();
   const { data: budgets = [], isLoading: budgetsLoading, error } = useBudgets();
   const { data: categories = [] } = useCategories();
+  const createMut = useCreateBudget();
+  const updateMut = useUpdateBudget();
+  const deleteMut = useDeleteBudget();
+
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState<Map<string, number>>(new Map());
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const entries = useMemo(
     () => composeCategories(budgets, categories),
     [budgets, categories]
   );
 
-  const allocated = entries.reduce((sum, e) => sum + e.budget, 0);
+  // Re-sync draft when entries change while editing (in case server data updates).
+  useEffect(() => {
+    if (!isEditing) return;
+    setDraft((prev) => {
+      const next = new Map(prev);
+      for (const e of entries) {
+        for (const l of e.leafs) {
+          if (!next.has(l.id)) next.set(l.id, l.budget);
+        }
+      }
+      return next;
+    });
+  }, [isEditing, entries]);
+
+  const leafValue = (l: LeafEntry) =>
+    isEditing ? (draft.get(l.id) ?? l.budget) : l.budget;
+
+  const entrySum = (e: CategoryEntry) =>
+    e.leafs.reduce((s, l) => s + leafValue(l), 0);
+
+  const allocated = entries.reduce((sum, e) => sum + entrySum(e), 0);
   const totalCap = Math.max(allocated, CAP_FALLBACK);
   const free = Math.max(0, totalCap - allocated);
   const daysInMonth = getDaysInMonth(selectedMonth);
@@ -76,16 +142,95 @@ export function Budgets() {
   const slices: AllocationSlice[] = entries.map((e) => ({
     id: e.id,
     label: e.name,
-    value: e.budget,
+    value: entrySum(e),
   }));
 
+  const isDirty =
+    isEditing &&
+    entries.some((e) => e.leafs.some((l) => leafValue(l) !== l.budget));
+
+  const isPending =
+    createMut.isPending || updateMut.isPending || deleteMut.isPending;
+
   const toggleExpand = (id: string) => {
+    if (isEditing) return;
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  };
+
+  const stepLeaf = (l: LeafEntry, delta: number) => {
+    setSaveError(null);
+    setDraft((prev) => {
+      const next = new Map(prev);
+      const current = next.get(l.id) ?? l.budget;
+      next.set(l.id, Math.max(0, current + delta));
+      return next;
+    });
+  };
+
+  const enterEdit = () => {
+    setSaveError(null);
+    setExpanded(new Set());
+    const initial = new Map<string, number>();
+    for (const e of entries) {
+      for (const l of e.leafs) initial.set(l.id, l.budget);
+    }
+    setDraft(initial);
+    setIsEditing(true);
+  };
+
+  const discard = () => {
+    setSaveError(null);
+    setDraft(new Map());
+    setIsEditing(false);
+  };
+
+  const save = async () => {
+    setSaveError(null);
+    try {
+      const ops: Promise<unknown>[] = [];
+      for (const e of entries) {
+        for (const l of e.leafs) {
+          const next = leafValue(l);
+          if (next === l.budget) continue;
+          if (next > 0) {
+            if (l.matches.length === 1 && l.matches[0] !== undefined) {
+              ops.push(
+                updateMut.mutateAsync({
+                  id: l.matches[0].id,
+                  data: { monthlyLimit: next },
+                })
+              );
+            } else {
+              for (const m of l.matches) {
+                ops.push(deleteMut.mutateAsync(m.id));
+              }
+              ops.push(
+                createMut.mutateAsync({
+                  name: l.name,
+                  categoryId: l.id,
+                  monthlyLimit: next,
+                  alertThreshold: 80,
+                })
+              );
+            }
+          } else {
+            for (const m of l.matches) {
+              ops.push(deleteMut.mutateAsync(m.id));
+            }
+          }
+        }
+      }
+      await Promise.all(ops);
+      setDraft(new Map());
+      setIsEditing(false);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Save failed');
+    }
   };
 
   if (error) {
@@ -104,6 +249,40 @@ export function Budgets() {
     );
   }
 
+  const renderStepper = (l: LeafEntry) => {
+    const value = leafValue(l);
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => { stepLeaf(l, -STEP_VALUE); }}
+          disabled={value <= 0 || isPending}
+          className="press flex h-7 w-7 items-center justify-center border font-mono text-[14px] text-textHi disabled:opacity-30"
+          style={{ borderColor: 'rgba(255,255,255,0.14)' }}
+          aria-label={`Decrease ${l.name}`}
+        >
+          −
+        </button>
+        <span
+          className="nums font-mono text-textHi"
+          style={{ fontSize: 14, letterSpacing: '-0.02em', minWidth: 80, textAlign: 'right' }}
+        >
+          {formatAmount(value, { showSign: false })}
+        </span>
+        <button
+          type="button"
+          onClick={() => { stepLeaf(l, STEP_VALUE); }}
+          disabled={isPending}
+          className="press flex h-7 w-7 items-center justify-center border font-mono text-[14px] text-textHi disabled:opacity-30"
+          style={{ borderColor: 'rgba(255,255,255,0.14)' }}
+          aria-label={`Increase ${l.name}`}
+        >
+          +
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="-mx-4 pb-8">
       {/* Section 1: MONTHLY PLAN + EDIT + hero */}
@@ -117,17 +296,19 @@ export function Budgets() {
           </span>
           <button
             type="button"
-            disabled
-            className="press font-mono text-[10.5px] text-textMid"
+            onClick={isEditing ? discard : enterEdit}
+            disabled={isPending}
+            className="press font-mono text-[10.5px]"
             style={{
               letterSpacing: '0.08em',
               padding: '3px 8px',
-              border: '1px solid rgba(255,255,255,0.07)',
-              opacity: 0.6,
-              cursor: 'not-allowed',
+              border: '1px solid',
+              borderColor: isEditing ? 'var(--accent)' : 'rgba(255,255,255,0.07)',
+              backgroundColor: isEditing ? 'var(--accent-dim)' : 'transparent',
+              color: isEditing ? 'var(--accent)' : 'rgba(231,232,234,0.65)',
             }}
           >
-            ○ EDIT
+            {isEditing ? '● EDITING' : '○ EDIT'}
           </button>
         </div>
         <div
@@ -178,35 +359,56 @@ export function Budgets() {
         style={{ padding: '14px 16px 8px', letterSpacing: '0.06em' }}
       >
         <span>BY CATEGORY</span>
-        <span>{categoryCount} · TAP TO EXPAND</span>
+        <span>
+          {isEditing
+            ? `STEP ${formatAmount(STEP_VALUE, { showSign: false })}`
+            : `${categoryCount} · TAP TO EXPAND`}
+        </span>
       </header>
 
-      {/* Section 4: Category list (expandable) */}
+      {/* Section 4: Category list */}
       {entries.length === 0 ? (
         <div className="px-5 py-10 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-textLo">
           NO BUDGETS YET
         </div>
       ) : (
         entries.map((e, i) => {
-          const isExpanded = expanded.has(e.id);
-          const childCount = e.children.length;
+          const isExpanded = isEditing || expanded.has(e.id);
+          const childCount = e.hasChildren ? e.leafs.length : 0;
+          const sum = entrySum(e);
+          const indexLabel = String(i + 1).padStart(2, '0');
+
+          // Top-level row. In edit-mode + has children → header only (no stepper, no chevron).
+          // In read-mode → tap-to-expand. If no children and edit-mode → row gets the stepper.
+          const topLevelStepperLeaf =
+            isEditing && !e.hasChildren ? e.leafs[0] : null;
+
+          const TopWrapper = isEditing ? 'div' : 'button';
+
           return (
             <div key={e.id} className="border-b border-rule">
-              <button
-                type="button"
-                onClick={() => { toggleExpand(e.id); }}
-                className="press block w-full text-left"
+              <TopWrapper
+                {...(isEditing
+                  ? {}
+                  : {
+                      type: 'button' as const,
+                      onClick: () => { toggleExpand(e.id); },
+                    })}
+                className={isEditing ? 'block w-full text-left' : 'press block w-full text-left'}
                 style={{ padding: '13px 16px' }}
               >
                 <div
                   className="grid items-center"
-                  style={{ gridTemplateColumns: '24px 1fr auto 14px', gap: 10 }}
+                  style={{
+                    gridTemplateColumns: isEditing ? '24px 1fr auto' : '24px 1fr auto 14px',
+                    gap: 10,
+                  }}
                 >
                   <span
                     className="nums font-mono text-textLo"
                     style={{ fontSize: 10, letterSpacing: '0.05em' }}
                   >
-                    {String(i + 1).padStart(2, '0')}
+                    {indexLabel}
                   </span>
                   <div className="flex flex-col">
                     <span className="font-sans text-[14px] text-textHi" style={{ letterSpacing: '-0.005em' }}>
@@ -221,56 +423,107 @@ export function Budgets() {
                       </span>
                     )}
                   </div>
-                  <span
-                    className="nums font-mono text-textHi"
-                    style={{ fontSize: 14, letterSpacing: '-0.02em' }}
-                  >
-                    {formatAmount(e.budget, { showSign: false })}
-                  </span>
-                  <span
-                    aria-hidden
-                    className="font-mono text-textLo"
-                    style={{
-                      fontSize: 12,
-                      lineHeight: 1,
-                      transform: isExpanded ? 'rotate(90deg)' : 'none',
-                      transition: 'transform 180ms ease-out',
-                    }}
-                  >
-                    ›
-                  </span>
-                </div>
-              </button>
-              {isExpanded && childCount > 0 && (
-                <div className="bg-surface/50">
-                  {e.children.map((child) => (
-                    <div
-                      key={child.id}
-                      className="grid items-baseline border-t border-rule"
-                      style={{
-                        gridTemplateColumns: '24px 1fr auto 14px',
-                        gap: 10,
-                        padding: '10px 16px',
-                      }}
-                    >
-                      <span />
-                      <span className="font-sans text-[13px] text-textMid">{child.name}</span>
+                  {topLevelStepperLeaf ? (
+                    renderStepper(topLevelStepperLeaf)
+                  ) : (
+                    <>
                       <span
-                        className="nums font-mono text-textLo"
-                        style={{ fontSize: 10, letterSpacing: '0.05em' }}
+                        className="nums font-mono text-textHi"
+                        style={{ fontSize: 14, letterSpacing: '-0.02em' }}
                       >
-                        {child.budget > 0
-                          ? formatAmount(child.budget, { showSign: false })
-                          : 'NO BUDGET'}
+                        {formatAmount(sum, { showSign: false })}
                       </span>
-                      <span />
-                    </div>
-                  ))}
+                      {!isEditing && (
+                        <span
+                          aria-hidden
+                          className="font-mono text-textLo"
+                          style={{
+                            fontSize: 12,
+                            lineHeight: 1,
+                            transform: isExpanded ? 'rotate(90deg)' : 'none',
+                            transition: 'transform 180ms ease-out',
+                          }}
+                        >
+                          ›
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              </TopWrapper>
+
+              {isExpanded && e.hasChildren && (
+                <div className={isEditing ? '' : 'bg-surface/50'}>
+                  {e.leafs.map((child) => {
+                    const value = leafValue(child);
+                    return (
+                      <div
+                        key={child.id}
+                        className="grid items-center border-t border-rule"
+                        style={{
+                          gridTemplateColumns: isEditing ? '24px 1fr auto' : '24px 1fr auto 14px',
+                          gap: 10,
+                          padding: isEditing ? '10px 16px' : '10px 16px',
+                        }}
+                      >
+                        <span />
+                        <span className="font-sans text-[13px] text-textMid">{child.name}</span>
+                        {isEditing ? (
+                          renderStepper(child)
+                        ) : (
+                          <>
+                            <span
+                              className="nums font-mono text-textLo"
+                              style={{ fontSize: 10, letterSpacing: '0.05em' }}
+                            >
+                              {value > 0
+                                ? formatAmount(value, { showSign: false })
+                                : 'NO BUDGET'}
+                            </span>
+                            <span />
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
           );
         })
+      )}
+
+      {/* Sticky DISCARD / SAVE footer (edit mode only) */}
+      {isEditing && (
+        <div
+          className="fixed inset-x-0 z-40 border-t border-rule bg-bg px-4"
+          style={{
+            bottom: 'calc(env(safe-area-inset-bottom) + 68px)',
+            paddingTop: 12,
+            paddingBottom: 12,
+          }}
+        >
+          <div className="mx-auto flex w-full max-w-[420px] gap-3 lg:max-w-[480px]">
+            <PhosphorButton onClick={discard} disabled={isPending}>
+              DISCARD
+            </PhosphorButton>
+            <PhosphorButton
+              variant="warn"
+              onClick={() => { void save(); }}
+              disabled={!isDirty || isPending}
+            >
+              {isPending ? 'SAVING…' : 'SAVE'}
+            </PhosphorButton>
+          </div>
+          {saveError && (
+            <div
+              className="mt-2 text-center font-mono text-[10px] uppercase text-warn"
+              style={{ letterSpacing: '0.08em' }}
+            >
+              ▲ {saveError}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
