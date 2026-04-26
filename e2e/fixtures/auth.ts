@@ -22,7 +22,9 @@ async function isAuthenticated(page: Page): Promise<boolean> {
  * which is the case for the dev server Playwright runs against.
  */
 export async function login(page: Page, email = TEST_USER.email, password = TEST_USER.password) {
-  await page.goto('/login');
+  // ?dev=1 reveals the email/password form. v8's Login is Google-only by default
+  // and the dev fallback is gated behind this query param; e2e relies on the form.
+  await page.goto('/login?dev=1');
 
   await page.waitForLoadState('domcontentloaded');
   const emailInput = page.getByLabel(/email/i);
