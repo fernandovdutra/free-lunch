@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
+import { endOfMonth, format, startOfMonth, subMonths } from 'date-fns';
 import { TransactionFilters } from '@/components/transactions/TransactionFilters';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { groupByMonthThenDay } from '@/components/transactions/groupTransactions';
@@ -26,6 +26,15 @@ const FILTER_KEYS = [
 ] as const;
 
 /**
+ * How many months of data to render at once. The page anchors at the
+ * MonthContext-selected month and pulls this many months going backward
+ * (e.g. selectedMonth=APR 2026 → fetch Nov 2025 through Apr 2026). Lets
+ * the IntersectionObserver-driven MonthSummaryStickyBar swap labels as
+ * the user scrolls past month boundaries.
+ */
+const TRANSACTIONS_MONTHS_WINDOW = 6;
+
+/**
  * Phase 5 Transactions page.
  *
  * Layout per v8 mock + README §03:
@@ -40,8 +49,19 @@ const FILTER_KEYS = [
  * separate dialogs on this page.
  */
 export function Transactions() {
-  const { selectedMonth, dateRange: monthDateRange } = useMonth();
+  const { selectedMonth } = useMonth();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // 6-month window ending at the selected month — drives the multi-month
+  // scroll + sticky-bar swap. selectedMonth still feeds the filter bar's
+  // anchor pill (`▸ APR 2026`) so the user knows which month they "picked".
+  const dateRange = useMemo(
+    () => ({
+      startDate: startOfMonth(subMonths(selectedMonth, TRANSACTIONS_MONTHS_WINDOW - 1)),
+      endDate: endOfMonth(selectedMonth),
+    }),
+    [selectedMonth]
+  );
 
   // Restore filter state from sessionStorage when URL has none
   useEffect(() => {
@@ -87,15 +107,15 @@ export function Transactions() {
       | undefined;
 
     return {
-      startDate: monthDateRange.startDate,
-      endDate: monthDateRange.endDate,
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
       ...(categoryId && { categoryId }),
       ...(searchText && { searchText }),
       ...(direction && { direction }),
       ...(categorizationStatus && { categorizationStatus }),
       ...(reimbursementStatus && { reimbursementStatus }),
     };
-  }, [searchParams, monthDateRange]);
+  }, [searchParams, dateRange]);
 
   const handleFiltersChange = useCallback(
     (newFilters: Filters) => {
@@ -162,61 +182,96 @@ export function Transactions() {
 
   const months = useMemo(() => groupByMonthThenDay(transactions), [transactions]);
 
-  // IntersectionObserver — track which month section is currently topmost so
-  // the sticky bar swaps `MAR / APR` etc. as the user scrolls past boundaries.
+  // Sticky-bar month tracker — swaps `APR / MAR / FEB …` as the user scrolls
+  // past month-section boundaries.
+  //
+  // Originally tried IntersectionObserver but hit reliability gaps when sections
+  // are very tall (single ratio threshold sweeps don't always fire on slow
+  // scrolls). A throttled scroll listener with direct bounding-rect reads is
+  // simpler and exercises the same logic on every frame the user is scrolling.
+  const STICKY_OFFSET = 90; // 44 TopBar + 46 pill row (matches MonthSummaryStickyBar's top:90)
   const [currentMonthKey, setCurrentMonthKey] = useState<string | null>(null);
   const monthRefs = useRef(new Map<string, HTMLElement>());
-  const monthVisibility = useRef(new Map<string, number>());
-  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const recomputeCurrentMonth = useCallback(() => {
+    // The "active" month is the topmost section whose bottom is still below
+    // the sticky bar (i.e. some content is still visible under the bar) AND
+    // whose top is above the viewport bottom (i.e. it hasn't fully scrolled
+    // up off-screen yet from above). When the user scrolls past a section
+    // completely, its bottom drops above the sticky bar — at that moment the
+    // next section takes over.
     let bestKey: string | null = null;
-    let bestY = Infinity;
+    let bestTop = Infinity;
     for (const [key, el] of monthRefs.current.entries()) {
-      const ratio = monthVisibility.current.get(key) ?? 0;
-      if (ratio <= 0) continue;
-      const top = el.getBoundingClientRect().top;
-      if (top < bestY) {
+      const r = el.getBoundingClientRect();
+      const intersecting = r.bottom > STICKY_OFFSET && r.top < window.innerHeight;
+      if (!intersecting) continue;
+      if (r.top < bestTop) {
         bestKey = key;
-        bestY = top;
+        bestTop = r.top;
       }
     }
-    if (bestKey) setCurrentMonthKey(bestKey);
-  }, []);
-
-  useEffect(() => {
-    if (observerRef.current) observerRef.current.disconnect();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const key = (entry.target as HTMLElement).dataset.month;
-          if (!key) continue;
-          monthVisibility.current.set(key, entry.intersectionRatio);
-        }
-        recomputeCurrentMonth();
-      },
-      // top margin matches the sticky bar's offset (44px TopBar + ~46px pills)
-      { rootMargin: '-90px 0px 0px 0px', threshold: [0, 0.01, 0.5, 1] }
-    );
-    observerRef.current = observer;
-    for (const el of monthRefs.current.values()) observer.observe(el);
-    return () => {
-      observer.disconnect();
-    };
-  }, [months, recomputeCurrentMonth]);
-
-  const registerMonthSection = useCallback((key: string, el: HTMLElement | null) => {
-    const map = monthRefs.current;
-    const prev = map.get(key);
-    if (prev && observerRef.current) observerRef.current.unobserve(prev);
-    if (el) {
-      map.set(key, el);
-      observerRef.current?.observe(el);
-    } else {
-      map.delete(key);
-      monthVisibility.current.delete(key);
+    if (bestKey) {
+      setCurrentMonthKey((prev) => (prev === bestKey ? prev : bestKey));
     }
   }, []);
+
+  // Single long-lived observer; ref callbacks observe/unobserve sections as
+  // they mount and unmount. Avoids races where useEffect tries to observe a
+  // map of refs that hasn't been populated yet.
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      () => {
+        recomputeCurrentMonth();
+      },
+      { rootMargin: `-${STICKY_OFFSET}px 0px 0px 0px`, threshold: [0, 0.01, 0.5, 1] }
+    );
+    observerRef.current = observer;
+    // Observe whatever's already mounted (e.g. on hot reload)
+    for (const el of monthRefs.current.values()) observer.observe(el);
+
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        recomputeCurrentMonth();
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+
+    // Initial pass once layout settles
+    recomputeCurrentMonth();
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      observer.disconnect();
+      observerRef.current = null;
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [recomputeCurrentMonth]);
+
+  const registerMonthSection = useCallback(
+    (key: string, el: HTMLElement | null) => {
+      const map = monthRefs.current;
+      const existing = map.get(key);
+      if (existing && observerRef.current) observerRef.current.unobserve(existing);
+      if (el) {
+        map.set(key, el);
+        observerRef.current?.observe(el);
+        // Recompute now — IO callback won't fire until threshold crossings, and
+        // we want the bar accurate as soon as the first section mounts.
+        recomputeCurrentMonth();
+      } else {
+        map.delete(key);
+      }
+    },
+    [recomputeCurrentMonth]
+  );
 
   const stickyMonthKey = currentMonthKey ?? format(selectedMonth, 'yyyy-MM');
   const stickyMonth = months.find((m) => m.key === stickyMonthKey) ?? months[0] ?? null;

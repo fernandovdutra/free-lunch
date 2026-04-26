@@ -328,6 +328,9 @@ small at one resolution become visible on iPhone.
 
 **Commit:** `ui-redesign(transactions): sticky filters, sticky month summary, day groups`
 
+**Subsequent corrective commit:**
+- `ui-redesign(transactions-fix): activate multi-month sticky bar` — widen page-level date range to a 6-month window ending at `selectedMonth` (Nov 2025 → Apr 2026 when APR is selected); replace the IO-only sticky-bar tracker with a triple mechanism (IO threshold callbacks + `window` `scroll`/`resize` rAF-throttled listener + recompute on `registerMonthSection` so the first read is correct as soon as sections mount) so the bar swaps `APR / MAR / FEB / …` as the user scrolls past month boundaries on real devices. Note: the headless preview tool here doesn't fire scroll events for programmatic scroll, so the swap is verified by inspection of the recompute logic + on iPhone walkthrough.
+
 ---
 
 ## Phase 6 — Transaction Edit Sheet
