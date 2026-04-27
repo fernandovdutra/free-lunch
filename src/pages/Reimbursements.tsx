@@ -1,141 +1,222 @@
-import { useState } from 'react';
-import { AlertTriangle, ArrowLeftRight } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import {
-  PendingReimbursementList,
-  ClearedReimbursementList,
-  ReimbursementSummary,
-  ClearFromReimbursementsDialog,
-} from '@/components/reimbursements';
+import { useMemo, useState } from 'react';
+import { differenceInCalendarDays, format } from 'date-fns';
+import { TransactionForm } from '@/components/transactions/TransactionForm';
+import { useCategories } from '@/hooks/useCategories';
 import {
   usePendingReimbursements,
   useClearedReimbursements,
-  useUnmarkReimbursement,
-  useClearReimbursement,
-  calculateReimbursementSummary,
 } from '@/hooks/useReimbursements';
+import { useMonth } from '@/contexts/MonthContext';
+import { formatAmount } from '@/lib/utils';
 import type { Transaction } from '@/types';
 
+function splitCents(formatted: string): { whole: string; cents: string | null } {
+  const m = /^(.*)([.,])(\d{2})$/.exec(formatted);
+  if (!m || m[1] === undefined || m[2] === undefined || m[3] === undefined) {
+    return { whole: formatted, cents: null };
+  }
+  return { whole: m[1], cents: m[3] };
+}
+
+function daysOpenLabel(date: Date, now: Date): string {
+  const diff = Math.max(0, differenceInCalendarDays(now, date));
+  if (diff === 0) return 'TODAY';
+  if (diff === 1) return '1d OPEN';
+  return `${diff}d OPEN`;
+}
+
 export function Reimbursements() {
+  const { selectedMonth } = useMonth();
+  const { data: categories = [] } = useCategories();
   const {
-    data: pendingReimbursements,
-    isLoading: isPendingLoading,
+    data: pending,
+    isLoading: pendingLoading,
     error: pendingError,
   } = usePendingReimbursements();
-
   const {
-    data: clearedReimbursements,
-    isLoading: isClearedLoading,
+    data: cleared,
+    isLoading: clearedLoading,
     error: clearedError,
-  } = useClearedReimbursements({ limit: 10 });
+  } = useClearedReimbursements({ limit: 50 });
 
-  const unmarkMutation = useUnmarkReimbursement();
-  const clearMutation = useClearReimbursement();
-  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const summaryData = calculateReimbursementSummary(pendingReimbursements, clearedReimbursements);
-
-  const handleUnmark = (transaction: Transaction) => {
-    unmarkMutation.mutate(transaction.id);
-  };
-
-  const handleClearWithIncome = async (incomeId: string, expenseIds: string[]) => {
-    await clearMutation.mutateAsync({
-      incomeTransactionId: incomeId,
-      expenseTransactionIds: expenseIds,
-    });
-  };
-
-  const hasError = pendingError || clearedError;
-
-  if (hasError) {
+  const editingTransaction = useMemo<Transaction | null>(() => {
+    if (!editingId) return null;
     return (
-      <div className="flex h-[400px] items-center justify-center">
-        <div className="text-center">
-          <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
-          <h3 className="mt-4 text-lg font-semibold">Failed to load reimbursements</h3>
-          <p className="text-muted-foreground">Please try refreshing the page.</p>
-        </div>
+      pending.find((t) => t.id === editingId) ??
+      cleared.find((t) => t.id === editingId) ??
+      null
+    );
+  }, [editingId, pending, cleared]);
+
+  const now = new Date();
+
+  const owedTotal = pending.reduce((s, t) => s + Math.abs(t.amount), 0);
+  const owedFormatted = formatAmount(owedTotal, { showSign: false });
+  const { whole: owedWhole, cents: owedCents } = splitCents(owedFormatted);
+
+  const monthAbbr = format(selectedMonth, 'MMM').toUpperCase();
+  const resolvedThisMonth = cleared
+    .filter((t) => {
+      const d = t.reimbursement?.clearedAt;
+      if (!d) return false;
+      return (
+        d.getFullYear() === selectedMonth.getFullYear() &&
+        d.getMonth() === selectedMonth.getMonth()
+      );
+    })
+    .reduce((s, t) => s + Math.abs(t.amount), 0);
+
+  const sublabel =
+    pending.length === 0
+      ? `0 OPEN · ${formatAmount(resolvedThisMonth, { showSign: false })} RESOLVED ${monthAbbr}`
+      : `${pending.length} OPEN · ${formatAmount(resolvedThisMonth, { showSign: false })} RESOLVED ${monthAbbr}`;
+
+  if (pendingError ?? clearedError) {
+    return (
+      <div className="px-5 py-12 font-mono text-[12px] uppercase tracking-[0.12em] text-warn">
+        ▲ FAILED TO LOAD REIMBURSEMENTS
+      </div>
+    );
+  }
+
+  if (pendingLoading || clearedLoading) {
+    return (
+      <div className="px-5 py-12 font-mono text-[10px] uppercase tracking-[0.12em] text-textLo">
+        LOADING…
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Reimbursements</h1>
-        <p className="text-muted-foreground">Track work expenses and personal IOUs</p>
-      </div>
+    <div className="-mx-4 pb-8">
+      {/* Section 1: Phosphor total */}
+      <section
+        className="border-b border-rule"
+        style={{ padding: '14px 20px 18px' }}
+      >
+        <div
+          className="font-mono text-[10px] text-textLo"
+          style={{ letterSpacing: '0.06em', marginBottom: 8 }}
+        >
+          YOU&apos;RE OWED
+        </div>
+        <div
+          className="flex items-baseline gap-2 nums font-mono text-accent"
+          style={{
+            fontWeight: 400,
+            letterSpacing: '-0.04em',
+            lineHeight: 1,
+            fontFeatureSettings: '"tnum"',
+            fontSize: 48,
+          }}
+        >
+          <span>{owedWhole.replace(/[.,]$/, '')}</span>
+          {owedCents && (
+            <span style={{ fontSize: 22, color: 'var(--accent-dim)', opacity: 1 }}>
+              .{owedCents}
+            </span>
+          )}
+        </div>
+        <div
+          className="font-mono text-[10.5px] text-textLo"
+          style={{ letterSpacing: '0.05em', marginTop: 10 }}
+        >
+          {sublabel}
+        </div>
+      </section>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Pending Reimbursements */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                Pending Reimbursements
-                {pendingReimbursements.length > 0 && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                    {pendingReimbursements.length}
-                  </span>
-                )}
-              </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pendingReimbursements.length === 0}
-                onClick={() => {
-                  setClearDialogOpen(true);
+      {/* Section 2: OPEN list */}
+      <header
+        className="flex items-baseline justify-between font-mono text-[10px] text-textLo"
+        style={{ padding: '16px 16px 6px', letterSpacing: '0.06em' }}
+      >
+        <span>OPEN</span>
+        <span>{pending.length} ITEM{pending.length === 1 ? '' : 'S'}</span>
+      </header>
+
+      {pending.length === 0 ? (
+        <div className="px-5 py-10 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-textLo">
+          NOTHING OPEN · YOU&apos;RE EVEN
+        </div>
+      ) : (
+        pending.map((t) => {
+          const merchant = t.counterparty ?? t.description;
+          const dateLabel = format(t.date, 'MMM d').toUpperCase();
+          const days = daysOpenLabel(t.date, now);
+          const meta = `${dateLabel} · ${days}`;
+          const amountFormatted = formatAmount(Math.abs(t.amount), { showSign: false });
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => { setEditingId(t.id); }}
+              className="press grid w-full items-center border-b border-rule text-left"
+              style={{
+                gridTemplateColumns: '10px 1fr auto',
+                gap: 12,
+                padding: '12px 16px',
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 4,
+                  backgroundColor: 'var(--accent)',
+                  boxShadow: '0 0 6px var(--accent)',
+                  justifySelf: 'center',
+                }}
+              />
+              <div className="min-w-0">
+                <div
+                  className="truncate text-textHi"
+                  style={{ fontSize: 13.5, marginBottom: 2 }}
+                >
+                  {merchant}
+                </div>
+                <div
+                  className="font-mono text-textMid"
+                  style={{ fontSize: 10, letterSpacing: '0.04em' }}
+                >
+                  {meta}
+                </div>
+              </div>
+              <div
+                className="nums font-mono text-accent"
+                style={{
+                  fontSize: 14,
+                  letterSpacing: '-0.02em',
+                  fontFeatureSettings: '"tnum"',
+                  textAlign: 'right',
                 }}
               >
-                <ArrowLeftRight className="mr-1.5 h-4 w-4" />
-                Clear with Income
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <PendingReimbursementList
-              transactions={pendingReimbursements}
-              onUnmark={handleUnmark}
-              isLoading={isPendingLoading}
-            />
-          </CardContent>
-        </Card>
+                +{amountFormatted}
+              </div>
+            </button>
+          );
+        })
+      )}
 
-        {/* Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ReimbursementSummary
-              data={summaryData}
-              isLoading={isPendingLoading || isClearedLoading}
-            />
-          </CardContent>
-        </Card>
-      </div>
+      {/* Section 3: CLOSED header (body in 9b) */}
+      <header
+        className="flex items-baseline justify-between font-mono text-[10px] text-textLo"
+        style={{ padding: '20px 16px 12px', letterSpacing: '0.06em' }}
+      >
+        <span>CLOSED · LAST 90 DAYS</span>
+        <span>{cleared.length} · +</span>
+      </header>
 
-      {/* Recently Cleared */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recently Cleared</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ClearedReimbursementList
-            transactions={clearedReimbursements}
-            isLoading={isClearedLoading}
-          />
-        </CardContent>
-      </Card>
-
-      <ClearFromReimbursementsDialog
-        open={clearDialogOpen}
-        onOpenChange={setClearDialogOpen}
-        pendingReimbursements={pendingReimbursements}
-        onSubmit={handleClearWithIncome}
-        isSubmitting={clearMutation.isPending}
+      {/* Edit Sheet (Phase 6) — opens on row tap */}
+      <TransactionForm
+        open={!!editingTransaction}
+        onOpenChange={(o) => {
+          if (!o) setEditingId(null);
+        }}
+        transaction={editingTransaction}
+        categories={categories}
       />
     </div>
   );
