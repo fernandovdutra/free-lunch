@@ -291,9 +291,3 @@ export function useUnmarkReimbursement() {
     },
   });
 }
-
-// Re-export from dedicated utility file for backward compatibility
-export {
-  calculateReimbursementSummary,
-  type ReimbursementSummaryData,
-} from '@/lib/reimbursementUtils';

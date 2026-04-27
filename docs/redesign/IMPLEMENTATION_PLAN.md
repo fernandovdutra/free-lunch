@@ -460,18 +460,30 @@ small at one resolution become visible on iPhone.
 
 **Goal:** dedicated reimbursements screen per README §08.
 
+**Sub-checkpoints:**
+1. **9a** — Page rewrite: big phosphor total, OPEN list, row-tap → Phase 6 Edit Sheet. Closed header stub. ✅
+2. **9b** — Collapsible CLOSED section with localStorage persistence. ✅
+3. **9c** — Delete legacy `ClearFromReimbursementsDialog` + sibling components and dead utilities. ✅
+
 **Touches:**
 - **Rewrite** `src/pages/Reimbursements.tsx`.
-- Big phosphor total (`YOU'RE OWED €X`, cents scaled to 60% in `accentDim`).
-- Match suggestion banner — gated on ML availability (open question: confirm during this phase; default = hide when no model).
-- Open items list — row-tap opens Edit sheet (Phase 6).
-- Closed section collapsible (default collapsed). Persist collapse state.
-- Wire Home `PendingBanner` to this screen.
+- Big phosphor total (`YOU'RE OWED €X`, cents scaled to ~46% via `accent-dim`).
+- Open items list — row-tap opens Edit Sheet (Phase 6 `TransactionForm`).
+- Closed section collapsible (default collapsed); collapse state persisted in `localStorage`.
+- Home `PendingBanner` already navigates to `/reimbursements` via `<Link>` — no rewiring needed.
+
+**Decisions (resolved in plan mode):**
+- ML match-suggestion banner — **removed entirely**, not stubbed, no feature flag. Future ML signals would surface inside the Edit Sheet rather than as a top-level banner.
+- 3-step `ClearFromReimbursementsDialog` wizard — **deleted entirely**. Single-row resolution lives in the Edit Sheet's MANUAL RESOLVE section.
 
 **State snapshot:**
-> *(empty)*
+> **9a landed (2026-04-27):** Reimbursements.tsx rewritten to v8 layout — `YOU'RE OWED` label + big phosphor total with cents-in-`accent-dim`, `N OPEN · €Y RESOLVED {MONTH}` subline, OPEN section with glow-dot rows showing merchant + `MMM D · Nd OPEN` meta + `+€amount`. Row tap opens TransactionForm; MANUAL RESOLVE auto-appears for pending rows. CLOSED header rendered but body stubbed. Verified on iPhone walkthrough.
+>
+> **9b landed (2026-04-27):** CLOSED section becomes a tappable header that toggles a list of recently-cleared reimbursements (last 90 days, limit 50). Default collapsed; right caption `N · +` where the `+` rotates 45° to render as `×` on expand. Persistence via localStorage key `freelunch:reimbursements:closed-expanded`. Cleared rows render dimmed (`opacity 0.65`, `textMid` type, neutral glow dot) with `MMM D · CLEARED MMM D` meta and tap into the same Edit Sheet for revert. Verified on iPhone walkthrough.
+>
+> **9c landed (2026-04-27):** Deleted `src/components/reimbursements/` (ClearFromReimbursementsDialog, PendingReimbursementList, ClearedReimbursementList, ReimbursementSummary, index.ts), `src/lib/reimbursementUtils.ts`, `src/hooks/__tests__/useReimbursements.test.ts`, and the trailing re-export block in `useReimbursements.ts`. Typecheck + lint clean.
 
-**Commit:** `ui-redesign(reimbursements): dedicated screen with open/closed sections`
+**Commit:** one per sub-checkpoint, prefixed `ui-redesign(reimbursements-…)`.
 
 ---
 
