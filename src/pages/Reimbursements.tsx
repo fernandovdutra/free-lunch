@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { differenceInCalendarDays, format } from 'date-fns';
 import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { useCategories } from '@/hooks/useCategories';
@@ -9,6 +9,8 @@ import {
 import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount } from '@/lib/utils';
 import type { Transaction } from '@/types';
+
+const CLOSED_STORAGE_KEY = 'freelunch:reimbursements:closed-expanded';
 
 function splitCents(formatted: string): { whole: string; cents: string | null } {
   const m = /^(.*)([.,])(\d{2})$/.exec(formatted);
@@ -40,6 +42,15 @@ export function Reimbursements() {
   } = useClearedReimbursements({ limit: 50 });
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [closedExpanded, setClosedExpanded] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(CLOSED_STORAGE_KEY) === '1';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(CLOSED_STORAGE_KEY, closedExpanded ? '1' : '0');
+  }, [closedExpanded]);
 
   const editingTransaction = useMemo<Transaction | null>(() => {
     if (!editingId) return null;
@@ -200,14 +211,97 @@ export function Reimbursements() {
         })
       )}
 
-      {/* Section 3: CLOSED header (body in 9b) */}
-      <header
-        className="flex items-baseline justify-between font-mono text-[10px] text-textLo"
+      {/* Section 3: CLOSED — collapsible, default collapsed */}
+      <button
+        type="button"
+        onClick={() => { setClosedExpanded((v) => !v); }}
+        className="press flex w-full items-baseline justify-between font-mono text-[10px] text-textLo"
         style={{ padding: '20px 16px 12px', letterSpacing: '0.06em' }}
       >
         <span>CLOSED · LAST 90 DAYS</span>
-        <span>{cleared.length} · +</span>
-      </header>
+        <span>
+          {cleared.length} ·{' '}
+          <span
+            aria-hidden
+            style={{
+              display: 'inline-block',
+              transform: closedExpanded ? 'rotate(45deg)' : 'none',
+              transition: 'transform 180ms ease-out',
+            }}
+          >
+            +
+          </span>
+        </span>
+      </button>
+
+      {closedExpanded && (
+        cleared.length === 0 ? (
+          <div className="px-5 py-6 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-textLo">
+            NOTHING CLOSED IN THE LAST 90 DAYS
+          </div>
+        ) : (
+          cleared.map((t) => {
+            const merchant = t.counterparty ?? t.description;
+            const dateLabel = format(t.date, 'MMM d').toUpperCase();
+            const clearedAt = t.reimbursement?.clearedAt;
+            const clearedLabel = clearedAt
+              ? `CLEARED ${format(clearedAt, 'MMM d').toUpperCase()}`
+              : 'CLEARED';
+            const meta = `${dateLabel} · ${clearedLabel}`;
+            const amountFormatted = formatAmount(Math.abs(t.amount), { showSign: false });
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => { setEditingId(t.id); }}
+                className="press grid w-full items-center border-b border-rule text-left"
+                style={{
+                  gridTemplateColumns: '10px 1fr auto',
+                  gap: 12,
+                  padding: '12px 16px',
+                  opacity: 0.65,
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 4,
+                    backgroundColor: 'var(--rule-hi)',
+                    justifySelf: 'center',
+                  }}
+                />
+                <div className="min-w-0">
+                  <div
+                    className="truncate text-textMid"
+                    style={{ fontSize: 13.5, marginBottom: 2 }}
+                  >
+                    {merchant}
+                  </div>
+                  <div
+                    className="font-mono text-textLo"
+                    style={{ fontSize: 10, letterSpacing: '0.04em' }}
+                  >
+                    {meta}
+                  </div>
+                </div>
+                <div
+                  className="nums font-mono text-textMid"
+                  style={{
+                    fontSize: 14,
+                    letterSpacing: '-0.02em',
+                    fontFeatureSettings: '"tnum"',
+                    textAlign: 'right',
+                  }}
+                >
+                  +{amountFormatted}
+                </div>
+              </button>
+            );
+          })
+        )
+      )}
 
       {/* Edit Sheet (Phase 6) — opens on row tap */}
       <TransactionForm
