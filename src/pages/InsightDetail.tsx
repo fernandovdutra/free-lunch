@@ -9,21 +9,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useInsights, useMarkInsightRead } from '@/hooks/useInsights';
 
 const sentimentColors: Record<string, string> = {
-  positive: 'text-emerald-600',
-  negative: 'text-red-600',
-  neutral: 'text-gray-600',
+  positive: 'text-accent',
+  negative: 'text-warn',
+  neutral: 'text-textMid',
 };
 
 const priorityColors: Record<string, string> = {
-  high: 'bg-red-100 text-red-800',
-  medium: 'bg-amber-100 text-amber-800',
-  low: 'bg-gray-100 text-gray-800',
+  high: 'bg-warn-dim text-warn',
+  medium: 'bg-alert-dim text-alert',
+  low: 'border border-rule bg-surface text-textMid',
 };
 
 const severityColors: Record<string, string> = {
-  alert: 'text-red-600',
-  warning: 'text-amber-600',
-  info: 'text-blue-600',
+  alert: 'text-warn',
+  warning: 'text-alert',
+  info: 'text-textMid',
 };
 
 export function InsightDetail() {
@@ -141,7 +141,7 @@ export function InsightDetail() {
                   <div>
                     <p className="text-sm">{r.text}</p>
                     {r.potentialSavings != null && r.potentialSavings > 0 && (
-                      <p className="text-xs text-emerald-600">
+                      <p className="text-xs text-accent tabular-nums">
                         Potential savings: ~{'\u20AC'}{r.potentialSavings.toFixed(0)}/month
                       </p>
                     )}
@@ -165,13 +165,13 @@ export function InsightDetail() {
                 <div key={i}>
                   <div className="mb-1 flex justify-between text-sm">
                     <span className="font-medium">{g.goalName}</span>
-                    <span className={g.onTrack ? 'text-emerald-600' : 'text-amber-600'}>
+                    <span className={`tabular-nums ${g.onTrack ? 'text-accent' : 'text-alert'}`}>
                       {g.progressPct.toFixed(0)}% {g.onTrack ? '(on track)' : '(behind)'}
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-muted">
                     <div
-                      className={`h-full rounded-full ${g.onTrack ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                      className={`h-full rounded-full ${g.onTrack ? 'bg-accent' : 'bg-alert'}`}
                       style={{ width: `${Math.min(100, g.progressPct)}%` }}
                     />
                   </div>
@@ -193,17 +193,17 @@ export function InsightDetail() {
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <p className="text-sm text-muted-foreground">Total Value</p>
-                <p className="text-xl font-bold">{'\u20AC'}{insight.investmentSummary.totalValue.toFixed(2)}</p>
+                <p className="text-xl font-bold tabular-nums">{'\u20AC'}{insight.investmentSummary.totalValue.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Gain</p>
-                <p className={`text-xl font-bold ${insight.investmentSummary.totalGain >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                <p className={`text-xl font-bold tabular-nums ${insight.investmentSummary.totalGain >= 0 ? 'text-accent' : 'text-warn'}`}>
                   {insight.investmentSummary.totalGain >= 0 ? '+' : ''}{'\u20AC'}{insight.investmentSummary.totalGain.toFixed(2)}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Return</p>
-                <p className={`text-xl font-bold ${insight.investmentSummary.returnPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                <p className={`text-xl font-bold tabular-nums ${insight.investmentSummary.returnPct >= 0 ? 'text-accent' : 'text-warn'}`}>
                   {insight.investmentSummary.returnPct >= 0 ? '+' : ''}{insight.investmentSummary.returnPct.toFixed(1)}%
                 </p>
               </div>

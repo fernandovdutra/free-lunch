@@ -148,10 +148,10 @@ export function Goals() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tabular-nums text-emerald-500">{completedGoals.length}</div>
+              <div className="text-2xl font-bold tabular-nums text-accent">{completedGoals.length}</div>
             </CardContent>
           </Card>
         </div>
@@ -240,7 +240,7 @@ export function Goals() {
               {completedGoals.map((goal) => (
                 <div key={goal.id} className="flex items-center justify-between rounded-lg border p-3 opacity-70">
                   <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                    <CheckCircle2 className="h-5 w-5 text-accent" />
                     <div>
                       <h3 className="font-medium">{goal.name}</h3>
                       <p className="text-sm text-muted-foreground">

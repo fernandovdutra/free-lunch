@@ -20,11 +20,11 @@ import { useInsights, useGenerateOnDemandInsight } from '@/hooks/useInsights';
 import type { Insight } from '@/types';
 
 const typeColors: Record<Insight['type'], string> = {
-  daily: 'bg-blue-100 text-blue-800',
-  weekly: 'bg-purple-100 text-purple-800',
-  monthly: 'bg-amber-100 text-amber-800',
-  yearly: 'bg-emerald-100 text-emerald-800',
-  on_demand: 'bg-gray-100 text-gray-800',
+  daily: 'border-rule bg-surface text-textMid',
+  weekly: 'border-rule bg-surface text-textMid',
+  monthly: 'border-rule bg-alert-dim text-alert',
+  yearly: 'border-rule bg-accent-dim text-accent',
+  on_demand: 'border-rule bg-surface text-textMid',
 };
 
 export function Insights() {
