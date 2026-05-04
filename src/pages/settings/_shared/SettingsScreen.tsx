@@ -21,7 +21,7 @@ export function SettingsScreen({ title, children, className }: SettingsScreenPro
   const navigate = useNavigate();
 
   return (
-    <div className={cn('flex flex-col', className)}>
+    <div className={cn('-mx-4 flex flex-col', className)}>
       <Breadcrumb
         segments={[
           { label: 'SETTINGS', href: '/settings' },
