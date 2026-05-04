@@ -538,7 +538,22 @@ small at one resolution become visible on iPhone.
 - Accessibility sweep: focus rings in mono style (`accent` 1px outline), keyboard nav on pills/tabs, ensure contrast on `textMid`/`textLo` text.
 
 **State snapshot:**
-> *(empty)*
+> **11a (`fa1f046`)** — token pass on Insights/InsightDetail/Goals/Investments. Swapped Tailwind palette colors to Calm Terminal tokens: emerald → accent (gain/positive), red → warn (loss/negative), amber → alert (warning). Pill chips like `bg-amber-100 text-amber-800` became `bg-alert-dim text-alert` (or neutral `border-rule bg-surface text-textMid`). Investments portfolio chart stroke + gradient now `var(--accent)`; axis ticks use `rgba(255,255,255,0.4)` so they read on the dark canvas. Sparkline trend color tokenized. No layout surgery — shadcn Card chrome preserved per "minimum-effort" brief.
+>
+> **11b (`fff4ec5`)** — token pass on ICS Breakdown + CounterpartyDetail. ICS bar charts moved off the purple `#7C3AED` to `var(--accent)`; `IcsBreakdownCategory` falls back to accent when a category has no own color. CounterpartyDetail's current-month total switched from `text-destructive` to `text-warn` and its txn count picked up tabular-nums.
+>
+> **11c (`46a6f11`)** — deleted legacy Categories admin (folded into Budget per Phase 8): `src/pages/Categories.tsx`, the `/categories` route + import, the entire orphaned `src/components/categories/` directory (CategoryTree/Item/Form/Badge — only `buildCategoryTree` from `useCategories` was still in use), the `/categories` row in `MoreSheet`, the `/categories` prefix in `TabBar`/`SideRail` moreRoutePrefixes, `e2e/categories.spec.ts`, and the `/categories` precondition steps in two `e2e/categorization.spec.ts` tests (seeded user already has categories — preconditions were redundant).
+>
+> **11d (`3547be6`)** — dropped `theme: 'light' | 'dark' | 'system'` field from `UserSettings` and the corresponding default in `AuthContext`. Phase 10e renders Theme read-only as DARK; the field had no consumer left. CSS already had no light-theme variables and `dark:` classes are no-ops without a light context, so they're left as-is per the brief.
+>
+> **11e (`05fbf05`)** — wired `prefs.display.defaultTab` into post-login redirect. New `resolvePostLoginPath(uid)` helper in `useUserPreferences.ts` does a one-shot `getDoc` (never throws — falls back to `/`) so a Firestore hiccup doesn't trap the user. `Login.tsx` calls it after `loginWithGoogle()`/dev-login: deep links (`location.state.from`) still win, but plain visits to `/login` honor the saved tab. `DEFAULT_TAB_PATHS` exported for any other consumer.
+>
+> Build, typecheck, and lint clean. Out-of-scope for this session, will need a follow-up pass:
+> - Pull-to-refresh on Home + Transactions.
+> - Motion-timing audit (180ms page / 220ms sheet / 120ms tap opacity 0.6).
+> - DialogTitle a11y warnings sweep.
+> - Vitest coverage for `useUserPreferences` + Playwright happy-path through `/settings/*`.
+> - Preview-server screenshot verification stalled out mid-session (renderer hung); iPhone walkthrough still owed before Phase 12 PR prep.
 
 **Commits:** split reasonably — e.g. `(polish)`, `(a11y)`, `(test-fixes)`, `(cleanup)`.
 
