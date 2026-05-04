@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react';
-import { CreditCard, Upload, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Upload, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -98,31 +97,37 @@ export function IcsImportCard() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            ICS Credit Card Import
-          </CardTitle>
-          <CardDescription>
-            Import transaction details from your ICS (ABN AMRO credit card) PDF statements
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" className="w-full" onClick={() => { setDialogOpen(true); }}>
-            <Upload className="mr-2 h-4 w-4" />
-            Import PDF Statement
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="border border-rule bg-surface">
+        <div className="flex items-center justify-between gap-3 px-[14px] py-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span aria-hidden className="font-mono text-[14px] leading-none text-textLo">
+                ▭
+              </span>
+              <span className="text-[14px] font-medium text-textHi">
+                ICS statement import
+              </span>
+            </div>
+            <div className="mt-[3px] text-[12px] leading-[1.35] text-textMid">
+              Upload PDF statements from your ICS (ABN AMRO) credit card.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDialogOpen(true);
+            }}
+            className="border border-ruleHi px-[10px] py-[5px] font-mono text-[10.5px] tracking-[0.04em] text-textMid active:opacity-60"
+          >
+            ↑ IMPORT PDF
+          </button>
+        </div>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Import ICS Statement
-            </DialogTitle>
+            <DialogTitle>Import ICS Statement</DialogTitle>
             <DialogDescription>
               Upload your ICS credit card PDF statement to import individual transactions.
             </DialogDescription>
