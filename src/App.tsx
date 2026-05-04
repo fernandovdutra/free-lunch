@@ -12,7 +12,13 @@ import { Transactions } from '@/pages/Transactions';
 import { Categories } from '@/pages/Categories';
 import { Budgets } from '@/pages/Budgets';
 import { Reimbursements } from '@/pages/Reimbursements';
-import { Settings } from '@/pages/Settings';
+import { SettingsHub } from '@/pages/settings/SettingsHub';
+import { SettingsAccountsSync } from '@/pages/settings/SettingsAccountsSync';
+import { SettingsCategorization } from '@/pages/settings/SettingsCategorization';
+import { SettingsPreferences } from '@/pages/settings/SettingsPreferences';
+import { SettingsExport } from '@/pages/settings/SettingsExport';
+import { SettingsAccount } from '@/pages/settings/SettingsAccount';
+import { SettingsDanger } from '@/pages/settings/SettingsDanger';
 import { CounterpartyDetail } from '@/pages/CounterpartyDetail';
 import { SpendingExplorer } from '@/pages/SpendingExplorer';
 import { SpendingCategory } from '@/pages/SpendingCategory';
@@ -68,7 +74,13 @@ export function App() {
                 <Route path="categories" element={<Categories />} />
                 <Route path="budgets" element={<Budgets />} />
                 <Route path="reimbursements" element={<Reimbursements />} />
-                <Route path="settings" element={<Settings />} />
+                <Route path="settings" element={<SettingsHub />} />
+                <Route path="settings/accounts" element={<SettingsAccountsSync />} />
+                <Route path="settings/categorization" element={<SettingsCategorization />} />
+                <Route path="settings/preferences" element={<SettingsPreferences />} />
+                <Route path="settings/export" element={<SettingsExport />} />
+                <Route path="settings/account" element={<SettingsAccount />} />
+                <Route path="settings/danger" element={<SettingsDanger />} />
                 <Route path="expenses" element={<SpendingExplorer />} />
                 <Route path="expenses/:categoryId" element={<SpendingCategory />} />
                 <Route path="expenses/:categoryId/:subcategoryId" element={<SpendingSubcategory />} />
