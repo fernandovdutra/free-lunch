@@ -40,6 +40,32 @@ function mergeDefaults(
  */
 const USER_DOC_PATH = (uid: string) => ['users', uid] as const;
 
+export const DEFAULT_TAB_PATHS: Record<DefaultTab, string> = {
+  home: '/',
+  transactions: '/transactions',
+  budgets: '/budgets',
+  reimbursements: '/reimbursements',
+  expenses: '/expenses',
+};
+
+/**
+ * One-shot read used right after sign-in, before the React Query cache is
+ * warm. Returns the path the user wants to land on, or `/` on any failure
+ * (network, missing pref, permission). Never throws.
+ */
+export async function resolvePostLoginPath(uid: string): Promise<string> {
+  try {
+    const ref = doc(db, ...USER_DOC_PATH(uid));
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return '/';
+    const data = snap.data() as { preferences?: Partial<UserPreferences> };
+    const tab = mergeDefaults(data.preferences).display.defaultTab;
+    return DEFAULT_TAB_PATHS[tab] ?? '/';
+  } catch {
+    return '/';
+  }
+}
+
 export function useUserPreferences() {
   const { user } = useAuth();
   const uid = user?.id;

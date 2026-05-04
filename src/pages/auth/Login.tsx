@@ -1,6 +1,8 @@
 import { useState, type SyntheticEvent } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { auth } from '@/lib/firebase';
+import { resolvePostLoginPath } from '@/hooks/useUserPreferences';
 
 export function Login() {
   const { loginWithGoogle, login } = useAuth();
@@ -10,15 +12,25 @@ export function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/';
+  const fromState = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
   const showDevForm = import.meta.env.DEV && searchParams.get('dev') === '1';
+
+  // Honors prefs.display.defaultTab when the user came straight to /login;
+  // when they were bounced from a deep link (fromState set), keep that link.
+  const resolveDestination = async (): Promise<string> => {
+    if (fromState && fromState !== '/') return fromState;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return '/';
+    return resolvePostLoginPath(uid);
+  };
 
   const handleGoogle = async () => {
     setBusy(true);
     setError(null);
     try {
       await loginWithGoogle();
-      void navigate(from, { replace: true });
+      const dest = await resolveDestination();
+      void navigate(dest, { replace: true });
     } catch {
       setError('GOOGLE SIGN-IN FAILED');
     } finally {
@@ -77,7 +89,9 @@ export function Login() {
               setError={setError}
               login={login}
               onSuccess={() => {
-                void navigate(from, { replace: true });
+                void resolveDestination().then((dest) => {
+                  void navigate(dest, { replace: true });
+                });
               }}
             />
           )}
