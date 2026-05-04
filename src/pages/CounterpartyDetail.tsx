@@ -64,7 +64,7 @@ export function CounterpartyDetail() {
               {isLoading ? (
                 <Skeleton className="mt-1 h-8 w-24" />
               ) : (
-                <p className="text-2xl font-bold tabular-nums text-destructive">
+                <p className="text-2xl font-bold tabular-nums text-warn">
                   {formatAmount(-(analytics?.currentMonthSpending ?? 0), { showSign: false })}
                 </p>
               )}
@@ -72,7 +72,7 @@ export function CounterpartyDetail() {
             {!isLoading && analytics && (
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Transactions</p>
-                <p className="text-xl font-semibold">{analytics.currentMonthTransactions}</p>
+                <p className="text-xl font-semibold tabular-nums">{analytics.currentMonthTransactions}</p>
               </div>
             )}
           </div>
