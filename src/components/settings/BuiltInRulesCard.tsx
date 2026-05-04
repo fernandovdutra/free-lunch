@@ -1,9 +1,14 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Search, Database } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { MERCHANT_GROUPS } from '@/data/merchantGroups';
 
+/**
+ * Flat-rewrite of the original shadcn-card built-in rules browser. No
+ * Card/CardHeader/CardContent shells; uses the surface + rule tokens so
+ * it sits inside SettingsCategorization's #merchants section without
+ * looking like a foreign island. Search input, expand/collapse controls,
+ * and per-group merchant chips all preserved.
+ */
 export function BuiltInRulesCard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -28,115 +33,109 @@ export function BuiltInRulesCard() {
     setExpandedGroups(new Set());
   };
 
-  // Filter merchants based on search
   const filteredGroups = Object.entries(MERCHANT_GROUPS)
     .map(([key, group]) => ({
       key,
       name: group.name,
       merchants: searchTerm
-        ? group.merchants.filter((m) => m.toLowerCase().includes(searchTerm.toLowerCase()))
+        ? group.merchants.filter((m) =>
+            m.toLowerCase().includes(searchTerm.toLowerCase())
+          )
         : group.merchants,
     }))
     .filter((group) => group.merchants.length > 0);
 
-  const totalMerchants = Object.values(MERCHANT_GROUPS).reduce(
-    (sum, group) => sum + group.merchants.length,
-    0
-  );
-
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Built-in Merchant Database
-            </CardTitle>
-            <CardDescription>
-              {totalMerchants} Dutch merchants are automatically recognized
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Search and expand/collapse controls */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search merchants..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-              }}
-              className="pl-9"
-            />
-          </div>
-          <button
-            onClick={expandAll}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            Expand all
-          </button>
-          <span className="text-muted-foreground">|</span>
-          <button
-            onClick={collapseAll}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            Collapse all
-          </button>
-        </div>
+    <div className="border border-rule bg-surface">
+      <div className="flex items-center gap-2 border-b border-rule px-4 py-3">
+        <span aria-hidden className="font-mono text-[14px] text-textLo leading-none">
+          ⌕
+        </span>
+        <Input
+          placeholder="Search merchants…"
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+          }}
+          className="h-8 flex-1 border-0 bg-transparent px-0 font-mono text-[12px] focus-visible:ring-0 focus-visible:ring-offset-0"
+        />
+        <button
+          type="button"
+          onClick={expandAll}
+          className="font-mono text-[10px] uppercase tracking-[0.04em] text-textLo hover:text-textHi"
+        >
+          EXPAND
+        </button>
+        <span aria-hidden className="font-mono text-[10px] text-textLo">
+          ·
+        </span>
+        <button
+          type="button"
+          onClick={collapseAll}
+          className="font-mono text-[10px] uppercase tracking-[0.04em] text-textLo hover:text-textHi"
+        >
+          COLLAPSE
+        </button>
+      </div>
 
-        {/* Groups */}
-        <div className="max-h-80 space-y-1 overflow-y-auto">
-          {filteredGroups.map((group) => (
-            <div key={group.key} className="rounded-lg border">
+      <div className="max-h-80 overflow-y-auto">
+        {filteredGroups.map((group, idx) => {
+          const expanded = expandedGroups.has(group.key);
+          return (
+            <div
+              key={group.key}
+              className={idx > 0 ? 'border-t border-rule' : ''}
+            >
               <button
+                type="button"
                 onClick={() => {
                   toggleGroup(group.key);
                 }}
-                className="flex w-full items-center justify-between p-3 text-left hover:bg-muted/50"
+                className="flex w-full items-center justify-between px-4 py-3 text-left active:opacity-60"
               >
                 <div className="flex items-center gap-2">
-                  {expandedGroups.has(group.key) ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <span className="font-medium">{group.name}</span>
+                  <span
+                    aria-hidden
+                    className="w-3 font-mono text-[12px] text-textLo leading-none"
+                  >
+                    {expanded ? '▾' : '▸'}
+                  </span>
+                  <span className="text-[14px] font-medium text-textHi">
+                    {group.name}
+                  </span>
                 </div>
-                <span className="text-sm text-muted-foreground">{group.merchants.length}</span>
+                <span className="font-mono text-[11px] tracking-[-0.2px] text-textMid">
+                  {group.merchants.length}
+                </span>
               </button>
-              {expandedGroups.has(group.key) && (
-                <div className="border-t bg-muted/30 px-4 py-2">
+              {expanded ? (
+                <div className="border-t border-rule px-4 py-3">
                   <div className="flex flex-wrap gap-1.5">
                     {group.merchants.map((merchant) => (
                       <span
                         key={merchant}
-                        className="rounded-full bg-background px-2 py-0.5 text-xs"
+                        className="border border-rule px-2 py-0.5 font-mono text-[10.5px] tracking-[0.04em] text-textMid"
                       >
                         {merchant}
                       </span>
                     ))}
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
-          ))}
-        </div>
+          );
+        })}
 
-        {filteredGroups.length === 0 && (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            No merchants found matching &ldquo;{searchTerm}&rdquo;
-          </p>
-        )}
+        {filteredGroups.length === 0 ? (
+          <div className="px-4 py-6 text-center font-mono text-[10.5px] uppercase tracking-[0.04em] text-textLo">
+            NO MERCHANTS MATCHING &ldquo;{searchTerm}&rdquo;
+          </div>
+        ) : null}
+      </div>
 
-        <p className="text-xs text-muted-foreground">
-          These merchants are automatically categorized. Your custom rules take priority over
-          built-in rules.
-        </p>
-      </CardContent>
-    </Card>
+      <div className="border-t border-rule px-4 py-3 font-mono text-[10px] uppercase tracking-[0.04em] text-textLo">
+        BUILT-IN RULES — YOUR CUSTOM RULES TAKE PRIORITY
+      </div>
+    </div>
   );
 }
