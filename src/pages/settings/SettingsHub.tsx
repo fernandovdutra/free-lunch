@@ -7,7 +7,8 @@ import { SectionHeader } from '@/components/redesign';
 import { IdentityHero } from './_shared/IdentityHero';
 import { SettingsRoomRow } from './_shared/SettingsRoomRow';
 
-const APP_VERSION = '0.1.0';
+// Injected by Vite at build time from package.json#version.
+const APP_VERSION = __APP_VERSION__;
 
 function relativeMinutes(when: Date | string | null | undefined): string {
   if (!when) return 'NEVER';

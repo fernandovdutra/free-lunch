@@ -9,12 +9,15 @@ import { ToggleRow } from './_shared/ToggleRow';
  * Settings · Accounts & Sync — connected banks, credit-card import (ICS),
  * and sync-cadence toggles. v8 frame folds ICS Import into this room as
  * "CREDIT CARD IMPORT", which is why ICS does NOT appear under the Export
- * room despite the route plan's earlier suggestion. The Sync Settings
- * toggles render with local UI state for now; persistence wires through
- * `useUserPreferences` in sub-checkpoint 10e.
+ * room despite the route plan's earlier suggestion.
+ *
+ * The Sync Settings toggles intentionally stay in local component state
+ * — they have no downstream consumer yet (the actual sync cadence is
+ * handled server-side by Cloud Scheduler), so persisting them would just
+ * be storing state that does nothing. When a real client-side sync
+ * trigger lands, it can wire these to a hook.
  */
 export function SettingsAccountsSync() {
-  // TODO 10e: replace local state with useUserPreferences().syncCadence etc.
   const [autoSyncOnOpen, setAutoSyncOnOpen] = useState(true);
   const [backgroundRefresh, setBackgroundRefresh] = useState(true);
   const [syncNotifications, setSyncNotifications] = useState(false);
