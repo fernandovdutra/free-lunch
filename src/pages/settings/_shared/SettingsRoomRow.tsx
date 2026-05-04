@@ -63,7 +63,7 @@ export function SettingsRoomRow({
           </span>
         ) : null}
       </span>
-      {badge !== undefined && badge !== null && badge !== '' ? (
+      {badge !== undefined && badge !== '' ? (
         <span className="font-mono text-[12px] tracking-[-0.2px] text-textMid">{badge}</span>
       ) : null}
       <span
