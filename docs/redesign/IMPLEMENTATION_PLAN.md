@@ -53,7 +53,7 @@ Phases marked **(large)** should be expected to span two sessions and have inter
 | 7 | Drill L1/L2/L3 **(large)** | ◐ | 7a + 7b + 7e desktop-verified 2026-04-26; iPhone walkthrough pending. 7c/7d deferred to next session. |
 | 8 | Budget (read + edit modes) | ☐ | |
 | 9 | Reimbursements | ☐ | |
-| 10 | Settings hub + 6 sub-pages **(large)** | ☐ | |
+| 10 | Settings hub + 6 sub-pages **(large)** | ◐ | 10a + 10b landed 2026-05-04; iPhone walkthrough pending |
 | 11 | Polish, out-of-scope token pass, cleanup, tests | ☐ | |
 | 12 | PR prep | ☐ | |
 
@@ -503,7 +503,9 @@ small at one resolution become visible on iPhone.
 9. **10i** — Delete old `settings/*Card.tsx` files.
 
 **State snapshot:**
-> *(empty — notes per sub-checkpoint)*
+> **10a (`9414c8d`)** — split the single `/settings` route into seven nested routes (`/settings`, `/settings/{accounts,categorization,preferences,export,account,danger}`). Each new sub-page is a stub rendering a shared `SettingsScreen` wrapper (in-page back-breadcrumb `← SETTINGS › CURRENT` + page title). Old flat `Settings.tsx` left in place; deletion deferred to 10i.
+>
+> **10b (`290ecfd`)** — hub built against v8 measurements (frame "Settings · Hub", y≈9450–10300). Layout: `IdentityHero` (44×44 initials avatar in lime, name, mono email) → sync-status card (`bg-surface` + `border-rule`, lime dot + `CONNECTED · BANK · SYNC X MIN AGO`, 3-col stat grid ACCOUNTS/TXNS/RULES wired to live data) → three rooms (MANAGE: ⎌ Accounts & Sync · ◱ Categorization · ⚙ Preferences ; DATA: ↓ Export ; DANGER: ◷ Account · △ Reset data with `text-warn` glyph) using new `SettingsRoomRow` primitive (24px mono glyph slot · 14.5px label · 12.5px meta · `›` arrow). Version footer reads a hardcoded `v0.1.0` (Phase 11 to wire build-time injection); MEMBER SINCE pulls `firebaseUser.metadata.creationTime`. Sticky LOG OUT footer (`text-warn`) at `bottom-[68px]` on mobile (above TabBar) and `bottom-0 left-[60px]` on desktop (clear of SideRail) — placement matches resolved Q4. DATA folds ICS Import into the single Export row per resolved route shape. Live preview skipped (Java not on PATH for emulators in this worktree); iPhone walkthrough at `192.168.68.59:5173` is the verification gate before 10c.
 
 **Commits:** one per sub-checkpoint, prefixed `ui-redesign(settings)`.
 
