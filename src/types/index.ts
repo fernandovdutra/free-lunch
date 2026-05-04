@@ -19,7 +19,6 @@ export interface UserSettings {
   language: 'en' | 'nl';
   currency: 'EUR';
   defaultDateRange: 'week' | 'month' | 'year';
-  theme: 'light' | 'dark' | 'system';
 }
 
 export interface BankConnection {

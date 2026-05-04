@@ -55,7 +55,6 @@ const DEFAULT_SETTINGS: UserSettings = {
   language: 'en',
   currency: 'EUR',
   defaultDateRange: 'month',
-  theme: 'system',
 };
 
 const googleProvider = new GoogleAuthProvider();
