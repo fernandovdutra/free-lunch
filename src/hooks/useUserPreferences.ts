@@ -1,0 +1,135 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
+
+export type DefaultTab =
+  | 'home'
+  | 'transactions'
+  | 'budgets'
+  | 'reimbursements'
+  | 'expenses';
+
+export type BudgetAlert = 'off' | '80' | '100' | 'both';
+
+export interface UserPreferences {
+  display: {
+    /** Tab opened on app launch. Wired in Phase 11; persistence here so the
+     *  preference is durable. */
+    defaultTab: DefaultTab;
+  };
+  privacy: {
+    blurAmounts: boolean;
+    appLock: boolean;
+  };
+  numbers: {
+    roundToWhole: boolean;
+    hideTinyAmounts: boolean;
+    /** Day-of-month the fiscal month starts on. 1 = calendar month (default). */
+    fiscalMonthStart: number;
+  };
+  notifications: {
+    budgetAlerts: BudgetAlert;
+  };
+  sync: {
+    autoSyncOnOpen: boolean;
+    backgroundRefresh: boolean;
+    notifications: boolean;
+  };
+}
+
+export const DEFAULT_PREFERENCES: UserPreferences = {
+  display: { defaultTab: 'home' },
+  privacy: { blurAmounts: false, appLock: false },
+  numbers: { roundToWhole: false, hideTinyAmounts: false, fiscalMonthStart: 1 },
+  notifications: { budgetAlerts: '100' },
+  sync: { autoSyncOnOpen: true, backgroundRefresh: true, notifications: false },
+};
+
+function mergeDefaults(
+  partial: Partial<UserPreferences> | undefined
+): UserPreferences {
+  const p = partial ?? {};
+  return {
+    display: { ...DEFAULT_PREFERENCES.display, ...(p.display ?? {}) },
+    privacy: { ...DEFAULT_PREFERENCES.privacy, ...(p.privacy ?? {}) },
+    numbers: { ...DEFAULT_PREFERENCES.numbers, ...(p.numbers ?? {}) },
+    notifications: {
+      ...DEFAULT_PREFERENCES.notifications,
+      ...(p.notifications ?? {}),
+    },
+    sync: { ...DEFAULT_PREFERENCES.sync, ...(p.sync ?? {}) },
+  };
+}
+
+/**
+ * Preferences live on the user doc itself (`users/{uid}`) under a single
+ * `preferences` field. Storing them at a sub-path like `meta/preferences`
+ * would need a new Firestore rules entry — out of scope for Phase 10
+ * per the brief — so we piggy-back on the existing user-doc rule which
+ * already allows `read, write: if isOwner(userId)`.
+ */
+const USER_DOC_PATH = (uid: string) => ['users', uid] as const;
+
+export function useUserPreferences() {
+  const { user } = useAuth();
+  const uid = user?.id;
+
+  return useQuery({
+    queryKey: ['userPreferences', uid],
+    queryFn: async (): Promise<UserPreferences> => {
+      if (!uid) return DEFAULT_PREFERENCES;
+      const ref = doc(db, ...USER_DOC_PATH(uid));
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return DEFAULT_PREFERENCES;
+      const data = snap.data() as { preferences?: Partial<UserPreferences> };
+      return mergeDefaults(data.preferences);
+    },
+    enabled: !!uid,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+type Patch = {
+  [K in keyof UserPreferences]?: Partial<UserPreferences[K]>;
+};
+
+export function useUpdateUserPreferences() {
+  const { user } = useAuth();
+  const uid = user?.id;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (patch: Patch) => {
+      if (!uid) throw new Error('Not authenticated');
+      const ref = doc(db, ...USER_DOC_PATH(uid));
+      await setDoc(ref, { preferences: patch }, { merge: true });
+    },
+    onMutate: async (patch) => {
+      if (!uid) return;
+      await queryClient.cancelQueries({ queryKey: ['userPreferences', uid] });
+      const prev = queryClient.getQueryData<UserPreferences>(['userPreferences', uid]);
+      const next = mergeDefaults({
+        ...(prev ?? DEFAULT_PREFERENCES),
+        ...Object.fromEntries(
+          Object.entries(patch).map(([k, v]) => [
+            k,
+            { ...(prev?.[k as keyof UserPreferences] ?? {}), ...(v ?? {}) },
+          ])
+        ),
+      } as Partial<UserPreferences>);
+      queryClient.setQueryData(['userPreferences', uid], next);
+      return { prev };
+    },
+    onError: (_err, _patch, ctx) => {
+      if (uid && ctx?.prev) {
+        queryClient.setQueryData(['userPreferences', uid], ctx.prev);
+      }
+    },
+    onSettled: () => {
+      if (uid) {
+        void queryClient.invalidateQueries({ queryKey: ['userPreferences', uid] });
+      }
+    },
+  });
+}
