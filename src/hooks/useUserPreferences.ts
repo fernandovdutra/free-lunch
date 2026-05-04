@@ -10,40 +10,16 @@ export type DefaultTab =
   | 'reimbursements'
   | 'expenses';
 
-export type BudgetAlert = 'off' | '80' | '100' | 'both';
-
 export interface UserPreferences {
   display: {
-    /** Tab opened on app launch. Wired in Phase 11; persistence here so the
-     *  preference is durable. */
+    /** Tab opened on app launch. Phase 11 wires it into the post-login
+     *  redirect; persistence here so the preference is durable. */
     defaultTab: DefaultTab;
-  };
-  privacy: {
-    blurAmounts: boolean;
-    appLock: boolean;
-  };
-  numbers: {
-    roundToWhole: boolean;
-    hideTinyAmounts: boolean;
-    /** Day-of-month the fiscal month starts on. 1 = calendar month (default). */
-    fiscalMonthStart: number;
-  };
-  notifications: {
-    budgetAlerts: BudgetAlert;
-  };
-  sync: {
-    autoSyncOnOpen: boolean;
-    backgroundRefresh: boolean;
-    notifications: boolean;
   };
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   display: { defaultTab: 'home' },
-  privacy: { blurAmounts: false, appLock: false },
-  numbers: { roundToWhole: false, hideTinyAmounts: false, fiscalMonthStart: 1 },
-  notifications: { budgetAlerts: '100' },
-  sync: { autoSyncOnOpen: true, backgroundRefresh: true, notifications: false },
 };
 
 function mergeDefaults(
@@ -52,13 +28,6 @@ function mergeDefaults(
   const p = partial ?? {};
   return {
     display: { ...DEFAULT_PREFERENCES.display, ...(p.display ?? {}) },
-    privacy: { ...DEFAULT_PREFERENCES.privacy, ...(p.privacy ?? {}) },
-    numbers: { ...DEFAULT_PREFERENCES.numbers, ...(p.numbers ?? {}) },
-    notifications: {
-      ...DEFAULT_PREFERENCES.notifications,
-      ...(p.notifications ?? {}),
-    },
-    sync: { ...DEFAULT_PREFERENCES.sync, ...(p.sync ?? {}) },
   };
 }
 

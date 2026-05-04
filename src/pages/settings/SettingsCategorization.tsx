@@ -42,36 +42,59 @@ export function SettingsCategorization() {
   const hasTransactions = transactions.length > 0;
   const isPending = recategorize.isPending;
 
+  const onRecatError = (err: unknown) => {
+    toast({
+      title: 'Re-categorize failed',
+      description: err instanceof Error ? err.message : String(err),
+    });
+  };
+
   const runRulesOnly = () => {
     if (!hasTransactions) return;
-    void recategorize.mutateAsync({}).then((r) => {
-      toast({
-        title: 'Re-categorized',
-        description: `${r.updated} updated · ${r.skipped} skipped`,
-      });
-    });
+    recategorize.mutate(
+      {},
+      {
+        onSuccess: (r) => {
+          toast({
+            title: 'Re-categorized',
+            description: `${r.updated} updated · ${r.skipped} skipped`,
+          });
+        },
+        onError: onRecatError,
+      }
+    );
   };
 
   const runAiUncategorized = () => {
     if (!hasTransactions) return;
-    void recategorize
-      .mutateAsync({ useLLM: true, mode: 'uncategorized' })
-      .then((r) => {
-        toast({
-          title: 'AI categorize · uncategorized only',
-          description: `${r.llmCategorized} by AI · ${r.updated} updated`,
-        });
-      });
+    recategorize.mutate(
+      { useLLM: true, mode: 'uncategorized' },
+      {
+        onSuccess: (r) => {
+          toast({
+            title: 'AI categorize · uncategorized only',
+            description: `${r.llmCategorized} by AI · ${r.updated} updated`,
+          });
+        },
+        onError: onRecatError,
+      }
+    );
   };
 
   const runAiAll = () => {
     if (!hasTransactions) return;
-    void recategorize.mutateAsync({ useLLM: true, mode: 'all' }).then((r) => {
-      toast({
-        title: 'AI categorize · all',
-        description: `${r.llmCategorized} by AI · ${r.updated} updated`,
-      });
-    });
+    recategorize.mutate(
+      { useLLM: true, mode: 'all' },
+      {
+        onSuccess: (r) => {
+          toast({
+            title: 'AI categorize · all',
+            description: `${r.llmCategorized} by AI · ${r.updated} updated`,
+          });
+        },
+        onError: onRecatError,
+      }
+    );
   };
 
   return (
@@ -116,21 +139,32 @@ export function SettingsCategorization() {
         glyph="≡"
         label="Rules"
         meta={`${rules.length} rule${rules.length === 1 ? '' : 's'} · search, edit, disable`}
-        to="/settings/categorization#rules"
+        onClick={() => {
+          document
+            .getElementById('rules')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
         badge={rules.length}
       />
       <SettingsRoomRow
         glyph="⌕"
         label="Recognized merchants"
         meta={`${TOTAL_BUILT_IN_MERCHANTS} Dutch merchants auto-categorized`}
-        to="/settings/categorization#merchants"
+        onClick={() => {
+          document
+            .getElementById('merchants')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
         badge={TOTAL_BUILT_IN_MERCHANTS}
       />
       <SettingsRoomRow
         glyph="◧"
         label="Categories"
-        meta="Rename, colorize, hide, merge"
-        to="/categories"
+        meta="Rename, colorize, hide, merge — coming soon"
+        onClick={() => {
+          /* disabled */
+        }}
+        disabled
       />
 
       <div className="mx-4 mt-6 border border-rule bg-surface px-4 py-4 font-mono text-[10.5px] uppercase tracking-[0.04em] text-textMid">

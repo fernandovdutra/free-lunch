@@ -113,7 +113,7 @@ export function SettingsHub() {
       <SettingsRoomRow
         glyph="⚙"
         label="Preferences"
-        meta="Locale · fiscal month · notifications"
+        meta="Theme · currency · default tab"
         to="/settings/preferences"
       />
 
