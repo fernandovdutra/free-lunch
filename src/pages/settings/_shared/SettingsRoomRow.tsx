@@ -8,10 +8,18 @@ interface SettingsRoomRowProps {
   label: string;
   /** Single-line meta below the label. Shown in textMid. */
   meta?: string;
-  /** Destination route. */
-  to: string;
+  /** Destination route. Either `to` or `onClick` must be provided. */
+  to?: string;
+  /** Tap handler used when the row should fire an action instead of
+   *  navigating (e.g. categorization actions). */
+  onClick?: () => void;
+  /** Optional trailing badge rendered before the `›` arrow (e.g. rule
+   *  count). */
+  badge?: string | number;
   /** Render the warn/lime accent on the glyph (e.g. for danger row). */
   accent?: 'warn' | 'accent';
+  /** Disable interactivity — used while a mutation is in flight. */
+  disabled?: boolean;
 }
 
 /**
@@ -25,13 +33,13 @@ export function SettingsRoomRow({
   label,
   meta,
   to,
+  onClick,
+  badge,
   accent,
+  disabled,
 }: SettingsRoomRowProps) {
-  return (
-    <Link
-      to={to}
-      className="flex items-center gap-[14px] border-t border-rule px-4 py-[14px] active:opacity-60"
-    >
+  const inner = (
+    <>
       <span
         aria-hidden
         className={cn(
@@ -55,12 +63,34 @@ export function SettingsRoomRow({
           </span>
         ) : null}
       </span>
+      {badge !== undefined && badge !== null && badge !== '' ? (
+        <span className="font-mono text-[12px] tracking-[-0.2px] text-textMid">{badge}</span>
+      ) : null}
       <span
         aria-hidden
         className="ml-1 font-mono text-[14px] leading-none text-textLo"
       >
         ›
       </span>
-    </Link>
+    </>
+  );
+
+  const className = cn(
+    'flex items-center gap-[14px] border-t border-rule px-4 py-[14px]',
+    disabled ? 'opacity-40 cursor-not-allowed' : 'active:opacity-60'
+  );
+
+  if (to) {
+    return (
+      <Link to={to} className={className} aria-disabled={disabled}>
+        {inner}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} className={cn(className, 'w-full text-left')}>
+      {inner}
+    </button>
   );
 }
