@@ -157,15 +157,6 @@ export function SettingsCategorization() {
         }}
         badge={TOTAL_BUILT_IN_MERCHANTS}
       />
-      <SettingsRoomRow
-        glyph="◧"
-        label="Categories"
-        meta="Rename, colorize, hide, merge — coming soon"
-        onClick={() => {
-          /* disabled */
-        }}
-        disabled
-      />
 
       <div className="mx-4 mt-6 border border-rule bg-surface px-4 py-4 font-mono text-[10.5px] uppercase tracking-[0.04em] text-textMid">
         <div className="text-textLo mb-2">HOW IT WORKS</div>
