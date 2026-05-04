@@ -81,8 +81,8 @@ export function Reimbursements() {
 
   const sublabel =
     pending.length === 0
-      ? `0 OPEN · ${formatAmount(resolvedThisMonth, { showSign: false })} RESOLVED ${monthAbbr}`
-      : `${pending.length} OPEN · ${formatAmount(resolvedThisMonth, { showSign: false })} RESOLVED ${monthAbbr}`;
+      ? `0 OPEN · ${formatAmount(resolvedThisMonth, { showSign: false, noCents: true })} RESOLVED ${monthAbbr}`
+      : `${pending.length} OPEN · ${formatAmount(resolvedThisMonth, { showSign: false, noCents: true })} RESOLVED ${monthAbbr}`;
 
   if (pendingError ?? clearedError) {
     return (

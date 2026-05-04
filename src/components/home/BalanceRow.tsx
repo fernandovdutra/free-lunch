@@ -11,8 +11,8 @@ export function BalanceRow({ label, amount }: BalanceRowProps) {
       <span className="font-mono text-[10.5px] uppercase tracking-[0.06em] text-textMid">
         {label}
       </span>
-      <span className="nums font-mono text-[18px] text-textHi">
-        {formatAmount(amount, { showSign: false })}
+      <span className="nums font-mono text-[14px] text-textHi">
+        {formatAmount(amount, { showSign: false, noCents: true })}
       </span>
     </div>
   );

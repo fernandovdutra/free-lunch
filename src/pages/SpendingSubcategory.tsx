@@ -137,7 +137,7 @@ export function SpendingSubcategory() {
       />
 
       <DrillHeadline
-        amountFormatted={formatAmount(total)}
+        amountFormatted={formatAmount(total, { noCents: true })}
         monthLabel={breakdownLabel}
       />
 
@@ -169,7 +169,7 @@ export function SpendingSubcategory() {
                   total={
                     day.isSelfCanceling
                       ? '—'
-                      : `${day.netTotal > 0 ? '+' : day.netTotal < 0 ? '−' : ''}${formatAmount(day.netTotal, { showSign: false })}`
+                      : `${day.netTotal > 0 ? '+' : day.netTotal < 0 ? '−' : ''}${formatAmount(day.netTotal, { showSign: false, noCents: true })}`
                   }
                 />
                 {day.txns.map((t) => {

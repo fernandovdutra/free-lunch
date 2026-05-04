@@ -65,7 +65,7 @@ export function CounterpartyDetail() {
                 <Skeleton className="mt-1 h-8 w-24" />
               ) : (
                 <p className="text-2xl font-bold tabular-nums text-warn">
-                  {formatAmount(-(analytics?.currentMonthSpending ?? 0), { showSign: false })}
+                  {formatAmount(-(analytics?.currentMonthSpending ?? 0), { showSign: false, noCents: true })}
                 </p>
               )}
             </div>

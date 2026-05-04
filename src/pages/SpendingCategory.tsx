@@ -124,10 +124,10 @@ export function SpendingCategory() {
       />
 
       <DrillHeadline
-        amountFormatted={formatAmount(total)}
+        amountFormatted={formatAmount(total, { noCents: true })}
         monthLabel={breakdownLabel}
         {...(direction === 'expenses' && parentCategoryBudget !== undefined
-          ? { budgetCaption: `BUDGET ${formatAmount(parentCategoryBudget, { showSign: false })}` }
+          ? { budgetCaption: `BUDGET ${formatAmount(parentCategoryBudget, { showSign: false, noCents: true })}` }
           : {})}
       />
 
@@ -171,7 +171,7 @@ export function SpendingCategory() {
                 key={sub.categoryId}
                 index={i + 1}
                 name={sub.categoryName}
-                amount={formatAmount(sub.amount, { showSign: false })}
+                amount={formatAmount(sub.amount, { showSign: false, noCents: true })}
                 meta={meta}
                 {...(parentCategoryBudget !== undefined
                   ? { progress: sub.amount, max: parentCategoryBudget }
@@ -250,7 +250,7 @@ function LeafTransactions({ transactions, categories, searchParams, setSearchPar
                 total={
                   day.isSelfCanceling
                     ? '—'
-                    : `${day.netTotal > 0 ? '+' : day.netTotal < 0 ? '−' : ''}${formatAmount(day.netTotal, { showSign: false })}`
+                    : `${day.netTotal > 0 ? '+' : day.netTotal < 0 ? '−' : ''}${formatAmount(day.netTotal, { showSign: false, noCents: true })}`
                 }
               />
               {day.txns.map((t) => {

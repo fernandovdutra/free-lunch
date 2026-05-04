@@ -11,14 +11,17 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Format amount as currency (EUR)
  */
-export function formatAmount(amount: number, options?: { showSign?: boolean }): string {
-  const { showSign = true } = options ?? {};
+export function formatAmount(
+  amount: number,
+  options?: { showSign?: boolean; noCents?: boolean }
+): string {
+  const { showSign = true, noCents = false } = options ?? {};
 
   const formatted = new Intl.NumberFormat('nl-NL', {
     style: 'currency',
     currency: 'EUR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: noCents ? 0 : 2,
+    maximumFractionDigits: noCents ? 0 : 2,
   }).format(Math.abs(amount));
 
   if (!showSign) return formatted;

@@ -133,10 +133,10 @@ export function SpendingExplorer() {
       />
 
       <DrillHeadline
-        amountFormatted={formatAmount(total)}
+        amountFormatted={formatAmount(total, { noCents: true })}
         monthLabel={breakdownLabel}
         {...(direction === 'expenses' && totalBudget > 0
-          ? { budgetCaption: `BUDGET ${formatAmount(totalBudget, { showSign: false })}` }
+          ? { budgetCaption: `BUDGET ${formatAmount(totalBudget, { showSign: false, noCents: true })}` }
           : {})}
       />
 
@@ -173,15 +173,15 @@ export function SpendingExplorer() {
             remaining === null
               ? ''
               : isOver
-                ? ` · ${formatAmount(Math.abs(remaining), { showSign: false })} OVER`
-                : ` · ${formatAmount(remaining, { showSign: false })} LEFT`;
+                ? ` · ${formatAmount(Math.abs(remaining), { showSign: false, noCents: true })} OVER`
+                : ` · ${formatAmount(remaining, { showSign: false, noCents: true })} LEFT`;
           const meta = `${cat.transactionCount} TXN · ${pctLabel}${tail}`;
           return (
             <DrillRow
               key={cat.categoryId}
               index={i + 1}
               name={cat.categoryName}
-              amount={formatAmount(cat.amount, { showSign: false })}
+              amount={formatAmount(cat.amount, { showSign: false, noCents: true })}
               meta={meta}
               {...(limit !== undefined
                 ? { progress: cat.amount, max: limit }

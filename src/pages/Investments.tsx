@@ -250,7 +250,7 @@ export function Investments() {
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold tabular-nums ${netWorth >= 0 ? '' : 'text-warn'}`}>
-                {formatAmount(netWorth, { showSign: false })}
+                {formatAmount(netWorth, { showSign: false, noCents: true })}
               </div>
               <p className="text-xs text-muted-foreground">assets − liabilities</p>
             </CardContent>
@@ -262,10 +262,10 @@ export function Investments() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold tabular-nums">
-                {formatAmount(totalAssets, { showSign: false })}
+                {formatAmount(totalAssets, { showSign: false, noCents: true })}
               </div>
               <p className="text-xs text-muted-foreground">
-                {totalGain >= 0 ? '+' : ''}{formatAmount(totalGain, { showSign: false })} ({totalReturnPct >= 0 ? '+' : ''}{totalReturnPct.toFixed(1)}%)
+                {totalGain >= 0 ? '+' : ''}{formatAmount(totalGain, { showSign: false, noCents: true })} ({totalReturnPct >= 0 ? '+' : ''}{totalReturnPct.toFixed(1)}%)
               </p>
             </CardContent>
           </Card>
@@ -276,7 +276,7 @@ export function Investments() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold tabular-nums text-warn">
-                {formatAmount(totalDebt, { showSign: false })}
+                {formatAmount(totalDebt, { showSign: false, noCents: true })}
               </div>
               <p className="text-xs text-muted-foreground">{debtsList.length} liabilit{debtsList.length === 1 ? 'y' : 'ies'}</p>
             </CardContent>
@@ -287,7 +287,7 @@ export function Investments() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold tabular-nums">
-                {formatAmount(totalCost, { showSign: false })}
+                {formatAmount(totalCost, { showSign: false, noCents: true })}
               </div>
               <p className="text-xs text-muted-foreground">total invested</p>
             </CardContent>
@@ -364,7 +364,7 @@ export function Investments() {
                       </div>
                       {latest && (
                         <div className="mt-0.5 flex items-baseline gap-2">
-                          <span className="text-sm font-semibold tabular-nums">{formatAmount(latest.marketValue, { showSign: false })}</span>
+                          <span className="text-sm font-semibold tabular-nums">{formatAmount(latest.marketValue, { showSign: false, noCents: true })}</span>
                           <span className={`text-xs tabular-nums ${gain >= 0 ? 'text-accent' : 'text-warn'}`}>
                             {gain >= 0 ? '+' : ''}{returnPct.toFixed(1)}%
                           </span>
@@ -424,7 +424,7 @@ export function Investments() {
                       </div>
                       <div className="mt-0.5 flex items-baseline gap-2">
                         <span className="text-sm font-semibold tabular-nums text-warn">
-                          {formatAmount(debt.balance, { showSign: false })}
+                          {formatAmount(debt.balance, { showSign: false, noCents: true })}
                         </span>
                         {debt.interestRate != null && (
                           <span className="text-xs text-muted-foreground">{debt.interestRate}% p.a.</span>

@@ -267,7 +267,7 @@ export function Budgets() {
           className="nums font-mono text-textHi"
           style={{ fontSize: 14, letterSpacing: '-0.02em', minWidth: 80, textAlign: 'right' }}
         >
-          {formatAmount(value, { showSign: false })}
+          {formatAmount(value, { showSign: false, noCents: true })}
         </span>
         <button
           type="button"
@@ -321,7 +321,7 @@ export function Budgets() {
           }}
         >
           <span className="text-textHi" style={{ fontSize: 38 }}>
-            {formatAmount(totalCap, { showSign: false })}
+            {formatAmount(totalCap, { showSign: false, noCents: true })}
           </span>
           <span
             className="text-textLo"
@@ -340,7 +340,7 @@ export function Budgets() {
         >
           <span>ALLOCATION</span>
           <span className="text-textMid">
-            {formatAmount(free, { showSign: false })} FREE
+            {formatAmount(free, { showSign: false, noCents: true })} FREE
           </span>
         </div>
         <AllocationStrip slices={slices} total={totalCap} />
@@ -349,7 +349,7 @@ export function Budgets() {
           style={{ fontSize: 9.5, letterSpacing: '0.04em' }}
         >
           <span>{categoryCount} CATEGORIES</span>
-          <span>{formatAmount(perDay, { showSign: false })}/DAY</span>
+          <span>{formatAmount(perDay, { showSign: false, noCents: true })}/DAY</span>
         </div>
       </section>
 
@@ -361,7 +361,7 @@ export function Budgets() {
         <span>BY CATEGORY</span>
         <span>
           {isEditing
-            ? `STEP ${formatAmount(STEP_VALUE, { showSign: false })}`
+            ? `STEP ${formatAmount(STEP_VALUE, { showSign: false, noCents: true })}`
             : `${categoryCount} · TAP TO EXPAND`}
         </span>
       </header>
@@ -431,7 +431,7 @@ export function Budgets() {
                         className="nums font-mono text-textHi"
                         style={{ fontSize: 14, letterSpacing: '-0.02em' }}
                       >
-                        {formatAmount(sum, { showSign: false })}
+                        {formatAmount(sum, { showSign: false, noCents: true })}
                       </span>
                       {!isEditing && (
                         <span
@@ -477,7 +477,7 @@ export function Budgets() {
                               style={{ fontSize: 10, letterSpacing: '0.05em' }}
                             >
                               {value > 0
-                                ? formatAmount(value, { showSign: false })
+                                ? formatAmount(value, { showSign: false, noCents: true })
                                 : 'NO BUDGET'}
                             </span>
                             <span />

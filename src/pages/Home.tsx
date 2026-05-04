@@ -67,8 +67,8 @@ export function Home() {
 
   const projectionView = projection
     ? {
-        amountFormatted: formatAmount(projection.amount, { showSign: false }),
-        deltaFormatted: formatAmount(Math.abs(projection.delta), { showSign: false }),
+        amountFormatted: formatAmount(projection.amount, { showSign: false, noCents: true }),
+        deltaFormatted: formatAmount(Math.abs(projection.delta), { showSign: false, noCents: true }),
         deltaSign:
           projection.delta > 0 ? ('+' as const) : projection.delta < 0 ? ('-' as const) : ('·' as const),
       }
@@ -98,14 +98,14 @@ export function Home() {
     let trailing: string | undefined;
     if (bp) {
       trailing = isCatOver
-        ? `${formatAmount(c.amount - bp.budget.monthlyLimit, { showSign: false })} over`
-        : `${formatAmount(bp.remaining, { showSign: false })} left`;
+        ? `${formatAmount(c.amount - bp.budget.monthlyLimit, { showSign: false, noCents: true })} over`
+        : `${formatAmount(bp.remaining, { showSign: false, noCents: true })} left`;
     }
 
     return {
       categoryId: c.categoryId,
       name: c.categoryName,
-      amount: formatAmount(c.amount, { showSign: false }),
+      amount: formatAmount(c.amount, { showSign: false, noCents: true }),
       ...(trailing ? { amountTrailing: trailing } : {}),
       ...(bp ? { progress: c.amount, max: bp.budget.monthlyLimit } : {}),
       variant: isCatOver ? 'over' : 'ok',
@@ -134,7 +134,7 @@ export function Home() {
 
       <section className="mt-5 border-b border-rule px-5 pb-4">
         <SpentBlock
-          spentFormatted={formatAmount(spent, { showSign: false })}
+          spentFormatted={formatAmount(spent, { showSign: false, noCents: true })}
           monthLabel={monthAbbr}
           projection={projectionView}
           isOver={isOver}

@@ -24,13 +24,13 @@ export function BudgetLine({ spent, budget, isOver }: BudgetLineProps) {
         <span>
           {isOver ? (
             <>
-              <span className="nums">{formatAmount(over, { showSign: false })}</span> OVER OF{' '}
-              <span className="nums">{formatAmount(budget, { showSign: false })}</span>
+              <span className="nums">{formatAmount(over, { showSign: false, noCents: true })}</span> OVER OF{' '}
+              <span className="nums">{formatAmount(budget, { showSign: false, noCents: true })}</span>
             </>
           ) : (
             <>
-              <span className="nums">{formatAmount(remaining, { showSign: false })}</span> LEFT OF{' '}
-              <span className="nums">{formatAmount(budget, { showSign: false })}</span>
+              <span className="nums">{formatAmount(remaining, { showSign: false, noCents: true })}</span> LEFT OF{' '}
+              <span className="nums">{formatAmount(budget, { showSign: false, noCents: true })}</span>
             </>
           )}
         </span>

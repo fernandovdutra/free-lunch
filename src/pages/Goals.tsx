@@ -141,7 +141,7 @@ export function Goals() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold tabular-nums">
-                {formatAmount(activeGoals.reduce((s, g) => s + g.targetAmount, 0), { showSign: false })}
+                {formatAmount(activeGoals.reduce((s, g) => s + g.targetAmount, 0), { showSign: false, noCents: true })}
               </div>
             </CardContent>
           </Card>
@@ -207,8 +207,8 @@ export function Goals() {
                     </div>
                     <div className="mt-3">
                       <div className="mb-1 flex justify-between text-sm">
-                        <span>{formatAmount(goal.currentAmount, { showSign: false })}</span>
-                        <span className="text-muted-foreground">{formatAmount(goal.targetAmount, { showSign: false })}</span>
+                        <span>{formatAmount(goal.currentAmount, { showSign: false, noCents: true })}</span>
+                        <span className="text-muted-foreground">{formatAmount(goal.targetAmount, { showSign: false, noCents: true })}</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-muted">
                         <div
@@ -244,7 +244,7 @@ export function Goals() {
                     <div>
                       <h3 className="font-medium">{goal.name}</h3>
                       <p className="text-sm text-muted-foreground">
-                        {formatAmount(goal.targetAmount, { showSign: false })} · {goalTypeLabels[goal.type]}
+                        {formatAmount(goal.targetAmount, { showSign: false, noCents: true })} · {goalTypeLabels[goal.type]}
                       </p>
                     </div>
                   </div>

@@ -60,7 +60,7 @@ export function CategoryRow({
       {/* Amount and percentage */}
       <div className="relative z-10 text-right">
         <p className="font-semibold tabular-nums">
-          {formatAmount(amount, { showSign: false })}
+          {formatAmount(amount, { showSign: false, noCents: true })}
         </p>
         <p className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</p>
       </div>

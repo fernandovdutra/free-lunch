@@ -28,19 +28,19 @@ export function SpentHeadline({
           isOver ? 'text-warn' : 'text-textHi'
         )}
       >
-        {formatAmount(spent, { showSign: false })}
+        {formatAmount(spent, { showSign: false, noCents: true })}
       </div>
       <div className="flex flex-col items-end gap-1 pt-1">
         {delta !== null && (
           <div className={cn('nums font-mono text-[10px] tracking-[0.04em]', deltaTone)}>
-            {deltaArrow} {formatAmount(Math.abs(delta), { showSign: false })} vs {prevMonthLabel}
+            {deltaArrow} {formatAmount(Math.abs(delta), { showSign: false, noCents: true })} vs {prevMonthLabel}
           </div>
         )}
         <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-textLo leading-tight text-right">
           SPENT / BUDGET
           <br />
           <span className="nums">
-            {formatAmount(spent, { showSign: false })} / {formatAmount(budget, { showSign: false })}
+            {formatAmount(spent, { showSign: false, noCents: true })} / {formatAmount(budget, { showSign: false, noCents: true })}
           </span>
         </div>
       </div>

@@ -56,8 +56,8 @@ export function BudgetCard({ progress, onClick }: BudgetCardProps) {
         />
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">
-            {formatAmount(spent, { showSign: false })} of{' '}
-            {formatAmount(budget.monthlyLimit, { showSign: false })}
+            {formatAmount(spent, { showSign: false, noCents: true })} of{' '}
+            {formatAmount(budget.monthlyLimit, { showSign: false, noCents: true })}
           </span>
           <span className={cn('font-medium tabular-nums', statusTextColors[status])}>
             {percentage.toFixed(0)}%
@@ -67,8 +67,8 @@ export function BudgetCard({ progress, onClick }: BudgetCardProps) {
           <span>{categoryName}</span>
           <span>
             {status === 'exceeded'
-              ? `${formatAmount(spent - budget.monthlyLimit, { showSign: false })} over`
-              : `${formatAmount(remaining, { showSign: false })} left`}
+              ? `${formatAmount(spent - budget.monthlyLimit, { showSign: false, noCents: true })} over`
+              : `${formatAmount(remaining, { showSign: false, noCents: true })} left`}
           </span>
         </div>
       </CardContent>
