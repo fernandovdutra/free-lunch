@@ -9,7 +9,6 @@ import { MonthProvider } from '@/contexts/MonthContext';
 // Pages
 import { Home } from '@/pages/Home';
 import { Transactions } from '@/pages/Transactions';
-import { Categories } from '@/pages/Categories';
 import { Budgets } from '@/pages/Budgets';
 import { Reimbursements } from '@/pages/Reimbursements';
 import { SettingsHub } from '@/pages/settings/SettingsHub';
@@ -71,7 +70,6 @@ export function App() {
               >
                 <Route index element={<Home />} />
                 <Route path="transactions" element={<Transactions />} />
-                <Route path="categories" element={<Categories />} />
                 <Route path="budgets" element={<Budgets />} />
                 <Route path="reimbursements" element={<Reimbursements />} />
                 <Route path="settings" element={<SettingsHub />} />

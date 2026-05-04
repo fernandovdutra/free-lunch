@@ -29,7 +29,6 @@ const ARCHIVE: MoreRow[] = [
   { href: '/insights', label: 'INSIGHTS' },
   { href: '/goals', label: 'GOALS' },
   { href: '/investments', label: 'INVESTMENTS' },
-  { href: '/categories', label: 'CATEGORIES' },
 ];
 
 const DEFERRED: MoreRow[] = [

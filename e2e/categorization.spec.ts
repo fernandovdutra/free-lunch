@@ -71,30 +71,7 @@ test.describe('Auto-Categorization', () => {
   });
 
   test('should show rule creation dialog when manually categorizing', async ({ page }) => {
-    // First ensure we have categories
-    await page.goto('/categories');
-    await expect(page.getByRole('heading', { name: /categories/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Check if we have at least one category, create if not
-    const categoryExists = await page
-      .getByText(/groceries|food|transport/i)
-      .first()
-      .isVisible();
-    if (!categoryExists) {
-      // Create a category for testing - button is "New Category"
-      await page.getByRole('button', { name: /new category/i }).click();
-      await expect(page.getByRole('dialog')).toBeVisible();
-      await page.getByLabel(/name/i).fill('Test Category');
-      await page
-        .getByRole('button', { name: /create category/i })
-        .last()
-        .click();
-      await expect(page.getByRole('dialog')).not.toBeVisible();
-    }
-
-    // Navigate to transactions
+    // Seeded user already has categories — no precondition step needed.
     await page.goto('/transactions');
     await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({
       timeout: 10000,
@@ -172,29 +149,7 @@ test.describe('Auto-Categorization', () => {
   });
 
   test('should show apply to similar dialog when changing category', async ({ page }) => {
-    // First ensure we have categories
-    await page.goto('/categories');
-    await expect(page.getByRole('heading', { name: /categories/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Check if we have at least one category, create if not
-    const categoryExists = await page
-      .getByText(/groceries|food|transport/i)
-      .first()
-      .isVisible();
-    if (!categoryExists) {
-      await page.getByRole('button', { name: /new category/i }).click();
-      await expect(page.getByRole('dialog')).toBeVisible();
-      await page.getByLabel(/name/i).fill('Bulk Test Category');
-      await page
-        .getByRole('button', { name: /create category/i })
-        .last()
-        .click();
-      await expect(page.getByRole('dialog')).not.toBeVisible();
-    }
-
-    // Navigate to transactions
+    // Seeded user already has categories — no precondition step needed.
     await page.goto('/transactions');
     await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({
       timeout: 10000,

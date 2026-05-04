@@ -17,7 +17,7 @@ export function TabBar({ onMoreClick, moreOpen }: TabBarProps) {
 
   // MORE is "active" when the sheet is open OR the current route is one of the
   // routes the MORE sheet links to (so users see where they are in archive).
-  const moreRoutePrefixes = ['/reimbursements', '/settings', '/categories', '/insights', '/goals', '/investments'];
+  const moreRoutePrefixes = ['/reimbursements', '/settings', '/insights', '/goals', '/investments'];
   const moreRouteActive = moreRoutePrefixes.some((p) => location.pathname.startsWith(p));
   const moreActive = moreOpen || moreRouteActive;
 

@@ -15,7 +15,7 @@ const TABS = [
 export function SideRail({ onMoreClick, moreOpen }: SideRailProps) {
   const location = useLocation();
 
-  const moreRoutePrefixes = ['/reimbursements', '/settings', '/categories', '/insights', '/goals', '/investments'];
+  const moreRoutePrefixes = ['/reimbursements', '/settings', '/insights', '/goals', '/investments'];
   const moreRouteActive = moreRoutePrefixes.some((p) => location.pathname.startsWith(p));
   const moreActive = moreOpen || moreRouteActive;
 
