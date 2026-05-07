@@ -12,3 +12,4 @@ export { buildDrillBreadcrumb } from './buildDrillBreadcrumb';
 export { DrillRow } from './DrillRow';
 export { DrillHeadline } from './DrillHeadline';
 export { AllocationStrip, type AllocationSlice } from './AllocationStrip';
+export { CategoryIconPicker } from './CategoryIconPicker';

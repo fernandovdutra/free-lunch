@@ -27,6 +27,7 @@ import {
   TagIcon,
 } from '@phosphor-icons/react';
 import { resolveIcon } from './iconUtils';
+import { resolvePhosphorIcon } from './phosphorCatalog';
 
 // Map seeded category IDs → Phosphor icon component.
 // Falls back to emoji rendering for unknown IDs (user-created categories).
@@ -76,9 +77,10 @@ interface CategoryIconProps {
 }
 
 /**
- * Renders a category icon using Phosphor (regular weight, monoline) for known
- * seeded categories. Falls back to the emoji string for user-created
- * categories that have no registry entry yet.
+ * Renders a category icon. Resolution order:
+ *   1. Seeded registry by categoryId (deliberate per-category mapping).
+ *   2. `phosphor:Name` prefix on the fallback string (user-picked icon).
+ *   3. Emoji / SF Symbol fallback (legacy iOS or pre-picker categories).
  */
 export function CategoryIcon({
   categoryId,
@@ -90,6 +92,11 @@ export function CategoryIcon({
 
   if (IconComp) {
     return <IconComp size={size} weight="regular" className={className} aria-hidden />;
+  }
+
+  const PhosphorComp = resolvePhosphorIcon(fallback);
+  if (PhosphorComp) {
+    return <PhosphorComp size={size} weight="regular" className={className} aria-hidden />;
   }
 
   if (fallback) {
