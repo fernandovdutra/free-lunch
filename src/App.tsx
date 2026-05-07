@@ -18,6 +18,7 @@ import { SettingsPreferences } from '@/pages/settings/SettingsPreferences';
 import { SettingsExport } from '@/pages/settings/SettingsExport';
 import { SettingsAccount } from '@/pages/settings/SettingsAccount';
 import { SettingsDanger } from '@/pages/settings/SettingsDanger';
+import { SettingsAdvisorMemory } from '@/pages/settings/SettingsAdvisorMemory';
 import { CounterpartyDetail } from '@/pages/CounterpartyDetail';
 import { SpendingExplorer } from '@/pages/SpendingExplorer';
 import { SpendingCategory } from '@/pages/SpendingCategory';
@@ -79,6 +80,7 @@ export function App() {
                 <Route path="settings/export" element={<SettingsExport />} />
                 <Route path="settings/account" element={<SettingsAccount />} />
                 <Route path="settings/danger" element={<SettingsDanger />} />
+                <Route path="settings/advisor-memory" element={<SettingsAdvisorMemory />} />
                 <Route path="expenses" element={<SpendingExplorer />} />
                 <Route path="expenses/:categoryId" element={<SpendingCategory />} />
                 <Route path="expenses/:categoryId/:subcategoryId" element={<SpendingSubcategory />} />

@@ -117,6 +117,12 @@ export function SettingsHub() {
         meta="Theme · currency · default tab"
         to="/settings/preferences"
       />
+      <SettingsRoomRow
+        glyph="◉"
+        label="Advisor memory"
+        meta="Spending baselines · merchants · patterns"
+        to="/settings/advisor-memory"
+      />
 
       <SectionHeader>DATA</SectionHeader>
       <SettingsRoomRow

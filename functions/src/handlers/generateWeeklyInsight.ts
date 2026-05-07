@@ -13,7 +13,7 @@ import { buildWeeklyInsightPrompt } from '../shared/promptTemplates.js';
 import { storeInsight, getPreviousInsight, markInsightEmailed } from '../shared/insightStorage.js';
 import { sendInsightEmail } from '../shared/emailSender.js';
 import { buildWeeklyEmailHtml } from '../shared/emailTemplates.js';
-import { loadAdvisorMemory, updateAdvisorMemory, formatMemoryForPrompt } from '../shared/memoryManager.js';
+import { loadAdvisorMemory, updateAdvisorMemory, formatMemoryForPrompt, consolidateAdvisorMemory } from '../shared/memoryManager.js';
 import { config } from '../config.js';
 
 const SINGLE_USER_ID = process.env.SINGLE_USER_ID ?? '';
@@ -222,7 +222,18 @@ export const generateWeeklyInsight = onSchedule(
       narrative: parsed.narrative,
     });
 
-    // Update advisor memory with latest advice
+    // Full weekly consolidation: rebuild baselines, merchants, and patterns from all transactions
+    try {
+      const consolidationResult = await consolidateAdvisorMemory(SINGLE_USER_ID, client);
+      console.log(
+        `Weekly memory consolidation complete: ${consolidationResult.baselines} baselines, ` +
+        `${consolidationResult.merchants} merchants, ${consolidationResult.patterns} patterns`
+      );
+    } catch (memErr) {
+      console.error('Weekly consolidation failed (non-fatal):', memErr);
+    }
+
+    // Also append this week's top recommendations to pastAdvice
     if (parsed.recommendations.length > 0) {
       try {
         await updateAdvisorMemory(SINGLE_USER_ID, {
@@ -231,9 +242,8 @@ export const generateWeeklyInsight = onSchedule(
             advice: r.text,
           })),
         });
-        console.log('Advisor memory updated successfully');
       } catch (memErr) {
-        console.error('Failed to update advisor memory:', memErr);
+        console.error('Failed to append advice to memory (non-fatal):', memErr);
       }
     }
 
