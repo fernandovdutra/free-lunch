@@ -7,12 +7,18 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { MonthProvider } from '@/contexts/MonthContext';
 
 // Pages
-import { Dashboard } from '@/pages/Dashboard';
+import { Home } from '@/pages/Home';
 import { Transactions } from '@/pages/Transactions';
-import { Categories } from '@/pages/Categories';
 import { Budgets } from '@/pages/Budgets';
 import { Reimbursements } from '@/pages/Reimbursements';
-import { Settings } from '@/pages/Settings';
+import { SettingsHub } from '@/pages/settings/SettingsHub';
+import { SettingsAccountsSync } from '@/pages/settings/SettingsAccountsSync';
+import { SettingsCategorization } from '@/pages/settings/SettingsCategorization';
+import { SettingsPreferences } from '@/pages/settings/SettingsPreferences';
+import { SettingsExport } from '@/pages/settings/SettingsExport';
+import { SettingsAccount } from '@/pages/settings/SettingsAccount';
+import { SettingsDanger } from '@/pages/settings/SettingsDanger';
+import { SettingsAdvisorMemory } from '@/pages/settings/SettingsAdvisorMemory';
 import { CounterpartyDetail } from '@/pages/CounterpartyDetail';
 import { SpendingExplorer } from '@/pages/SpendingExplorer';
 import { SpendingCategory } from '@/pages/SpendingCategory';
@@ -26,7 +32,7 @@ import { Investments } from '@/pages/Investments';
 import { Insights } from '@/pages/Insights';
 import { InsightDetail } from '@/pages/InsightDetail';
 import { Login } from '@/pages/auth/Login';
-import { Register } from '@/pages/auth/Register';
+import { PrimitivesPlayground } from '@/pages/dev/PrimitivesPlayground';
 
 // Layout
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -50,7 +56,9 @@ export function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+              {import.meta.env.DEV && (
+                <Route path="/__dev/primitives" element={<PrimitivesPlayground />} />
+              )}
 
               {/* Protected routes */}
               <Route
@@ -61,12 +69,18 @@ export function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<Dashboard />} />
+                <Route index element={<Home />} />
                 <Route path="transactions" element={<Transactions />} />
-                <Route path="categories" element={<Categories />} />
                 <Route path="budgets" element={<Budgets />} />
                 <Route path="reimbursements" element={<Reimbursements />} />
-                <Route path="settings" element={<Settings />} />
+                <Route path="settings" element={<SettingsHub />} />
+                <Route path="settings/accounts" element={<SettingsAccountsSync />} />
+                <Route path="settings/categorization" element={<SettingsCategorization />} />
+                <Route path="settings/preferences" element={<SettingsPreferences />} />
+                <Route path="settings/export" element={<SettingsExport />} />
+                <Route path="settings/account" element={<SettingsAccount />} />
+                <Route path="settings/danger" element={<SettingsDanger />} />
+                <Route path="settings/advisor-memory" element={<SettingsAdvisorMemory />} />
                 <Route path="expenses" element={<SpendingExplorer />} />
                 <Route path="expenses/:categoryId" element={<SpendingCategory />} />
                 <Route path="expenses/:categoryId/:subcategoryId" element={<SpendingSubcategory />} />

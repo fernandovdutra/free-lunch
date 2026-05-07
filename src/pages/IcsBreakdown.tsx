@@ -101,7 +101,7 @@ export function IcsBreakdown() {
         selectedMonthKey={selectedMonthKey}
         onMonthClick={handleMonthClick}
         isLoading={isLoading}
-        color="#7C3AED"
+        color="var(--accent)"
       />
 
       {/* Category breakdown */}

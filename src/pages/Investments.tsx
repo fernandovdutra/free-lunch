@@ -86,7 +86,7 @@ function Sparkline({ entries }: { entries: Investment['entries'] }) {
   const data = entries.map((e) => ({ v: e.marketValue }));
   const first = data[0]!.v;
   const last = data[data.length - 1]!.v;
-  const color = last >= first ? '#10b981' : '#ef4444';
+  const color = last >= first ? 'var(--accent)' : 'var(--warn)';
   return (
     <div className="h-8 w-20 shrink-0">
       <ResponsiveContainer width="100%" height="100%">
@@ -249,8 +249,8 @@ export function Investments() {
               <Wallet className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold tabular-nums ${netWorth >= 0 ? '' : 'text-red-500'}`}>
-                {formatAmount(netWorth, { showSign: false })}
+              <div className={`text-2xl font-bold tabular-nums ${netWorth >= 0 ? '' : 'text-warn'}`}>
+                {formatAmount(netWorth, { showSign: false, noCents: true })}
               </div>
               <p className="text-xs text-muted-foreground">assets − liabilities</p>
             </CardContent>
@@ -258,25 +258,25 @@ export function Investments() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Assets</CardTitle>
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
+              <TrendingUp className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold tabular-nums">
-                {formatAmount(totalAssets, { showSign: false })}
+                {formatAmount(totalAssets, { showSign: false, noCents: true })}
               </div>
               <p className="text-xs text-muted-foreground">
-                {totalGain >= 0 ? '+' : ''}{formatAmount(totalGain, { showSign: false })} ({totalReturnPct >= 0 ? '+' : ''}{totalReturnPct.toFixed(1)}%)
+                {totalGain >= 0 ? '+' : ''}{formatAmount(totalGain, { showSign: false, noCents: true })} ({totalReturnPct >= 0 ? '+' : ''}{totalReturnPct.toFixed(1)}%)
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Debt</CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-500" />
+              <TrendingDown className="h-4 w-4 text-warn" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tabular-nums text-red-500">
-                {formatAmount(totalDebt, { showSign: false })}
+              <div className="text-2xl font-bold tabular-nums text-warn">
+                {formatAmount(totalDebt, { showSign: false, noCents: true })}
               </div>
               <p className="text-xs text-muted-foreground">{debtsList.length} liabilit{debtsList.length === 1 ? 'y' : 'ies'}</p>
             </CardContent>
@@ -287,7 +287,7 @@ export function Investments() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold tabular-nums">
-                {formatAmount(totalCost, { showSign: false })}
+                {formatAmount(totalCost, { showSign: false, noCents: true })}
               </div>
               <p className="text-xs text-muted-foreground">total invested</p>
             </CardContent>
@@ -307,13 +307,13 @@ export function Investments() {
                 <AreaChart data={portfolioTimeline} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
                   <defs>
                     <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1D4739" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#1D4739" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#6b7280' }} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.4)' }} tickLine={false} axisLine={false} />
                   <YAxis
-                    tick={{ fontSize: 10, fill: '#6b7280' }}
+                    tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.4)' }}
                     tickLine={false}
                     axisLine={false}
                     width={48}
@@ -324,7 +324,7 @@ export function Investments() {
                     formatter={(v: number) => [`€${v.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, 'Portfolio']}
                     contentStyle={{ fontSize: 11 }}
                   />
-                  <Area type="monotone" dataKey="value" stroke="#1D4739" strokeWidth={2} fill="url(#portfolioGradient)" dot={false} />
+                  <Area type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2} fill="url(#portfolioGradient)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -364,8 +364,8 @@ export function Investments() {
                       </div>
                       {latest && (
                         <div className="mt-0.5 flex items-baseline gap-2">
-                          <span className="text-sm font-semibold tabular-nums">{formatAmount(latest.marketValue, { showSign: false })}</span>
-                          <span className={`text-xs ${gain >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                          <span className="text-sm font-semibold tabular-nums">{formatAmount(latest.marketValue, { showSign: false, noCents: true })}</span>
+                          <span className={`text-xs tabular-nums ${gain >= 0 ? 'text-accent' : 'text-warn'}`}>
                             {gain >= 0 ? '+' : ''}{returnPct.toFixed(1)}%
                           </span>
                           {latest && (
@@ -423,8 +423,8 @@ export function Investments() {
                         <span className="text-xs text-muted-foreground">{debtTypeLabels[debt.type]}</span>
                       </div>
                       <div className="mt-0.5 flex items-baseline gap-2">
-                        <span className="text-sm font-semibold tabular-nums text-red-500">
-                          {formatAmount(debt.balance, { showSign: false })}
+                        <span className="text-sm font-semibold tabular-nums text-warn">
+                          {formatAmount(debt.balance, { showSign: false, noCents: true })}
                         </span>
                         {debt.interestRate != null && (
                           <span className="text-xs text-muted-foreground">{debt.interestRate}% p.a.</span>

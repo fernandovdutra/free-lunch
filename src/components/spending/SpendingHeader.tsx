@@ -43,7 +43,7 @@ export function SpendingHeader({
               direction === 'expenses' ? 'text-destructive' : 'text-primary'
             )}
           >
-            {formatAmount(direction === 'expenses' ? -total : total, { showSign: false })}
+            {formatAmount(direction === 'expenses' ? -total : total, { showSign: false, noCents: true })}
           </p>
         )}
         <p className="text-sm text-muted-foreground">{monthLabel}</p>

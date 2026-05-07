@@ -47,7 +47,7 @@ export function IcsBreakdownCategory() {
         selectedMonthKey={selectedMonthKey}
         onMonthClick={handleMonthClick}
         isLoading={isLoading}
-        color={category?.color ?? '#7C3AED'}
+        color={category?.color ?? 'var(--accent)'}
       />
 
       {/* Transaction list */}

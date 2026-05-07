@@ -1,82 +1,150 @@
+import { useMemo, useState } from 'react';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { buildCategoryTree, getFlatCategoriesWithLevel } from '@/hooks/useCategories';
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { buildCategoryTree } from '@/hooks/useCategories';
+import { cn } from '@/lib/utils';
 import type { Category } from '@/types';
 
-// Special value to represent filtering for uncategorized transactions
-export const UNCATEGORIZED_FILTER = '__uncategorized__';
-
 interface CategoryPickerProps {
-  value: string | null;
-  onChange: (value: string | null) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   categories: Category[];
-  placeholder?: string;
-  className?: string;
-  /** If true, show "All categories" option instead of treating uncategorized as default */
-  showAllOption?: boolean;
+  /** Pass `null` for uncategorized. */
+  currentCategoryId: string | null;
+  /** Pass `null` to clear the category (mark uncategorized). */
+  onPick: (categoryId: string | null) => void;
 }
 
+/**
+ * Phase 6 nested category picker — opens on top of the Transaction Edit
+ * Sheet. Search at top, hierarchical category list, "Uncategorized"
+ * sentinel row to clear the assignment.
+ */
 export function CategoryPicker({
-  value,
-  onChange,
+  open,
+  onOpenChange,
   categories,
-  placeholder = 'Select category',
-  className,
-  showAllOption = false,
+  currentCategoryId,
+  onPick,
 }: CategoryPickerProps) {
-  const tree = buildCategoryTree(categories);
-  const flatCategories = getFlatCategoriesWithLevel(tree);
+  const [query, setQuery] = useState('');
+  const tree = useMemo(() => buildCategoryTree(categories), [categories]);
 
-  // Determine the select value
-  const selectValue = value ?? (showAllOption ? '__all__' : 'uncategorized');
+  const matches = (name: string) => name.toLowerCase().includes(query.trim().toLowerCase());
+  const visibleParents = useMemo(() => {
+    if (!query.trim()) return tree;
+    return tree
+      .map((p) => ({ ...p, children: p.children.filter((c) => matches(c.name)) }))
+      .filter((p) => matches(p.name) || p.children.length > 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tree, query]);
 
   return (
-    <Select
-      value={selectValue}
-      onValueChange={(v) => {
-        if (v === '__all__') {
-          onChange(null);
-        } else if (v === 'uncategorized') {
-          // For filter mode, pass the special filter value
-          // For assignment mode, pass null (actual null categoryId)
-          onChange(showAllOption ? UNCATEGORIZED_FILTER : null);
-        } else {
-          onChange(v);
-        }
+    <Sheet
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) setQuery('');
       }}
     >
-      <SelectTrigger className={className}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {showAllOption && (
-          <SelectItem value="__all__">
-            <span className="flex items-center gap-2">
-              <span>📋</span>
-              <span>All categories</span>
-            </span>
-          </SelectItem>
-        )}
-        <SelectItem value="uncategorized">
-          <span className="flex items-center gap-2">
-            <span>❓</span>
-            <span>Uncategorized</span>
-          </span>
-        </SelectItem>
-        {flatCategories.map((cat) => (
-          <SelectItem key={cat.id} value={cat.id}>
-            <span className="flex items-center gap-2" style={{ paddingLeft: cat.level * 16 }}>
-              <span>{cat.icon}</span>
-              <span>{cat.name}</span>
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>SELECT CATEGORY</SheetTitle>
+        </SheetHeader>
+        <div className="hairline-b px-4 pb-3">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+            }}
+            placeholder="Search categories…"
+            className={cn(
+              'block h-9 w-full border border-rule bg-bg px-3',
+              'font-sans text-[13px] text-textHi placeholder:text-textLo',
+              'focus:outline-none focus:ring-1 focus:ring-accent'
+            )}
+            autoFocus
+          />
+        </div>
+        <SheetBody>
+          <PickerRow
+            isCurrent={currentCategoryId === null}
+            onClick={() => {
+              onPick(null);
+            }}
+          >
+            <span className="font-sans text-[13.5px] italic text-textMid">Uncategorized</span>
+          </PickerRow>
+
+          {visibleParents.map((parent) => (
+            <div key={parent.id}>
+              <div className="mt-3 px-4 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-textLo">
+                {parent.name}
+              </div>
+              {(query.trim() === '' || matches(parent.name)) && (
+                <PickerRow
+                  isCurrent={currentCategoryId === parent.id}
+                  onClick={() => {
+                    onPick(parent.id);
+                  }}
+                >
+                  <span className="font-sans text-[13.5px] text-textHi">All {parent.name}</span>
+                </PickerRow>
+              )}
+              {parent.children.map((child) => (
+                <PickerRow
+                  key={child.id}
+                  isCurrent={currentCategoryId === child.id}
+                  indented
+                  onClick={() => {
+                    onPick(child.id);
+                  }}
+                >
+                  <span className="font-sans text-[13px] text-textMid">{child.name}</span>
+                </PickerRow>
+              ))}
+            </div>
+          ))}
+
+          {visibleParents.length === 0 && query.trim() && (
+            <div className="px-4 py-6 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-textLo">
+              No categories match "{query}"
+            </div>
+          )}
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+interface PickerRowProps {
+  children: React.ReactNode;
+  isCurrent: boolean;
+  indented?: boolean;
+  onClick: () => void;
+}
+
+function PickerRow({ children, isCurrent, indented, onClick }: PickerRowProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'press hairline-b flex w-full items-center justify-between py-2.5 pr-4 text-left',
+        indented ? 'pl-8' : 'pl-4',
+        isCurrent && 'bg-surface'
+      )}
+    >
+      {children}
+      {isCurrent && (
+        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-accent">CURRENT</span>
+      )}
+    </button>
   );
 }

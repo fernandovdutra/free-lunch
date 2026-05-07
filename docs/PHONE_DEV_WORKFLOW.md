@@ -190,6 +190,22 @@ Re-running the script:
 - Is idempotent for the test user (updates password to `test1234`)
 - **Is not idempotent for Firestore data** — it appends. Delete `.emulator-data/` first for a clean slate.
 
+### Dev convenience: under-budget Home visuals
+
+The default seed budgets total ~€810 vs ~€7,000 monthly spend, so Home
+always renders the over-budget (warn) state. To verify the under-budget
+(accent) visuals against the redesigned Home:
+
+```bash
+node scripts/_dev_bump_budgets.mjs
+```
+
+This bumps the existing budget caps and adds two new ones (housing-rent,
+travel) so total ~€11,500 > spend, plus tags two small APR transactions
+as pending reimbursements so the Home pending banner renders. Talks to
+the Firestore emulator's REST API directly — no functions/node_modules
+dependency. Idempotent enough to run multiple times.
+
 ## Testing advisor Cloud Functions end-to-end
 
 1. Paste real keys into `functions/.secret.local`.

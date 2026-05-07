@@ -1,5 +1,5 @@
 import { formatAmount, cn } from '@/lib/utils';
-import { resolveIcon } from '@/lib/iconUtils';
+import { CategoryIcon } from '@/lib/categoryIcons';
 import { ChevronRight } from 'lucide-react';
 
 interface CategoryRowProps {
@@ -14,6 +14,7 @@ interface CategoryRowProps {
 }
 
 export function CategoryRow({
+  categoryId,
   name,
   icon,
   color,
@@ -47,7 +48,9 @@ export function CategoryRow({
       />
 
       {/* Icon */}
-      <span className="relative z-10 text-lg">{resolveIcon(icon)}</span>
+      <span className="relative z-10 flex h-5 w-5 items-center justify-center" style={{ color }}>
+        <CategoryIcon categoryId={categoryId} fallback={icon} size={18} />
+      </span>
 
       {/* Name and count */}
       <div className="relative z-10 min-w-0 flex-1">
@@ -60,7 +63,7 @@ export function CategoryRow({
       {/* Amount and percentage */}
       <div className="relative z-10 text-right">
         <p className="font-semibold tabular-nums">
-          {formatAmount(amount, { showSign: false })}
+          {formatAmount(amount, { showSign: false, noCents: true })}
         </p>
         <p className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</p>
       </div>

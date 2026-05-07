@@ -1,154 +1,195 @@
-import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useState, type SyntheticEvent } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { auth } from '@/lib/firebase';
+import { resolvePostLoginPath } from '@/hooks/useUserPreferences';
 
 export function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const { login, loginWithGoogle } = useAuth();
+  const { loginWithGoogle, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/';
+  const fromState = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
+  const showDevForm = import.meta.env.DEV && searchParams.get('dev') === '1';
 
-  const handleSubmit = async (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      await login(email, password);
-      void navigate(from, { replace: true });
-    } catch {
-      setError('Invalid email or password');
-    } finally {
-      setIsLoading(false);
-    }
+  // Honors prefs.display.defaultTab when the user came straight to /login;
+  // when they were bounced from a deep link (fromState set), keep that link.
+  const resolveDestination = async (): Promise<string> => {
+    if (fromState && fromState !== '/') return fromState;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return '/';
+    return resolvePostLoginPath(uid);
   };
 
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
+  const handleGoogle = async () => {
+    setBusy(true);
     setError(null);
-
     try {
       await loginWithGoogle();
-      void navigate(from, { replace: true });
+      const dest = await resolveDestination();
+      void navigate(dest, { replace: true });
     } catch {
-      setError('Google sign-in failed');
+      setError('GOOGLE SIGN-IN FAILED');
     } finally {
-      setIsLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex items-center justify-center gap-3">
-            <img src="/free-lunch-icon.jpg" alt="" className="h-14" />
-            <span className="text-2xl font-bold text-primary">Free Lunch</span>
-          </div>
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
-          <CardDescription>Sign in to your account to continue</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
+    <div className="flex min-h-svh flex-col bg-bg text-textHi px-7 pb-8 pt-6">
+      <div className="flex items-center gap-2">
+        <span aria-hidden className="font-mono text-[11px] text-textLo">▸</span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-textLo">
+          READY
+        </span>
+        <span
+          aria-hidden
+          className="cursor-blink ml-1 inline-block"
+          style={{ width: 10, height: 14, backgroundColor: 'var(--accent)' }}
+        />
+      </div>
 
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                }}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
+      <h1
+        className="mt-3 font-sans font-medium text-textHi"
+        style={{ fontSize: 42, lineHeight: 1, letterSpacing: '-0.03em' }}
+      >
+        <span className="block">Free</span>
+        <span className="block">Lunch</span>
+      </h1>
+      <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.12em] text-textLo">
+        Personal Finance, Smartly.
+      </p>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                }}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                placeholder="Enter your password"
-                required
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign In
-            </Button>
-          </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">or</span>
-            </div>
-          </div>
-
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => void handleGoogleLogin()}
-            disabled={isLoading}
+      <main className="mt-auto flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => void handleGoogle()}
+            disabled={busy}
+            className="press flex h-[52px] w-full items-center justify-center gap-3 border border-rule bg-surface px-5 font-sans text-[15px] font-medium text-textHi disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ letterSpacing: '-0.01em' }}
           >
-            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-              <path
-                fill="currentColor"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="currentColor"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="currentColor"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-              />
-              <path
-                fill="currentColor"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-              />
-            </svg>
+            <GoogleGlyph />
             Continue with Google
-          </Button>
+          </button>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{' '}
-            <Link to="/register" className="font-medium text-primary hover:underline">
-              Sign up
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+          {error && (
+            <p className="text-center font-mono text-[10px] uppercase tracking-[0.12em] text-warn">
+              {error}
+            </p>
+          )}
+
+          {showDevForm && (
+            <DevLoginFallback
+              busy={busy}
+              setBusy={setBusy}
+              setError={setError}
+              login={login}
+              onSuccess={() => {
+                void resolveDestination().then((dest) => {
+                  void navigate(dest, { replace: true });
+                });
+              }}
+            />
+          )}
+        </div>
+      </main>
     </div>
+  );
+}
+
+
+function GoogleGlyph() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 48 48" aria-hidden>
+      <path
+        fill="#FFC107"
+        d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8a12 12 0 1 1 0-24c3 0 5.7 1.1 7.8 3l5.7-5.7A20 20 0 1 0 24 44c11 0 20-9 20-20 0-1.3-.1-2.3-.4-3.5z"
+      />
+      <path
+        fill="#FF3D00"
+        d="m6.3 14.7 6.6 4.8A12 12 0 0 1 24 12c3 0 5.7 1.1 7.8 3l5.7-5.7A20 20 0 0 0 6.3 14.7z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3A12 12 0 0 1 12.7 28l-6.5 5A20 20 0 0 0 24 44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.6 20.5H42V20H24v8h11.3a12 12 0 0 1-4.1 5.5l6.3 5.3A20 20 0 0 0 44 24c0-1.3-.1-2.3-.4-3.5z"
+      />
+    </svg>
+  );
+}
+
+interface DevLoginFallbackProps {
+  busy: boolean;
+  setBusy: (b: boolean) => void;
+  setError: (e: string | null) => void;
+  login: (email: string, password: string) => Promise<void>;
+  onSuccess: () => void;
+}
+
+function DevLoginFallback({ busy, setBusy, setError, login, onSuccess }: DevLoginFallbackProps) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = async (e: SyntheticEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await login(email, password);
+      onSuccess();
+    } catch {
+      setError('INVALID EMAIL OR PASSWORD');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={(e) => void handleSubmit(e)}
+      className="mt-4 flex flex-col gap-2 border-t border-rule pt-4"
+    >
+      <p className="text-center font-mono text-[10px] uppercase tracking-[0.12em] text-textDim">
+        ⓘ DEV ONLY — EMULATOR FALLBACK
+      </p>
+      <input
+        type="email"
+        aria-label="Email"
+        value={email}
+        onChange={(e) => {
+          setEmail(e.target.value);
+        }}
+        placeholder="EMAIL"
+        autoComplete="email"
+        required
+        className="h-10 rounded-[6px] border border-rule bg-surface px-3 font-mono text-[12px] text-textHi placeholder:text-textDim focus:border-ruleHi focus:outline-none"
+      />
+      <input
+        type="password"
+        aria-label="Password"
+        value={password}
+        onChange={(e) => {
+          setPassword(e.target.value);
+        }}
+        placeholder="PASSWORD"
+        autoComplete="current-password"
+        required
+        className="h-10 rounded-[6px] border border-rule bg-surface px-3 font-mono text-[12px] text-textHi placeholder:text-textDim focus:border-ruleHi focus:outline-none"
+      />
+      <button
+        type="submit"
+        disabled={busy}
+        className="press flex h-10 w-full items-center justify-center border border-rule bg-surface font-mono text-[11px] uppercase tracking-[0.08em] text-textHi disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        ▸ DEV LOGIN
+      </button>
+    </form>
   );
 }

@@ -1,8 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Building2, RefreshCw, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -17,11 +14,139 @@ import {
   useSyncTransactions,
 } from '@/hooks/useBankConnection';
 import { formatDate } from '@/lib/utils';
+import type { BankConnectionStatus } from '@/lib/bankingFunctions';
 
+const STATUS_TONE: Record<BankConnectionStatus['status'], string> = {
+  active: 'text-accent',
+  expired: 'text-warn',
+  error: 'text-warn',
+};
+
+const STATUS_LABEL: Record<BankConnectionStatus['status'], string> = {
+  active: 'CONNECTED',
+  expired: 'EXPIRED',
+  error: 'ERROR',
+};
+
+const ERROR_MESSAGES: Record<string, string> = {
+  missing_params: 'Authorization failed — missing parameters',
+  invalid_state: 'Authorization failed — invalid session',
+  expired: 'Authorization session expired — please try again',
+  session_failed: 'Failed to create bank session',
+};
+
+interface BankCardProps {
+  connection: BankConnectionStatus;
+  onSync: (id: string) => void;
+  syncing: boolean;
+}
+
+function BankCard({ connection, onSync, syncing }: BankCardProps) {
+  const tone = STATUS_TONE[connection.status];
+  const dotShadow =
+    connection.status === 'active' ? '0 0 5px var(--accent)' : 'none';
+
+  return (
+    <div className="mb-3 border border-rule bg-surface">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-rule px-[14px] py-3">
+        <div>
+          <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.06em] text-textLo">
+            <span
+              aria-hidden
+              className={`inline-block h-[5px] w-[5px] rounded-full ${connection.status === 'active' ? 'bg-accent' : 'bg-warn'}`}
+              style={{ boxShadow: dotShadow }}
+            />
+            <span className={tone}>{STATUS_LABEL[connection.status]}</span>
+          </div>
+          <div className="mt-1 text-[16px] font-medium tracking-[-0.2px] text-textHi">
+            {connection.bankName}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            onSync(connection.id);
+          }}
+          disabled={syncing || connection.status === 'expired'}
+          className="border border-ruleHi px-[10px] py-[5px] font-mono text-[10.5px] tracking-[0.04em] text-textMid disabled:opacity-40 active:opacity-60"
+        >
+          {syncing ? '↻ …' : '↻ SYNC'}
+        </button>
+      </div>
+
+      {/* Account rows */}
+      {connection.accounts.map((account, idx) => {
+        const last4 = account.iban.slice(-4);
+        const kind = (account.name?.toLowerCase().includes('saving')
+          ? 'SAVINGS'
+          : 'CHECKING'
+        ).toUpperCase();
+        return (
+          <div
+            key={account.uid}
+            className={`flex items-center justify-between gap-[10px] px-[14px] py-3 ${idx > 0 ? 'border-t border-rule' : ''}`}
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 font-mono text-[9.5px] uppercase tracking-[0.06em] text-textLo">
+                <span>{kind}</span>
+                <span aria-hidden>·</span>
+                <span>··{last4}</span>
+              </div>
+              <div className="mt-[2px] truncate text-[14px] text-textHi">
+                {account.name || `Account ${last4}`}
+              </div>
+            </div>
+            {account.balance ? (
+              <div className="nums font-mono text-[14px] tracking-[-0.3px] text-textHi">
+                {new Intl.NumberFormat('nl-NL', {
+                  style: 'currency',
+                  currency: account.balance.currency,
+                  maximumFractionDigits: 2,
+                }).format(account.balance.amount)}
+              </div>
+            ) : (
+              <span className="font-mono text-[12px] text-textLo">—</span>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t border-rule px-[14px] py-[10px] font-mono text-[10px] uppercase tracking-[0.04em] text-textLo">
+        <span>
+          LAST SYNC{' '}
+          {connection.lastSync
+            ? formatDate(new Date(connection.lastSync), 'relative').toUpperCase()
+            : 'NEVER'}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            // Disconnect not yet implemented in the hook; surface as no-op.
+          }}
+          className="text-textMid"
+        >
+          DISCONNECT
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Flat-rewrite of the original shadcn-card bank connection UI. Renders
+ * connected banks per v8's "Settings · Accounts & Sync" frame and an
+ * inline "Add another bank" tile that opens a Select for the supported
+ * institutions list. Fully replaces the previous Card/Card{Header,Content}
+ * + lucide-icon styling with surface tokens + mono labels.
+ */
 export function BankConnectionCard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedBank, setSelectedBank] = useState<string>('');
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<
+    { type: 'success' | 'error'; text: string } | null
+  >(null);
 
   const { data: banks = [], isLoading: banksLoading } = useAvailableBanks();
   const { data: connections = [] } = useBankConnections();
@@ -34,18 +159,12 @@ export function BankConnectionCard() {
     const bankError = searchParams.get('bank_error');
 
     if (bankConnected) {
-      setMessage({ type: 'success', text: 'Bank account connected successfully!' });
+      setMessage({ type: 'success', text: 'Bank account connected.' });
       setSearchParams({});
     } else if (bankError) {
-      const errorMessages: Record<string, string> = {
-        missing_params: 'Authorization failed - missing parameters',
-        invalid_state: 'Authorization failed - invalid session',
-        expired: 'Authorization session expired - please try again',
-        session_failed: 'Failed to create bank session',
-      };
       setMessage({
         type: 'error',
-        text: errorMessages[bankError] || `Authorization error: ${bankError}`,
+        text: ERROR_MESSAGES[bankError] ?? `Authorization error: ${bankError}`,
       });
       setSearchParams({});
     }
@@ -60,156 +179,91 @@ export function BankConnectionCard() {
     sync.mutate(connectionId);
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
-      case 'expired':
-        return <Clock className="h-4 w-4 text-amber-500" />;
-      default:
-        return <AlertTriangle className="h-4 w-4 text-red-500" />;
-    }
-  };
+  const expiringSoon = connections.some((c) => {
+    if (!c.consentExpiresAt) return false;
+    const days = Math.ceil(
+      (new Date(c.consentExpiresAt).getTime() - Date.now()) / 86_400_000
+    );
+    return days <= 7;
+  });
+
+  const supportedNames =
+    banks.length > 0
+      ? banks.map((b) => b.name.toUpperCase()).slice(0, 6).join(' · ')
+      : 'ABN AMRO · ING · RABO · KNAB · BUNQ';
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Bank Connection</CardTitle>
-        <CardDescription>Connect your bank account to sync transactions</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Status messages */}
-        {message && (
-          <div
-            className={`rounded-md p-3 text-sm ${
-              message.type === 'success'
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-red-50 text-red-700'
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
-
-        {/* Existing connections */}
-        {connections.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Connected Accounts</p>
-            {connections.map((connection) => (
-              <div key={connection.id} className="space-y-2">
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(connection.status)}
-                    <div>
-                      <p className="font-medium">{connection.bankName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {connection.accountCount} account{connection.accountCount !== 1 ? 's' : ''}
-                        {connection.lastSync && (
-                          <>
-                            {' · '}Last synced{' '}
-                            {formatDate(new Date(connection.lastSync), 'relative')}
-                          </>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      handleSync(connection.id);
-                    }}
-                    disabled={sync.isPending || connection.status === 'expired'}
-                  >
-                    {sync.isPending ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Sync
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {/* Account balances */}
-                {connection.accounts.length > 0 && (
-                  <div className="ml-7 space-y-1">
-                    {connection.accounts.map((account) => (
-                      <div key={account.uid} className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {account.name || `Account ${account.iban.slice(-4)}`}
-                        </span>
-                        {account.balance ? (
-                          <span className="font-medium tabular-nums">
-                            {new Intl.NumberFormat('nl-NL', {
-                              style: 'currency',
-                              currency: account.balance.currency,
-                            }).format(account.balance.amount)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Add new connection */}
-        <div className="space-y-3">
-          <p className="text-sm font-medium">
-            {connections.length > 0 ? 'Add Another Bank' : 'Connect Your Bank'}
-          </p>
-          <div className="flex gap-2">
-            <Select value={selectedBank} onValueChange={setSelectedBank}>
-              <SelectTrigger className="flex-1" data-testid="bank-selector">
-                <SelectValue placeholder="Select your bank" />
-              </SelectTrigger>
-              <SelectContent>
-                {banksLoading ? (
-                  <SelectItem value="loading" disabled>
-                    Loading banks...
-                  </SelectItem>
-                ) : (
-                  banks.map((bank) => (
-                    <SelectItem key={bank.name} value={bank.name}>
-                      <span className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        {bank.name}
-                      </span>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleConnect} disabled={!selectedBank || initConnection.isPending}>
-              {initConnection.isPending ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                'Connect'
-              )}
-            </Button>
-          </div>
+    <div>
+      {message ? (
+        <div
+          className={`mb-3 border px-3 py-2 text-[12px] ${message.type === 'success' ? 'border-accent/40 bg-accent/10 text-accent' : 'border-warn/40 bg-warn/10 text-warn'}`}
+        >
+          {message.text}
         </div>
+      ) : null}
 
-        {/* Consent expiry warning */}
-        {connections.some((c) => {
-          if (!c.consentExpiresAt) return false;
-          const daysUntilExpiry = Math.ceil(
-            (new Date(c.consentExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-          );
-          return daysUntilExpiry <= 7;
-        }) && (
-          <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-700">
-            <AlertTriangle className="mr-2 inline h-4 w-4" />
-            Bank consent expires soon. You may need to reconnect to continue syncing.
+      {/* Connected banks */}
+      {connections.map((connection) => (
+        <BankCard
+          key={connection.id}
+          connection={connection}
+          onSync={handleSync}
+          syncing={sync.isPending}
+        />
+      ))}
+
+      {/* Add another bank */}
+      <div className="border border-rule bg-surface">
+        <div className="flex items-center justify-between gap-3 px-[14px] py-3">
+          <div className="min-w-0">
+            <div className="text-[14px] font-medium text-textHi">
+              {connections.length > 0 ? 'Add another bank' : 'Connect your bank'}
+            </div>
+            <div className="mt-[3px] font-mono text-[10.5px] uppercase tracking-[0.04em] text-textLo">
+              SUPPORTED · {supportedNames}
+            </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <Select value={selectedBank} onValueChange={setSelectedBank}>
+            <SelectTrigger
+              className="h-8 w-auto min-w-0 gap-2 border border-ruleHi bg-transparent px-3 font-mono text-[10.5px] uppercase tracking-[0.04em] text-textMid focus:ring-0 focus:ring-offset-0"
+              data-testid="bank-selector"
+            >
+              <SelectValue placeholder="+ ADD BANK" />
+            </SelectTrigger>
+            <SelectContent>
+              {banksLoading ? (
+                <SelectItem value="loading" disabled>
+                  Loading…
+                </SelectItem>
+              ) : (
+                banks.map((bank) => (
+                  <SelectItem key={bank.name} value={bank.name}>
+                    {bank.name}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+        {selectedBank ? (
+          <div className="border-t border-rule px-[14px] py-3 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={handleConnect}
+              disabled={initConnection.isPending}
+              className="border border-accent/60 bg-accent/10 px-3 py-1 font-mono text-[10.5px] uppercase tracking-[0.04em] text-accent disabled:opacity-40 active:opacity-60"
+            >
+              {initConnection.isPending ? 'CONNECTING…' : `CONNECT ${selectedBank.toUpperCase()}`}
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      {expiringSoon ? (
+        <div className="mt-3 border border-warn/40 bg-warn/10 px-3 py-2 text-[12px] text-warn">
+          Bank consent expires soon. You may need to reconnect to continue syncing.
+        </div>
+      ) : null}
+    </div>
   );
 }

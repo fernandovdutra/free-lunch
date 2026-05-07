@@ -38,6 +38,7 @@ interface TransactionDocument {
   isSplit?: boolean;
   splits?: TransactionSplit[] | null;
   reimbursement?: ReimbursementInfo | null;
+  note?: string | null;
   bankAccountId?: string | null;
   excludeFromTotals?: boolean;
   icsStatementId?: string | null;
@@ -105,6 +106,7 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
             : null,
         }
       : null,
+    note: data.note ?? null,
     excludeFromTotals: data.excludeFromTotals ?? undefined,
     icsStatementId: data.icsStatementId ?? undefined,
     source: data.source ?? undefined,
