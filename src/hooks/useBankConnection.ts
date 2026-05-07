@@ -6,6 +6,10 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
+  query,
+  where,
+  Timestamp,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +20,11 @@ import {
   syncTransactions,
   recategorizeTransactions,
 } from '@/lib/bankingFunctions';
+import {
+  routeTxnsForDisconnect,
+  type ConnectionLike,
+  type TxnLike,
+} from './disconnectBankRouting';
 
 export function useAvailableBanks(country = 'NL') {
   const { user } = useAuth();
@@ -174,6 +183,157 @@ export function useResetTransactionData() {
     },
     onSuccess: () => {
       // Invalidate all related queries
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['bankConnections'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
+    },
+  });
+}
+
+export interface DisconnectResult {
+  removedConnectionId: string;
+  reassigned: number;
+  deleted: number;
+  /** Set when at least one IBAN on the removed connection had a surviving
+   *  sibling — i.e. this was a duplicate-cleanup, not a true disconnect. */
+  merged: boolean;
+}
+
+/**
+ * Disconnect a bank connection. If another active connection shares any of
+ * the target's IBANs, the target's transactions migrate to that sibling
+ * (deduped by externalId) so manual categorizations and splits survive.
+ * Otherwise the target's transactions are deleted alongside the connection.
+ *
+ * Implemented client-side over Firestore so we don't need a Cloud Function
+ * deploy to ship the cleanup. All work runs as the user under existing
+ * collection rules.
+ */
+export function useDisconnectBankConnection() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation<DisconnectResult, Error, { connectionId: string }>({
+    mutationFn: async ({ connectionId }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const connectionsRef = collection(db, 'users', user.id, 'bankConnections');
+      const connectionsSnap = await getDocs(connectionsRef);
+
+      const allConnections: (ConnectionLike & { docId: string })[] = connectionsSnap.docs.map(
+        (snap) => {
+          const data = snap.data();
+          const ts: unknown = data.updatedAt;
+          const updatedAtMs =
+            ts instanceof Timestamp ? ts.toMillis()
+              : typeof ts === 'number' ? ts
+              : typeof ts === 'string' ? Date.parse(ts)
+              : undefined;
+          return {
+            docId: snap.id,
+            id: (data.id as string | undefined) ?? snap.id,
+            status: (data.status as string | undefined) ?? 'active',
+            accounts: ((data.accounts ?? []) as { iban?: string | null }[])
+              .map((a) => ({ iban: a.iban ?? '' }))
+              .filter((a) => a.iban !== ''),
+            updatedAtMs:
+              updatedAtMs !== undefined && !Number.isNaN(updatedAtMs) ? updatedAtMs : undefined,
+          };
+        }
+      );
+
+      const target = allConnections.find((c) => c.id === connectionId || c.docId === connectionId);
+      if (!target) throw new Error('Bank connection not found');
+
+      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      const targetTxnsSnap = await getDocs(
+        query(transactionsRef, where('bankConnectionId', '==', target.id))
+      );
+      const targetTxns: TxnLike[] = targetTxnsSnap.docs.map((snap) => {
+        const data = snap.data();
+        return {
+          id: snap.id,
+          bankConnectionId: (data.bankConnectionId as string | undefined) ?? '',
+          bankAccountId: (data.bankAccountId as string | null | undefined) ?? null,
+          externalId: (data.externalId as string | null | undefined) ?? null,
+        };
+      });
+
+      const decision = routeTxnsForDisconnect({
+        target,
+        allConnections,
+        targetTxns,
+        // Inline sibling-dedup check: txns are scoped per user so we can
+        // safely query the global transactions collection for matches.
+        siblingHasExternalId: () => false, // placeholder; overridden below
+      });
+
+      // We need real duplicate detection against the sibling. Build it now,
+      // querying once per (sibling, externalId) we'd otherwise reassign.
+      const reassignWithDedup: { txnId: string; newConnectionId: string }[] = [];
+      const extraDeletes: string[] = [];
+      for (const r of decision.toReassign) {
+        const txn = targetTxns.find((t) => t.id === r.txnId);
+        if (!txn?.externalId) {
+          reassignWithDedup.push(r);
+          continue;
+        }
+        const dupSnap = await getDocs(
+          query(
+            transactionsRef,
+            where('bankConnectionId', '==', r.newConnectionId),
+            where('externalId', '==', txn.externalId)
+          )
+        );
+        if (dupSnap.empty) {
+          reassignWithDedup.push(r);
+        } else {
+          extraDeletes.push(r.txnId);
+        }
+      }
+
+      const toDelete = [...decision.toDelete, ...extraDeletes];
+      const toReassign = reassignWithDedup;
+
+      // Apply writes in batches of 500 (Firestore's batch limit).
+      const allOps: { kind: 'delete' | 'reassign'; txnId: string; newConnectionId?: string }[] = [
+        ...toDelete.map((id) => ({ kind: 'delete' as const, txnId: id })),
+        ...toReassign.map((r) => ({
+          kind: 'reassign' as const,
+          txnId: r.txnId,
+          newConnectionId: r.newConnectionId,
+        })),
+      ];
+
+      for (let i = 0; i < allOps.length; i += 500) {
+        const batch = writeBatch(db);
+        for (const op of allOps.slice(i, i + 500)) {
+          const ref = doc(db, 'users', user.id, 'transactions', op.txnId);
+          if (op.kind === 'delete') {
+            batch.delete(ref);
+          } else {
+            batch.update(ref, {
+              bankConnectionId: op.newConnectionId,
+              updatedAt: serverTimestamp(),
+            });
+          }
+        }
+        await batch.commit();
+      }
+
+      // Finally remove the connection doc itself.
+      await deleteDoc(doc(db, 'users', user.id, 'bankConnections', target.docId));
+
+      const merged = toReassign.length > 0;
+      return {
+        removedConnectionId: target.id,
+        reassigned: toReassign.length,
+        deleted: toDelete.length,
+        merged,
+      };
+    },
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
       void queryClient.invalidateQueries({ queryKey: ['bankConnections'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });

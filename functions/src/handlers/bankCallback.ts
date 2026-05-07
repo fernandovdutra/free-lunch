@@ -61,32 +61,59 @@ export const bankCallback = onRequest(
       // Exchange code for session
       const session = await client.createSession(code);
 
-      // Store bank connection in user's document
-      const connectionId = `${bankName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
-      const connectionRef = db
+      const sessionAccounts = session.accounts.map((acc) => ({
+        uid: acc.uid,
+        iban: acc.iban || acc.account_id?.iban,
+        name: acc.name,
+        currency: acc.currency,
+      }));
+      const sessionIbans = new Set(
+        sessionAccounts.map((a) => a.iban).filter((x): x is string => typeof x === 'string')
+      );
+
+      // Look for an existing connection that already covers any of these IBANs.
+      // If we find one, refresh it in place so all historical transactions
+      // (and any manual categorizations) stay linked, instead of creating a
+      // duplicate doc that the user then has to clean up.
+      const userConnectionsRef = db
         .collection('users')
         .doc(userId)
-        .collection('bankConnections')
-        .doc(connectionId);
-
-      await connectionRef.set({
-        id: connectionId,
-        provider: 'enable_banking',
-        bankId: bankName.toLowerCase().replace(/\s+/g, '_'),
-        bankName: session.aspsp.name,
-        status: 'active',
-        sessionId: session.session_id,
-        accounts: session.accounts.map((acc) => ({
-          uid: acc.uid,
-          iban: acc.iban || acc.account_id?.iban,
-          name: acc.name,
-          currency: acc.currency,
-        })),
-        consentExpiresAt: new Date(session.access.valid_until),
-        lastSync: null,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
+        .collection('bankConnections');
+      const existingSnap = await userConnectionsRef.get();
+      const existingMatch = existingSnap.docs.find((d) => {
+        const accs = (d.data().accounts ?? []) as { iban?: string | null }[];
+        return accs.some((a) => a.iban && sessionIbans.has(a.iban));
       });
+
+      const connectionId =
+        existingMatch?.id ??
+        `${bankName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
+      const connectionRef = userConnectionsRef.doc(connectionId);
+
+      if (existingMatch) {
+        // Refresh existing connection: new session, fresh consent, mark active.
+        await connectionRef.update({
+          status: 'active',
+          sessionId: session.session_id,
+          accounts: sessionAccounts,
+          consentExpiresAt: new Date(session.access.valid_until),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else {
+        await connectionRef.set({
+          id: connectionId,
+          provider: 'enable_banking',
+          bankId: bankName.toLowerCase().replace(/\s+/g, '_'),
+          bankName: session.aspsp.name,
+          status: 'active',
+          sessionId: session.session_id,
+          accounts: sessionAccounts,
+          consentExpiresAt: new Date(session.access.valid_until),
+          lastSync: null,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
 
       // Clean up pending connection
       await pendingRef.delete();
