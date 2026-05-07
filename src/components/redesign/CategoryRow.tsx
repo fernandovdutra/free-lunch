@@ -15,6 +15,8 @@ interface CategoryRowProps {
   className?: string;
   /** When provided, renders a Phosphor icon for the category before the name. */
   categoryId?: string;
+  /** Icon string from Category.icon, used as fallback for user-created categories. */
+  iconFallback?: string;
 }
 
 export function CategoryRow({
@@ -28,6 +30,7 @@ export function CategoryRow({
   onClick,
   className,
   categoryId,
+  iconFallback,
 }: CategoryRowProps) {
   const isOver = variant === 'over';
   const showBar = progress !== undefined && max !== undefined;
@@ -38,7 +41,12 @@ export function CategoryRow({
       <div className="flex items-baseline justify-between gap-3">
         <span className="flex items-center gap-2 min-w-0">
           {categoryId && (
-            <CategoryIcon categoryId={categoryId} size={16} className={cn('shrink-0', isOver ? 'text-warn' : 'text-accent')} />
+            <CategoryIcon
+              categoryId={categoryId}
+              fallback={iconFallback}
+              size={16}
+              className={cn('shrink-0', isOver ? 'text-warn' : 'text-accent')}
+            />
           )}
           <span className="truncate font-sans text-[13px] text-textHi">{name}</span>
         </span>

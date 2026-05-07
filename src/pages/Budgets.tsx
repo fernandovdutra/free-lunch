@@ -11,6 +11,7 @@ import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount } from '@/lib/utils';
 import { AllocationStrip, PhosphorButton, type AllocationSlice } from '@/components/redesign';
 import { CategoryIcon } from '@/lib/categoryIcons';
+import { CategoryCreateSheet } from '@/components/budgets/CategoryCreateSheet';
 import type { Budget, Category } from '@/types';
 
 const CAP_FALLBACK = 5000;
@@ -107,6 +108,8 @@ export function Budgets() {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<Map<string, number>>(new Map());
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createParent, setCreateParent] = useState<Category | null>(null);
 
   const entries = useMemo(
     () => composeCategories(budgets, categories),
@@ -404,7 +407,12 @@ export function Budgets() {
                     gap: 10,
                   }}
                 >
-                  <CategoryIcon categoryId={e.id} size={18} className="text-accent" />
+                  <CategoryIcon
+                    categoryId={e.id}
+                    fallback={categories.find((c) => c.id === e.id)?.icon}
+                    size={18}
+                    className="text-accent"
+                  />
                   <div className="flex flex-col">
                     <span className="font-sans text-[14px] text-textHi" style={{ letterSpacing: '-0.005em' }}>
                       {e.name}
@@ -481,11 +489,53 @@ export function Budgets() {
                       </div>
                     );
                   })}
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const parent = categories.find((c) => c.id === e.id) ?? null;
+                        setCreateParent(parent);
+                        setCreateOpen(true);
+                      }}
+                      className="press flex w-full items-center gap-2 border-t border-rule px-4 py-2.5 text-left font-mono text-[10px] text-accent"
+                      style={{ letterSpacing: '0.08em' }}
+                    >
+                      <span style={{ marginLeft: 24 }}>+ ADD SUBCATEGORY</span>
+                    </button>
+                  )}
                 </div>
+              )}
+              {isEditing && !e.hasChildren && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const parent = categories.find((c) => c.id === e.id) ?? null;
+                    setCreateParent(parent);
+                    setCreateOpen(true);
+                  }}
+                  className="press flex w-full items-center border-t border-rule px-4 py-2 text-left font-mono text-[10px] text-accent"
+                  style={{ letterSpacing: '0.08em' }}
+                >
+                  <span style={{ marginLeft: 24 }}>+ ADD SUBCATEGORY</span>
+                </button>
               )}
             </div>
           );
         })
+      )}
+
+      {isEditing && (
+        <button
+          type="button"
+          onClick={() => {
+            setCreateParent(null);
+            setCreateOpen(true);
+          }}
+          className="press flex w-full items-center gap-2 border-b border-rule px-4 py-3 text-left font-mono text-[11px] text-accent"
+          style={{ letterSpacing: '0.08em' }}
+        >
+          + NEW CATEGORY
+        </button>
       )}
 
       {/* Sticky DISCARD / SAVE footer (edit mode only) */}
@@ -520,6 +570,13 @@ export function Budgets() {
           )}
         </div>
       )}
+
+      <CategoryCreateSheet
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        parent={createParent}
+        existingCategories={categories}
+      />
     </div>
   );
 }
