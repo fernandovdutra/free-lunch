@@ -288,7 +288,10 @@ export function Budgets() {
   };
 
   return (
-    <div className="-mx-4 pb-8">
+    <div
+      className="-mx-4 pb-8"
+      style={isEditing ? { paddingBottom: 'calc(env(safe-area-inset-bottom) + 68px + 76px)' } : undefined}
+    >
       {/* Section 1: MONTHLY PLAN + EDIT + hero */}
       <section className="border-b border-rule px-5 py-[18px]">
         <div className="mb-3 flex items-center justify-between">
