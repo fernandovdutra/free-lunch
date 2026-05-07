@@ -15,7 +15,7 @@ import { CategoryCreateSheet } from '@/components/budgets/CategoryCreateSheet';
 import type { Budget, Category } from '@/types';
 
 const CAP_FALLBACK = 5000;
-const STEP_VALUE = 50;
+const STEP_VALUE = 10;
 
 interface LeafEntry {
   id: string;
