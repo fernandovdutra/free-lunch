@@ -1,5 +1,5 @@
 import { useMonth } from '@/contexts/MonthContext';
-import { useBankConnections } from '@/hooks/useBankConnection';
+import { useBankConnections, useSyncAllConnections } from '@/hooks/useBankConnection';
 import { useToast } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 
@@ -35,13 +35,14 @@ function formatRelativeMinutes(when: Date | string | null | undefined): string |
 
 /**
  * Single-mode TopBar: month nav (`‹ APRIL 2026 ›`) on the left, sync indicator
- * + search + add on the right. Identical chrome on home and drill pages — the
- * drill page's own header (in-page Breadcrumb + DrillHeadline) provides the
- * scope label, so the TopBar always serves the global month controls.
+ * + search + add on the right. The sync indicator doubles as a button — tapping
+ * it triggers `useSyncAllConnections` so the user can refresh from anywhere
+ * without going into Settings.
  */
 export function TopBar() {
   const { selectedMonth, goToPreviousMonth, goToNextMonth, isCurrentMonth } = useMonth();
   const { data: connections } = useBankConnections();
+  const syncAll = useSyncAllConnections();
   const { toast } = useToast();
 
   const monthLabel = MONTH_LABELS[selectedMonth.getMonth()] ?? '';
@@ -55,6 +56,40 @@ export function TopBar() {
     .sort((a, b) => b - a)[0];
   const syncLabel =
     latestSync !== undefined ? formatRelativeMinutes(new Date(latestSync)) : 'NOT YET';
+
+  const hasActiveConnections = (connections ?? []).some((c) => c.status === 'active');
+
+  const handleSync = async () => {
+    if (!hasActiveConnections) {
+      toast({
+        title: 'No bank connections',
+        description: 'Connect a bank account in Settings to sync.',
+        variant: 'default',
+      });
+      return;
+    }
+    try {
+      const result = await syncAll.mutateAsync();
+      if (result.errors.length > 0) {
+        toast({
+          title: 'Sync completed with errors',
+          description: `Synced ${result.synced}/${result.total} accounts.`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Sync complete',
+          description: `Synced ${result.synced} account${result.synced !== 1 ? 's' : ''}.`,
+        });
+      }
+    } catch {
+      toast({
+        title: 'Sync failed',
+        description: 'Failed to sync transactions. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const stub = (label: string) => () => {
     toast({ title: `${label} — coming soon` });
@@ -92,10 +127,16 @@ export function TopBar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-textLo">
+          <button
+            type="button"
+            onClick={() => void handleSync()}
+            disabled={syncAll.isPending}
+            aria-label={syncAll.isPending ? 'Syncing' : 'Sync now'}
+            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-textLo active:opacity-60 disabled:opacity-60"
+          >
             <span
               aria-hidden
-              className="block bg-accent"
+              className={cn('block bg-accent', syncAll.isPending && 'animate-pulse')}
               style={{
                 width: 5,
                 height: 5,
@@ -104,8 +145,8 @@ export function TopBar() {
               }}
             />
             <span className="hidden xs:inline">SYNC </span>
-            {syncLabel}
-          </span>
+            {syncAll.isPending ? 'SYNCING…' : syncLabel}
+          </button>
           <button
             type="button"
             onClick={stub('Search')}
