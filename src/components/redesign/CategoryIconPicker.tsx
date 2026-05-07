@@ -9,7 +9,7 @@
  * working — <CategoryIcon> falls through to the emoji renderer when no
  * `phosphor:` prefix is present. No migration is required.
  */
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
 import { PHOSPHOR_CATALOG, PHOSPHOR_CATALOG_ORDER } from '@/lib/phosphorCatalog';
@@ -26,7 +26,7 @@ function splitCamel(name: string): string {
   return name.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
-export function CategoryIconPicker({ value, onChange, className }: CategoryIconPickerProps) {
+function CategoryIconPickerImpl({ value, onChange, className }: CategoryIconPickerProps) {
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -52,7 +52,8 @@ export function CategoryIconPicker({ value, onChange, className }: CategoryIconP
       </label>
 
       <div
-        className="grid grid-cols-6 gap-1 p-3"
+        className="grid grid-cols-6 gap-1 overflow-y-auto p-3"
+        style={{ maxHeight: '32vh' }}
         role="radiogroup"
         aria-label="Category icon"
       >
@@ -88,3 +89,5 @@ export function CategoryIconPicker({ value, onChange, className }: CategoryIconP
     </div>
   );
 }
+
+export const CategoryIconPicker = memo(CategoryIconPickerImpl);

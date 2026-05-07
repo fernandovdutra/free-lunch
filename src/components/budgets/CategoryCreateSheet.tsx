@@ -91,7 +91,11 @@ export function CategoryCreateSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
+      <SheetContent
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+        }}
+      >
         <SheetBody className="flex flex-col">
           {/* Header */}
           <div className="flex items-baseline justify-between px-4 py-3 hairline-b">
@@ -117,7 +121,6 @@ export function CategoryCreateSheet({
                 setName(e.target.value);
               }}
               placeholder="Category name"
-              autoFocus
               className="flex-1 bg-transparent font-sans text-[15px] text-textHi placeholder:text-textLo focus:outline-none"
               aria-label="Category name"
             />
