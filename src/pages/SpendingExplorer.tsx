@@ -180,6 +180,7 @@ export function SpendingExplorer() {
             <DrillRow
               key={cat.categoryId}
               index={i + 1}
+              categoryId={cat.categoryId}
               name={cat.categoryName}
               amount={formatAmount(cat.amount, { showSign: false, noCents: true })}
               meta={meta}

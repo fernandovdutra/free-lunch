@@ -1,9 +1,12 @@
 import { cn } from '@/lib/utils';
 import { ProgressBar } from './ProgressBar';
+import { CategoryIcon } from '@/lib/categoryIcons';
 
 interface DrillRowProps {
   /** 1-based rank rendered as zero-padded `01`/`02`/.. at the row's left edge. */
   index: number;
+  /** Optional category id — when set, renders a Phosphor icon next to the index. */
+  categoryId?: string;
   name: string;
   /** Pre-formatted amount — e.g. `€919`, `−€44.20`. */
   amount: string;
@@ -32,6 +35,7 @@ interface DrillRowProps {
  */
 export function DrillRow({
   index,
+  categoryId,
   name,
   amount,
   meta,
@@ -44,13 +48,19 @@ export function DrillRow({
   const isOver = variant === 'over';
   const showBar = progress !== undefined && max !== undefined;
   const indexLabel = index.toString().padStart(2, '0');
+  const showIcon = Boolean(categoryId);
+  const leadingIndent = showIcon ? 'pl-7' : 'pl-9';
 
   const bodyContent = (
     <>
-      <div className="flex items-baseline gap-3">
-        <span className="nums font-mono text-[10px] tracking-[0.05em] text-textLo">
-          {indexLabel}
-        </span>
+      <div className="flex items-center gap-3">
+        {showIcon ? (
+          <CategoryIcon categoryId={categoryId} size={18} className={cn('shrink-0', isOver ? 'text-warn' : 'text-accent')} />
+        ) : (
+          <span className="nums font-mono text-[10px] tracking-[0.05em] text-textLo">
+            {indexLabel}
+          </span>
+        )}
         <span className="flex-1 truncate font-sans text-[14px] tracking-[-0.005em] text-textHi">
           {name}
         </span>
@@ -69,7 +79,8 @@ export function DrillRow({
       {meta && (
         <div
           className={cn(
-            'mt-1 pl-9 font-mono text-[9.5px] tracking-[0.04em]',
+            'mt-1 font-mono text-[9.5px] tracking-[0.04em]',
+            leadingIndent,
             isOver ? 'text-warn' : 'text-textLo'
           )}
         >
@@ -81,7 +92,7 @@ export function DrillRow({
           value={progress}
           max={max}
           variant={isOver ? 'warn' : 'accent'}
-          className="mt-2 ml-9"
+          className={cn('mt-2', showIcon ? 'ml-7' : 'ml-9')}
         />
       )}
     </>

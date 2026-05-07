@@ -56,6 +56,7 @@ export function HomeCategoryList({
         {entries.map((entry) => (
           <CategoryRow
             key={entry.categoryId}
+            categoryId={entry.categoryId}
             className="!px-0"
             name={entry.name}
             amount={entry.amount}

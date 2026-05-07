@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { ProgressBar } from './ProgressBar';
+import { CategoryIcon } from '@/lib/categoryIcons';
 
 interface CategoryRowProps {
   name: string;
@@ -12,6 +13,8 @@ interface CategoryRowProps {
   variant?: 'ok' | 'over';
   onClick?: () => void;
   className?: string;
+  /** When provided, renders a Phosphor icon for the category before the name. */
+  categoryId?: string;
 }
 
 export function CategoryRow({
@@ -24,6 +27,7 @@ export function CategoryRow({
   variant = 'ok',
   onClick,
   className,
+  categoryId,
 }: CategoryRowProps) {
   const isOver = variant === 'over';
   const showBar = progress !== undefined && max !== undefined;
@@ -32,7 +36,12 @@ export function CategoryRow({
   const bodyContent = (
     <>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="font-sans text-[13px] text-textHi">{name}</span>
+        <span className="flex items-center gap-2 min-w-0">
+          {categoryId && (
+            <CategoryIcon categoryId={categoryId} size={16} className={cn('shrink-0', isOver ? 'text-warn' : 'text-accent')} />
+          )}
+          <span className="truncate font-sans text-[13px] text-textHi">{name}</span>
+        </span>
         <span className="flex items-baseline gap-2">
           <span className="nums font-mono text-ct-row text-textHi">{amount}</span>
           {amountTrailing && (

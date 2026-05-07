@@ -10,6 +10,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount } from '@/lib/utils';
 import { AllocationStrip, PhosphorButton, type AllocationSlice } from '@/components/redesign';
+import { CategoryIcon } from '@/lib/categoryIcons';
 import type { Budget, Category } from '@/types';
 
 const CAP_FALLBACK = 5000;
@@ -339,7 +340,7 @@ export function Budgets() {
           style={{ letterSpacing: '0.06em' }}
         >
           <span>ALLOCATION</span>
-          <span className="text-textMid">
+          <span className="text-accent">
             {formatAmount(free, { showSign: false, noCents: true })} FREE
           </span>
         </div>
@@ -372,11 +373,10 @@ export function Budgets() {
           NO BUDGETS YET
         </div>
       ) : (
-        entries.map((e, i) => {
+        entries.map((e) => {
           const isExpanded = isEditing || expanded.has(e.id);
           const childCount = e.hasChildren ? e.leafs.length : 0;
           const sum = entrySum(e);
-          const indexLabel = String(i + 1).padStart(2, '0');
 
           // Top-level row. In edit-mode + has children → header only (no stepper, no chevron).
           // In read-mode → tap-to-expand. If no children and edit-mode → row gets the stepper.
@@ -404,12 +404,7 @@ export function Budgets() {
                     gap: 10,
                   }}
                 >
-                  <span
-                    className="nums font-mono text-textLo"
-                    style={{ fontSize: 10, letterSpacing: '0.05em' }}
-                  >
-                    {indexLabel}
-                  </span>
+                  <CategoryIcon categoryId={e.id} size={18} className="text-accent" />
                   <div className="flex flex-col">
                     <span className="font-sans text-[14px] text-textHi" style={{ letterSpacing: '-0.005em' }}>
                       {e.name}
