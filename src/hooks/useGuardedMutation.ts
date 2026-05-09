@@ -1,4 +1,9 @@
-import { useMutation, type UseMutationOptions, type UseMutationResult } from '@tanstack/react-query';
+import {
+  useMutation,
+  type MutationFunction,
+  type UseMutationOptions,
+  type UseMutationResult,
+} from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
 export class ReadOnlyAccessError extends Error {
@@ -26,17 +31,17 @@ export function useGuardedMutation<TData, TError, TVariables, TContext>(
   const allowed: ReadonlyArray<string> = guard.ownerOnly ? ['owner'] : ['owner', 'editor'];
 
   const mutationFn = options.mutationFn;
-  const guardedFn: typeof mutationFn = mutationFn
-    ? async (variables) => {
+  const guardedFn: MutationFunction<TData, TVariables> | undefined = mutationFn
+    ? async (variables, context) => {
         if (!currentRole || !allowed.includes(currentRole)) {
           throw new ReadOnlyAccessError();
         }
-        return mutationFn(variables);
+        return mutationFn(variables, context);
       }
     : undefined;
 
   return useMutation<TData, TError, TVariables, TContext>({
     ...options,
-    mutationFn: guardedFn,
+    ...(guardedFn ? { mutationFn: guardedFn } : {}),
   });
 }
