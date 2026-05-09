@@ -13,12 +13,34 @@ export interface User {
   createdAt: Date;
   settings: UserSettings;
   bankConnections: BankConnection[];
+  members?: Record<string, MemberRole>;
+  memberProfiles?: Record<string, MemberProfile>;
+  pendingMembers?: Record<string, PendingMember>;
 }
 
 export interface UserSettings {
   language: 'en' | 'nl';
   currency: 'EUR';
   defaultDateRange: 'week' | 'month' | 'year';
+}
+
+export type MemberRole = 'owner' | 'editor' | 'viewer';
+
+export interface MemberProfile {
+  email: string;
+  displayName: string | null;
+}
+
+export interface PendingMember {
+  role: Exclude<MemberRole, 'owner'>;
+  invitedAt: Date;
+  invitedBy: string;
+}
+
+export interface Membership {
+  ownerIds: string[];
+  primaryOwnerId: string;
+  updatedAt: Date;
 }
 
 export interface BankConnection {

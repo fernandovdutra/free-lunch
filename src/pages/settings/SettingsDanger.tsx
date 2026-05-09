@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -52,12 +53,12 @@ function DangerRow({ glyph, label, meta, onClick, disabled, pending }: DangerRow
  */
 function useResetCategories() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async () => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
       const snap = await getDocs(transactionsRef);
       const docs = snap.docs;
       let cleared = 0;
@@ -96,7 +97,10 @@ type DialogId = 'resetCategories' | 'resetData' | null;
  *   • DELETE ACCOUNT — needs an Auth admin call from a Cloud Function.
  */
 export function SettingsDanger() {
-  const { user } = useAuth();
+  const { user, currentRole } = useAuth();
+  if (currentRole && currentRole !== 'owner') {
+    return <Navigate to="/settings" replace />;
+  }
   const { data: transactions = [] } = useTransactions({});
   const resetData = useResetTransactionData();
   const resetCategories = useResetCategories();

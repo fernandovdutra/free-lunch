@@ -9,6 +9,7 @@ import {
   type BudgetDoc,
   type BudgetProgressResult,
 } from '../shared/aggregations.js';
+import { resolveDataOwner } from '../shared/dataOwner.js';
 
 export interface BudgetProgressResponse {
   budgetProgress: BudgetProgressResult[];
@@ -25,7 +26,7 @@ export const getBudgetProgress = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
     const data = (request.data ?? {}) as {
       startDate?: string;
       endDate?: string;

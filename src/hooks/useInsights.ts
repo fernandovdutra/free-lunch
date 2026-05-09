@@ -58,29 +58,29 @@ function transformInsight(docSnap: QueryDocumentSnapshot): Insight {
 }
 
 export function useInsights(maxCount = 20) {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: [...insightKeys.all(user?.id ?? ''), maxCount],
+    queryKey: [...insightKeys.all(dataOwnerId ?? ''), maxCount],
     queryFn: async () => {
-      if (!user?.id) return [];
-      const insightsRef = collection(db, 'users', user.id, 'insights');
+      if (!dataOwnerId) return [];
+      const insightsRef = collection(db, 'users', dataOwnerId, 'insights');
       const q = query(insightsRef, orderBy('generatedAt', 'desc'), limit(maxCount));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(transformInsight);
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }
 
 export function useMarkInsightRead() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (insightId: string) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const insightRef = doc(db, 'users', user.id, 'insights', insightId);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const insightRef = doc(db, 'users', dataOwnerId, 'insights', insightId);
       await updateDoc(insightRef, { isRead: true });
     },
     onSuccess: () => {

@@ -57,7 +57,7 @@ export function useSpendingExplorer({
   counterparty,
   breakdownMonthKey,
 }: UseSpendingExplorerParams) {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
   const { dateRange, selectedMonth } = useMonth();
   // Local-time format → TZ-stable yyyy-MM (May local stays '2026-05' even
   // when toISOString() of May 1 CEST lands in April UTC).
@@ -65,7 +65,7 @@ export function useSpendingExplorer({
 
   return useQuery({
     queryKey: spendingExplorerKeys.explorer(
-      user?.id ?? '',
+      dataOwnerId ?? '',
       direction,
       monthKey,
       categoryId,
@@ -74,7 +74,7 @@ export function useSpendingExplorer({
       breakdownMonthKey
     ),
     queryFn: async (): Promise<SpendingExplorerData> => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
 
       const request: Parameters<typeof getSpendingExplorerFn>[0] = {
         direction,
@@ -99,7 +99,7 @@ export function useSpendingExplorer({
 
       return data;
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }
 

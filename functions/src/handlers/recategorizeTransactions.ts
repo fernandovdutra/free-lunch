@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue, WriteBatch } from 'firebase-admin/firestore';
 import { Categorizer } from '../categorization/index.js';
 import { z } from 'zod';
+import { resolveDataOwner, requireRole } from '../shared/dataOwner.js';
 
 interface RecategorizeResult {
   processed: number;
@@ -52,7 +53,8 @@ export const recategorizeTransactions = onCall(
     const effectiveUseLLM = useLLM || (transactionIds && transactionIds.length > 0);
     const isExplicitAICategorize = transactionIds && transactionIds.length > 0;
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
+    await requireRole(request.auth.uid, userId, ['owner', 'editor']);
     const db = getFirestore();
 
     // Initialize categorizer

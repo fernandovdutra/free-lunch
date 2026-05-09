@@ -31,7 +31,7 @@ export function useIcsBreakdownExplorer({
   counterparty,
   breakdownMonthKey,
 }: UseIcsBreakdownParams) {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
   const { dateRange, selectedMonth } = useMonth();
   // Local-time format → TZ-stable yyyy-MM. See useSpendingExplorer for context.
   const monthKey = format(selectedMonth, 'yyyy-MM');
@@ -39,7 +39,7 @@ export function useIcsBreakdownExplorer({
   return useQuery({
     queryKey: [
       'icsBreakdown',
-      user?.id,
+      dataOwnerId,
       statementId,
       monthKey,
       categoryId,
@@ -47,7 +47,7 @@ export function useIcsBreakdownExplorer({
       breakdownMonthKey,
     ],
     queryFn: async (): Promise<IcsBreakdownData> => {
-      if (!user?.id || !statementId) throw new Error('Not authenticated or missing statementId');
+      if (!dataOwnerId || !statementId) throw new Error('Not authenticated or missing statementId');
 
       const request: Parameters<typeof getIcsBreakdownFn>[0] = {
         statementId,
@@ -71,6 +71,6 @@ export function useIcsBreakdownExplorer({
 
       return data;
     },
-    enabled: !!user?.id && !!statementId,
+    enabled: !!dataOwnerId && !!statementId,
   });
 }

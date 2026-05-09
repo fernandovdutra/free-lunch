@@ -36,7 +36,8 @@ function deriveInitials(name: string | null | undefined, email: string): string 
 }
 
 export function SettingsHub() {
-  const { user, firebaseUser, logout } = useAuth();
+  const { user, firebaseUser, logout, currentRole } = useAuth();
+  const isOwner = currentRole === 'owner';
   const { data: connections = [] } = useBankConnections();
   const { data: transactions = [] } = useTransactions({});
   const { data: rules = [] } = useRules();
@@ -95,16 +96,18 @@ export function SettingsHub() {
       </div>
 
       <SectionHeader>MANAGE</SectionHeader>
-      <SettingsRoomRow
-        glyph="⎌"
-        label="Accounts & Sync"
-        meta={
-          activeConnections.length > 0
-            ? `${activeConnections.length} bank · ${accountTotal} account${accountTotal === 1 ? '' : 's'}`
-            : 'No banks connected'
-        }
-        to="/settings/accounts"
-      />
+      {isOwner && (
+        <SettingsRoomRow
+          glyph="⎌"
+          label="Accounts & Sync"
+          meta={
+            activeConnections.length > 0
+              ? `${activeConnections.length} bank · ${accountTotal} account${accountTotal === 1 ? '' : 's'}`
+              : 'No banks connected'
+          }
+          to="/settings/accounts"
+        />
+      )}
       <SettingsRoomRow
         glyph="◱"
         label="Categorization"
@@ -123,6 +126,14 @@ export function SettingsHub() {
         meta="Spending baselines · merchants · patterns"
         to="/settings/advisor-memory"
       />
+      {isOwner && (
+        <SettingsRoomRow
+          glyph="⊕"
+          label="Sharing"
+          meta="Invite a partner to view your data"
+          to="/settings/sharing"
+        />
+      )}
 
       <SectionHeader>DATA</SectionHeader>
       <SettingsRoomRow
@@ -139,13 +150,15 @@ export function SettingsHub() {
         meta="Email · provider · sign out"
         to="/settings/account"
       />
-      <SettingsRoomRow
-        glyph="△"
-        label="Reset data"
-        meta="Reset categories · delete all data"
-        to="/settings/danger"
-        accent="warn"
-      />
+      {isOwner && (
+        <SettingsRoomRow
+          glyph="△"
+          label="Reset data"
+          meta="Reset categories · delete all data"
+          to="/settings/danger"
+          accent="warn"
+        />
+      )}
 
       <div className="px-4 pt-7 pb-2 text-center font-mono text-[10px] tracking-[0.04em] text-textLo">
         FREE LUNCH · v{APP_VERSION}

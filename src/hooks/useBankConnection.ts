@@ -27,7 +27,7 @@ import {
 } from './disconnectBankRouting';
 
 export function useAvailableBanks(country = 'NL') {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
     queryKey: ['availableBanks', country],
@@ -35,21 +35,21 @@ export function useAvailableBanks(country = 'NL') {
       const result = await getAvailableBanks({ country });
       return result.data;
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
     staleTime: 1000 * 60 * 60, // Cache for 1 hour
   });
 }
 
 export function useBankConnections() {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: ['bankConnections', user?.id],
+    queryKey: ['bankConnections', dataOwnerId],
     queryFn: async () => {
       const result = await getBankStatus();
       return result.data;
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
     refetchInterval: 1000 * 60, // Refresh every minute
   });
 }
@@ -129,14 +129,14 @@ export function useSyncAllConnections() {
  */
 export function useResetTransactionData() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async () => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
 
       // Delete all transactions
-      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
       const transactionsSnapshot = await getDocs(transactionsRef);
 
       // Delete in batches of 500 (Firestore limit)
@@ -151,7 +151,7 @@ export function useResetTransactionData() {
       }
 
       // Delete all raw bank transactions
-      const rawTransactionsRef = collection(db, 'users', user.id, 'rawBankTransactions');
+      const rawTransactionsRef = collection(db, 'users', dataOwnerId, 'rawBankTransactions');
       const rawTransactionsSnapshot = await getDocs(rawTransactionsRef);
 
       const rawTransactionDocs = rawTransactionsSnapshot.docs;
@@ -165,11 +165,11 @@ export function useResetTransactionData() {
       }
 
       // Reset lastSync on all bank connections to allow full re-sync
-      const connectionsRef = collection(db, 'users', user.id, 'bankConnections');
+      const connectionsRef = collection(db, 'users', dataOwnerId, 'bankConnections');
       const connectionsSnapshot = await getDocs(connectionsRef);
 
       for (const connectionDoc of connectionsSnapshot.docs) {
-        await updateDoc(doc(db, 'users', user.id, 'bankConnections', connectionDoc.id), {
+        await updateDoc(doc(db, 'users', dataOwnerId, 'bankConnections', connectionDoc.id), {
           lastSync: null,
           updatedAt: serverTimestamp(),
         });
@@ -212,13 +212,13 @@ export interface DisconnectResult {
  */
 export function useDisconnectBankConnection() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation<DisconnectResult, Error, { connectionId: string }>({
     mutationFn: async ({ connectionId }) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
 
-      const connectionsRef = collection(db, 'users', user.id, 'bankConnections');
+      const connectionsRef = collection(db, 'users', dataOwnerId, 'bankConnections');
       const connectionsSnap = await getDocs(connectionsRef);
 
       const allConnections: (ConnectionLike & { docId: string })[] = connectionsSnap.docs.map(
@@ -246,7 +246,7 @@ export function useDisconnectBankConnection() {
       const target = allConnections.find((c) => c.id === connectionId || c.docId === connectionId);
       if (!target) throw new Error('Bank connection not found');
 
-      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
       const targetTxnsSnap = await getDocs(
         query(transactionsRef, where('bankConnectionId', '==', target.id))
       );
@@ -309,7 +309,7 @@ export function useDisconnectBankConnection() {
       for (let i = 0; i < allOps.length; i += 500) {
         const batch = writeBatch(db);
         for (const op of allOps.slice(i, i + 500)) {
-          const ref = doc(db, 'users', user.id, 'transactions', op.txnId);
+          const ref = doc(db, 'users', dataOwnerId, 'transactions', op.txnId);
           if (op.kind === 'delete') {
             batch.delete(ref);
           } else {
@@ -323,7 +323,7 @@ export function useDisconnectBankConnection() {
       }
 
       // Finally remove the connection doc itself.
-      await deleteDoc(doc(db, 'users', user.id, 'bankConnections', target.docId));
+      await deleteDoc(doc(db, 'users', dataOwnerId, 'bankConnections', target.docId));
 
       const merged = toReassign.length > 0;
       return {

@@ -82,12 +82,12 @@ export const reimbursementKeys = {
  * Unified reimbursement data hook — single Cloud Function call for all reimbursement data
  */
 function useReimbursementData(clearedLimit?: number) {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: [...reimbursementKeys.all(user?.id ?? ''), clearedLimit],
+    queryKey: [...reimbursementKeys.all(dataOwnerId ?? ''), clearedLimit],
     queryFn: async () => {
-      if (!user?.id) return { summary: null, pending: [] as Transaction[], cleared: [] as Transaction[] };
+      if (!dataOwnerId) return { summary: null, pending: [] as Transaction[], cleared: [] as Transaction[] };
 
       const params: { clearedLimit?: number } = {};
       if (clearedLimit !== undefined) {
@@ -100,7 +100,7 @@ function useReimbursementData(clearedLimit?: number) {
         cleared: result.data.clearedTransactions.map(deserializeTransaction),
       };
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }
 
@@ -135,14 +135,14 @@ export function useClearedReimbursements(options?: { limit?: number }) {
  * Stays as direct Firestore query — it's an interactive search.
  */
 export function useRecentIncomeTransactions(searchText?: string) {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: [...reimbursementKeys.incomeForClearing(user?.id ?? ''), searchText ?? ''],
+    queryKey: [...reimbursementKeys.incomeForClearing(dataOwnerId ?? ''), searchText ?? ''],
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!dataOwnerId) return [];
 
-      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
       const q = query(transactionsRef, orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
       const transactions = snapshot.docs.map(transformTransaction);
@@ -165,7 +165,7 @@ export function useRecentIncomeTransactions(searchText?: string) {
       // Return the most recent 50
       return income.slice(0, 50);
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }
 
@@ -174,7 +174,7 @@ export function useRecentIncomeTransactions(searchText?: string) {
  */
 export function useMarkAsReimbursable() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -186,9 +186,9 @@ export function useMarkAsReimbursable() {
       type: 'work' | 'personal';
       note?: string | undefined;
     }) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
 
-      const transactionRef = doc(db, 'users', user.id, 'transactions', id);
+      const transactionRef = doc(db, 'users', dataOwnerId, 'transactions', id);
       const reimbursement: ReimbursementInfo = {
         type,
         note: note ?? null,
@@ -217,7 +217,7 @@ export function useMarkAsReimbursable() {
  */
 export function useClearReimbursement() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -227,13 +227,13 @@ export function useClearReimbursement() {
       incomeTransactionId: string;
       expenseTransactionIds: string[];
     }) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
 
       const clearedAt = new Date();
 
       // Update each expense transaction to mark as cleared and link to income
       for (const expenseId of expenseTransactionIds) {
-        const expenseRef = doc(db, 'users', user.id, 'transactions', expenseId);
+        const expenseRef = doc(db, 'users', dataOwnerId, 'transactions', expenseId);
         await updateDoc(expenseRef, {
           'reimbursement.status': 'cleared',
           'reimbursement.linkedTransactionId': incomeTransactionId,
@@ -243,7 +243,7 @@ export function useClearReimbursement() {
       }
 
       // Optionally mark the income transaction as containing reimbursement
-      const incomeRef = doc(db, 'users', user.id, 'transactions', incomeTransactionId);
+      const incomeRef = doc(db, 'users', dataOwnerId, 'transactions', incomeTransactionId);
       await updateDoc(incomeRef, {
         reimbursement: {
           type: 'work' as const,
@@ -270,13 +270,13 @@ export function useClearReimbursement() {
  */
 export function useUnmarkReimbursement() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
 
-      const transactionRef = doc(db, 'users', user.id, 'transactions', id);
+      const transactionRef = doc(db, 'users', dataOwnerId, 'transactions', id);
       await updateDoc(transactionRef, {
         reimbursement: null,
         updatedAt: serverTimestamp(),

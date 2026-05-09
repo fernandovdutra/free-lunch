@@ -3,90 +3,116 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper function to check if user owns the document
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function ownerDoc(ownerId) {
+      return get(/databases/$(database)/documents/users/$(ownerId)).data;
     }
 
-    // Users collection - users can only access their own document
+    function memberRole(ownerId) {
+      return ownerDoc(ownerId).members[request.auth.uid];
+    }
+
+    function canRead(ownerId) {
+      return isAuthenticated() && (
+        request.auth.uid == ownerId ||
+        memberRole(ownerId) in ['owner', 'editor', 'viewer']
+      );
+    }
+
+    function canWrite(ownerId) {
+      return isAuthenticated() && (
+        request.auth.uid == ownerId ||
+        memberRole(ownerId) in ['owner', 'editor']
+      );
+    }
+
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      // Members can read the owner's user doc (needed to resolve role / profile).
+      allow read: if canRead(userId);
+      // Writes to the user doc itself (settings, members map, bankConnections,
+      // memberProfiles, pendingMembers) stay owner-only.
+      allow write: if isAuthenticated() && request.auth.uid == userId;
 
-      // Transactions subcollection
       match /transactions/{transactionId} {
-        allow read, write: if isOwner(userId);
+        allow read: if canRead(userId);
+        allow write: if canWrite(userId);
       }
 
-      // Categories subcollection
       match /categories/{categoryId} {
-        allow read, write: if isOwner(userId);
+        allow read: if canRead(userId);
+        allow write: if canWrite(userId);
       }
 
-      // Categorization rules subcollection
       match /rules/{ruleId} {
-        allow read, write: if isOwner(userId);
+        allow read: if canRead(userId);
+        allow write: if canWrite(userId);
       }
 
-      // Bank connections subcollection
       match /bankConnections/{connectionId} {
-        allow read, write: if isOwner(userId);
+        // Members may see status, but only the owner can mutate connections.
+        allow read: if canRead(userId);
+        allow write: if isAuthenticated() && request.auth.uid == userId;
       }
 
-      // Budgets subcollection
       match /budgets/{budgetId} {
-        allow read, write: if isOwner(userId);
+        allow read: if canRead(userId);
+        allow write: if canWrite(userId);
       }
 
-      // ICS statement import records
       match /icsStatements/{statementId} {
-        allow read: if isOwner(userId);
-        // Create only by Cloud Functions, no client writes
+        allow read: if canRead(userId);
         allow create, update, delete: if false;
       }
 
-      // Raw bank transactions subcollection (for debugging/audit)
       match /rawBankTransactions/{rawId} {
-        allow read: if isOwner(userId);
-        // Delete allowed for reset functionality, create/update only by Cloud Functions
-        allow delete: if isOwner(userId);
+        allow read: if canRead(userId);
+        // Reset is owner-only.
+        allow delete: if isAuthenticated() && request.auth.uid == userId;
         allow create, update: if false;
       }
 
-      // Goals subcollection
       match /goals/{goalId} {
-        allow read, write: if isOwner(userId);
+        allow read: if canRead(userId);
+        allow write: if canWrite(userId);
       }
 
-      // Investments subcollection
       match /investments/{investmentId} {
-        allow read, write: if isOwner(userId);
+        allow read: if canRead(userId);
+        allow write: if canWrite(userId);
       }
 
-      // Investment transactions subcollection
       match /investmentTransactions/{txnId} {
-        allow read, write: if isOwner(userId);
+        allow read: if canRead(userId);
+        allow write: if canWrite(userId);
       }
 
-      // Insights subcollection (client can read + mark as read; create/update by Cloud Functions)
       match /insights/{insightId} {
-        allow read: if isOwner(userId);
-        allow update: if isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+        allow read: if canRead(userId);
+        allow update: if canWrite(userId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
         allow create, delete: if false;
       }
 
-      // Advisor memory (single doc, read-only for client)
       match /advisorMemory/{docId} {
-        allow read: if isOwner(userId);
+        allow read: if canRead(userId);
         allow create, update, delete: if false;
       }
     }
 
-    // Deny all other access by default
+    // Reverse index of accounts a user has access to. Server-written only.
+    match /memberships/{memberUid} {
+      allow read: if isAuthenticated() && request.auth.uid == memberUid;
+      allow write: if false;
+    }
+
+    // Server-only lookup table mapping invitee email -> ownerId.
+    match /pendingInviteLookup/{email} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

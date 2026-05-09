@@ -52,30 +52,30 @@ function transformInvestment(docSnap: QueryDocumentSnapshot): Investment {
 }
 
 export function useInvestments() {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: investmentKeys.all(user?.id ?? ''),
+    queryKey: investmentKeys.all(dataOwnerId ?? ''),
     queryFn: async () => {
-      if (!user?.id) return [];
-      const investmentsRef = collection(db, 'users', user.id, 'investments');
+      if (!dataOwnerId) return [];
+      const investmentsRef = collection(db, 'users', dataOwnerId, 'investments');
       const q = query(investmentsRef, orderBy('name'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(transformInvestment);
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }
 
 export function useCreateInvestment() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (data: InvestmentFormData) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
       const id = generateId();
-      const investmentRef = doc(db, 'users', user.id, 'investments', id);
+      const investmentRef = doc(db, 'users', dataOwnerId, 'investments', id);
       await setDoc(investmentRef, {
         ...data,
         entries: [],
@@ -92,12 +92,12 @@ export function useCreateInvestment() {
 
 export function useUpdateInvestment() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InvestmentFormData> }) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const investmentRef = doc(db, 'users', user.id, 'investments', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const investmentRef = doc(db, 'users', dataOwnerId, 'investments', id);
       await updateDoc(investmentRef, {
         ...data,
         updatedAt: serverTimestamp(),
@@ -112,14 +112,14 @@ export function useUpdateInvestment() {
 
 export function useAddInvestmentEntry() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async ({ investmentId, entry }: { investmentId: string; entry: InvestmentEntry }) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const investmentRef = doc(db, 'users', user.id, 'investments', investmentId);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const investmentRef = doc(db, 'users', dataOwnerId, 'investments', investmentId);
       const snapshot = await getDocs(
-        query(collection(db, 'users', user.id, 'investments'))
+        query(collection(db, 'users', dataOwnerId, 'investments'))
       );
       const existingDoc = snapshot.docs.find((d) => d.id === investmentId);
       const existingEntries = (existingDoc?.data() as InvestmentDocument | undefined)?.entries ?? [];
@@ -144,12 +144,12 @@ export function useAddInvestmentEntry() {
 
 export function useDeleteInvestment() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const investmentRef = doc(db, 'users', user.id, 'investments', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const investmentRef = doc(db, 'users', dataOwnerId, 'investments', id);
       await deleteDoc(investmentRef);
       return id;
     },

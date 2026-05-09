@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue, Timestamp, WriteBatch } from 'firebase-admin/firestore';
 import { Categorizer } from '../categorization/index.js';
 import { importIcsStatementSchema } from '../validation/schemas.js';
+import { resolveDataOwner, requireRole } from '../shared/dataOwner.js';
 
 // ============================================================================
 // Request/Response types
@@ -55,7 +56,8 @@ export const importIcsStatement = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
+    await requireRole(request.auth.uid, userId, ['owner']);
     const parseResult = importIcsStatementSchema.safeParse(request.data);
     if (!parseResult.success) {
       throw new HttpsError('invalid-argument', parseResult.error.issues.map(i => i.message).join(', '));

@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { deleteIcsImportSchema } from '../validation/schemas.js';
+import { resolveDataOwner, requireRole } from '../shared/dataOwner.js';
 
 interface DeleteIcsResponse {
   transactionsDeleted: number;
@@ -22,7 +23,8 @@ export const deleteIcsImport = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
+    await requireRole(request.auth.uid, userId, ['owner']);
     const parseResult = deleteIcsImportSchema.safeParse(request.data);
     if (!parseResult.success) {
       throw new HttpsError('invalid-argument', parseResult.error.issues.map(i => i.message).join(', '));

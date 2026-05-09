@@ -54,30 +54,30 @@ function transformGoal(docSnap: QueryDocumentSnapshot): Goal {
 }
 
 export function useGoals() {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: goalKeys.all(user?.id ?? ''),
+    queryKey: goalKeys.all(dataOwnerId ?? ''),
     queryFn: async () => {
-      if (!user?.id) return [];
-      const goalsRef = collection(db, 'users', user.id, 'goals');
+      if (!dataOwnerId) return [];
+      const goalsRef = collection(db, 'users', dataOwnerId, 'goals');
       const q = query(goalsRef, orderBy('name'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(transformGoal);
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }
 
 export function useCreateGoal() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (data: GoalFormData) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
       const id = generateId();
-      const goalRef = doc(db, 'users', user.id, 'goals', id);
+      const goalRef = doc(db, 'users', dataOwnerId, 'goals', id);
       await setDoc(goalRef, {
         ...data,
         startDate: Timestamp.fromDate(data.startDate),
@@ -96,12 +96,12 @@ export function useCreateGoal() {
 
 export function useUpdateGoal() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<GoalFormData & { status: Goal['status']; currentAmount: number }> }) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const goalRef = doc(db, 'users', user.id, 'goals', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const goalRef = doc(db, 'users', dataOwnerId, 'goals', id);
       const updateData: Record<string, unknown> = {
         ...data,
         updatedAt: serverTimestamp(),
@@ -120,12 +120,12 @@ export function useUpdateGoal() {
 
 export function useDeleteGoal() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const goalRef = doc(db, 'users', user.id, 'goals', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const goalRef = doc(db, 'users', dataOwnerId, 'goals', id);
       await deleteDoc(goalRef);
       return id;
     },

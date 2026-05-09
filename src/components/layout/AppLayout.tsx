@@ -4,6 +4,7 @@ import { TopBar } from './TopBar';
 import { TabBar } from './TabBar';
 import { SideRail } from './SideRail';
 import { MoreSheet } from './MoreSheet';
+import { ReadOnlyBanner } from './ReadOnlyBanner';
 
 export function AppLayout() {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -13,6 +14,7 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-bg text-textHi">
+      <ReadOnlyBanner />
       <SideRail onMoreClick={openMore} moreOpen={moreOpen} />
       <TopBar />
 

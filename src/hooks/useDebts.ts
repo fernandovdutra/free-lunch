@@ -50,30 +50,30 @@ function transformDebt(docSnap: QueryDocumentSnapshot): Debt {
 }
 
 export function useDebts() {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: debtKeys.all(user?.id ?? ''),
+    queryKey: debtKeys.all(dataOwnerId ?? ''),
     queryFn: async () => {
-      if (!user?.id) return [];
-      const debtsRef = collection(db, 'users', user.id, 'debts');
+      if (!dataOwnerId) return [];
+      const debtsRef = collection(db, 'users', dataOwnerId, 'debts');
       const q = query(debtsRef, orderBy('name'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(transformDebt);
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }
 
 export function useCreateDebt() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (data: DebtFormData) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
       const id = generateId();
-      const debtRef = doc(db, 'users', user.id, 'debts', id);
+      const debtRef = doc(db, 'users', dataOwnerId, 'debts', id);
       await setDoc(debtRef, {
         ...data,
         createdAt: serverTimestamp(),
@@ -89,12 +89,12 @@ export function useCreateDebt() {
 
 export function useUpdateDebt() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<DebtFormData> }) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const debtRef = doc(db, 'users', user.id, 'debts', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const debtRef = doc(db, 'users', dataOwnerId, 'debts', id);
       await updateDoc(debtRef, {
         ...data,
         updatedAt: serverTimestamp(),
@@ -109,12 +109,12 @@ export function useUpdateDebt() {
 
 export function useDeleteDebt() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const debtRef = doc(db, 'users', user.id, 'debts', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const debtRef = doc(db, 'users', dataOwnerId, 'debts', id);
       await deleteDoc(debtRef);
       return id;
     },

@@ -25,12 +25,12 @@ interface RefreshResult {
 // ---- Firestore read: memory metadata ----
 
 export function useAdvisorMemoryMeta() {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: ['advisorMemory', user?.id, 'meta'],
+    queryKey: ['advisorMemory', dataOwnerId, 'meta'],
     queryFn: async (): Promise<AdvisorMemoryMeta> => {
-      if (!user?.id) {
+      if (!dataOwnerId) {
         return {
           updatedAt: null,
           consolidatedAt: null,
@@ -41,7 +41,7 @@ export function useAdvisorMemoryMeta() {
         };
       }
 
-      const ref = doc(db, 'users', user.id, 'advisorMemory', 'current');
+      const ref = doc(db, 'users', dataOwnerId, 'advisorMemory', 'current');
       const snap = await getDoc(ref);
 
       if (!snap.exists()) {
@@ -65,7 +65,7 @@ export function useAdvisorMemoryMeta() {
         temporalPatternsCount: (data['temporalPatterns'] as unknown[])?.length ?? 0,
       };
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
     staleTime: 60_000, // 1 minute
   });
 }
@@ -79,7 +79,7 @@ const refreshAdvisorMemoryFn = httpsCallable<undefined, RefreshResult>(
 
 export function useRefreshAdvisorMemory() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async () => {
@@ -87,7 +87,7 @@ export function useRefreshAdvisorMemory() {
       return result.data;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['advisorMemory', user?.id] });
+      void queryClient.invalidateQueries({ queryKey: ['advisorMemory', dataOwnerId] });
     },
   });
 }

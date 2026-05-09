@@ -25,3 +25,7 @@ export { getMonthlyAnalysisData } from './handlers/getMonthlyAnalysisData.js';
 export { getYearlyAnalysisData } from './handlers/getYearlyAnalysisData.js';
 export { storeInsightEndpoint } from './handlers/storeInsight.js';
 export { refreshAdvisorMemory } from './handlers/refreshAdvisorMemory.js';
+export { inviteMember } from './handlers/inviteMember.js';
+export { acceptInvitation } from './handlers/acceptInvitation.js';
+export { removeMember } from './handlers/removeMember.js';
+export { cancelInvitation } from './handlers/cancelInvitation.js';

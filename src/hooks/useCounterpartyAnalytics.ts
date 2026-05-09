@@ -62,15 +62,15 @@ function transformDoc(doc: QueryDocumentSnapshot): { date: Date; amount: number 
 }
 
 export function useCounterpartyAnalytics(counterparty: string | null) {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
   const { selectedMonth } = useMonth();
 
   return useQuery({
-    queryKey: counterpartyKeys.analytics(user?.id ?? '', counterparty ?? ''),
+    queryKey: counterpartyKeys.analytics(dataOwnerId ?? '', counterparty ?? ''),
     queryFn: async (): Promise<CounterpartyAnalytics | null> => {
-      if (!user?.id || !counterparty) return null;
+      if (!dataOwnerId || !counterparty) return null;
 
-      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
       const q = query(
         transactionsRef,
         where('counterparty', '==', counterparty),
@@ -165,7 +165,7 @@ export function useCounterpartyAnalytics(counterparty: string | null) {
         lastTransactionDate,
       };
     },
-    enabled: !!user?.id && !!counterparty,
+    enabled: !!dataOwnerId && !!counterparty,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }

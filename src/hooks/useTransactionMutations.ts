@@ -20,13 +20,13 @@ import { generateId } from '@/lib/utils';
 
 export function useCreateTransaction() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (data: TransactionFormData) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
       const id = generateId();
-      const transactionRef = doc(db, 'users', user.id, 'transactions', id);
+      const transactionRef = doc(db, 'users', dataOwnerId, 'transactions', id);
       await setDoc(transactionRef, {
         externalId: null,
         date: Timestamp.fromDate(data.date),
@@ -54,7 +54,7 @@ export function useCreateTransaction() {
 
 export function useUpdateTransaction() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -64,8 +64,8 @@ export function useUpdateTransaction() {
       id: string;
       data: Partial<TransactionFormData> & { categorySource?: 'manual' | 'auto' | 'rule' };
     }) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const transactionRef = doc(db, 'users', user.id, 'transactions', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const transactionRef = doc(db, 'users', dataOwnerId, 'transactions', id);
 
       const updateData: Record<string, unknown> = {
         ...data,
@@ -88,12 +88,12 @@ export function useUpdateTransaction() {
 
 export function useUpdateTransactionCategory() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, categoryId }: { id: string; categoryId: string | null }) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const transactionRef = doc(db, 'users', user.id, 'transactions', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const transactionRef = doc(db, 'users', dataOwnerId, 'transactions', id);
       await updateDoc(transactionRef, {
         categoryId,
         categorySource: 'manual',
@@ -133,12 +133,12 @@ export function useUpdateTransactionCategory() {
 
 export function useDeleteTransaction() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const transactionRef = doc(db, 'users', user.id, 'transactions', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const transactionRef = doc(db, 'users', dataOwnerId, 'transactions', id);
       await deleteDoc(transactionRef);
       return id;
     },
@@ -154,7 +154,7 @@ export function useDeleteTransaction() {
  */
 export function useBulkUpdateCategory() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -166,10 +166,10 @@ export function useBulkUpdateCategory() {
       categoryId: string;
       excludeTransactionId?: string;
     }) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
       if (!counterparty) throw new Error('Counterparty is required');
 
-      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
       const q = query(transactionsRef, where('counterparty', '==', counterparty));
       const snapshot = await getDocs(q);
 

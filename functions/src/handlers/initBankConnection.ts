@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import { EnableBankingClient } from '../enableBanking/client.js';
 import { config } from '../config.js';
 import { initBankConnectionSchema } from '../validation/schemas.js';
+import { resolveDataOwner, requireRole } from '../shared/dataOwner.js';
 
 export const initBankConnection = onCall(
   {
@@ -22,7 +23,8 @@ export const initBankConnection = onCall(
     }
     const { bankName, bankCountry } = parseResult.data;
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
+    await requireRole(request.auth.uid, userId, ['owner']);
     const db = getFirestore();
 
     // Generate state token for OAuth verification

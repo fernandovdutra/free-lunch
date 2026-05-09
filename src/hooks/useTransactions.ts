@@ -123,14 +123,14 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
 }
 
 export function useTransactions(filters: TransactionFilters = {}) {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: transactionKeys.filtered(user?.id ?? '', filters),
+    queryKey: transactionKeys.filtered(dataOwnerId ?? '', filters),
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!dataOwnerId) return [];
 
-      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
 
       // Build query with filters - equality filters before range filters for Firestore
       const constraints = [];
@@ -220,7 +220,7 @@ export function useTransactions(filters: TransactionFilters = {}) {
 
       return transactions;
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }
 
@@ -228,14 +228,14 @@ export function useTransactions(filters: TransactionFilters = {}) {
  * Count transactions matching a counterparty (excluding already manually categorized).
  */
 export function useCountMatchingTransactions(counterparty: string | null) {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: ['matchingTransactionsCount', user?.id, counterparty],
+    queryKey: ['matchingTransactionsCount', dataOwnerId, counterparty],
     queryFn: async () => {
-      if (!user?.id || !counterparty) return 0;
+      if (!dataOwnerId || !counterparty) return 0;
 
-      const transactionsRef = collection(db, 'users', user.id, 'transactions');
+      const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
       const q = query(transactionsRef, where('counterparty', '==', counterparty));
       const snapshot = await getDocs(q);
 
@@ -247,7 +247,7 @@ export function useCountMatchingTransactions(counterparty: string | null) {
 
       return count;
     },
-    enabled: !!user?.id && !!counterparty,
+    enabled: !!dataOwnerId && !!counterparty,
     staleTime: 30_000, // 30s — avoid excessive refetches while staying reasonably fresh
   });
 }
