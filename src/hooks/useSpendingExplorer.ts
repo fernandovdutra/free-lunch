@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
 import {
@@ -58,12 +59,15 @@ export function useSpendingExplorer({
 }: UseSpendingExplorerParams) {
   const { user } = useAuth();
   const { dateRange, selectedMonth } = useMonth();
+  // Local-time format → TZ-stable yyyy-MM (May local stays '2026-05' even
+  // when toISOString() of May 1 CEST lands in April UTC).
+  const monthKey = format(selectedMonth, 'yyyy-MM');
 
   return useQuery({
     queryKey: spendingExplorerKeys.explorer(
       user?.id ?? '',
       direction,
-      selectedMonth.toISOString(),
+      monthKey,
       categoryId,
       subcategoryId,
       counterparty,
@@ -76,6 +80,7 @@ export function useSpendingExplorer({
         direction,
         startDate: dateRange.startDate.toISOString(),
         endDate: dateRange.endDate.toISOString(),
+        monthKey,
       };
       if (categoryId) request.categoryId = categoryId;
       if (subcategoryId) request.subcategoryId = subcategoryId;

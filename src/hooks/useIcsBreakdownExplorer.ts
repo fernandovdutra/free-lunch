@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
 import {
@@ -32,13 +33,15 @@ export function useIcsBreakdownExplorer({
 }: UseIcsBreakdownParams) {
   const { user } = useAuth();
   const { dateRange, selectedMonth } = useMonth();
+  // Local-time format → TZ-stable yyyy-MM. See useSpendingExplorer for context.
+  const monthKey = format(selectedMonth, 'yyyy-MM');
 
   return useQuery({
     queryKey: [
       'icsBreakdown',
       user?.id,
       statementId,
-      selectedMonth.toISOString(),
+      monthKey,
       categoryId,
       counterparty,
       breakdownMonthKey,
@@ -50,6 +53,7 @@ export function useIcsBreakdownExplorer({
         statementId,
         startDate: dateRange.startDate.toISOString(),
         endDate: dateRange.endDate.toISOString(),
+        monthKey,
       };
       if (categoryId) request.categoryId = categoryId;
       if (counterparty) request.counterparty = counterparty;

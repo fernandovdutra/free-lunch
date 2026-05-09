@@ -20,6 +20,17 @@ interface ScrubberProps {
 const STRIP_HEIGHT_PX = 73;
 const BAR_WIDTH_PX = 52;
 const COLUMN_GAP_PX = 6;
+const DATA_LABEL_HEIGHT_PX = 12;
+
+/**
+ * Compact bar-label format: "€8.6K" for ≥1k, plain "€857" otherwise. Drops a
+ * trailing ".0" so "€8.0K" → "€8K". Returns empty string for zero/empty bars.
+ */
+function formatBarAmount(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return '';
+  if (n >= 1000) return `€${(n / 1000).toFixed(1).replace(/\.0$/, '')}K`;
+  return `€${Math.round(n)}`;
+}
 
 /**
  * 6-month bar strip with optional dashed budget line. Each bar is a button
@@ -37,7 +48,10 @@ export function Scrubber({
 }: ScrubberProps) {
   const maxAmount = bars.reduce((m, b) => Math.max(m, b.amount), 0);
   const maxScale = Math.max(maxAmount, budget ?? 0) * 1.05 || 1;
-  const budgetPx = budget !== undefined ? (budget / maxScale) * STRIP_HEIGHT_PX : null;
+  // Reserve headroom at the top of the strip for the per-bar data labels so
+  // the tallest bar's label doesn't get clipped by the strip's top edge.
+  const barAreaPx = STRIP_HEIGHT_PX - DATA_LABEL_HEIGHT_PX;
+  const budgetPx = budget !== undefined ? (budget / maxScale) * barAreaPx : null;
   const stripWidth = bars.length * BAR_WIDTH_PX + (bars.length - 1) * COLUMN_GAP_PX;
 
   return (
@@ -59,7 +73,7 @@ export function Scrubber({
           {bars.map((bar) => {
             const isSelected = bar.monthKey === selectedMonthKey;
             const isOver = budget !== undefined && bar.amount > budget;
-            const heightPx = Math.max(2, (bar.amount / maxScale) * STRIP_HEIGHT_PX);
+            const heightPx = Math.max(2, (bar.amount / maxScale) * barAreaPx);
             // 3-state fill (per QA round 2: selected = full painted bar):
             //   - selected:                bg accent, no border
             //   - over budget (unselected): bg alert-dim, border alert
@@ -69,6 +83,12 @@ export function Scrubber({
               : isOver
                 ? 'border border-alert bg-alert-dim'
                 : 'border border-rule bg-transparent';
+            const labelClass = isSelected
+              ? 'text-accent'
+              : isOver
+                ? 'text-alert'
+                : 'text-textLo';
+            const labelText = formatBarAmount(bar.amount);
             return (
               <button
                 key={bar.monthKey}
@@ -85,6 +105,17 @@ export function Scrubber({
                   className={cn('absolute inset-x-0 bottom-0', fillClass)}
                   style={{ height: heightPx }}
                 />
+                {labelText && (
+                  <span
+                    className={cn(
+                      'pointer-events-none absolute inset-x-0 text-center font-mono text-[9.5px] tracking-[0.4px] tabular-nums',
+                      labelClass
+                    )}
+                    style={{ bottom: heightPx + 1, lineHeight: `${DATA_LABEL_HEIGHT_PX}px` }}
+                  >
+                    {labelText}
+                  </span>
+                )}
               </button>
             );
           })}

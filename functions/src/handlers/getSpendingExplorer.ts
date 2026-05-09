@@ -101,6 +101,7 @@ export const getSpendingExplorer = onCall(
       direction,
       startDate,
       endDate,
+      monthKey,
       categoryId,
       subcategoryId,
       counterparty,
@@ -109,6 +110,7 @@ export const getSpendingExplorer = onCall(
       direction?: string;
       startDate?: string;
       endDate?: string;
+      monthKey?: string; // 'yyyy-MM' — TZ-stable focal month; takes precedence over startDate/endDate
       categoryId?: string;
       subcategoryId?: string;
       counterparty?: string;
@@ -119,14 +121,28 @@ export const getSpendingExplorer = onCall(
     if (!direction || (direction !== 'expenses' && direction !== 'income')) {
       throw new HttpsError('invalid-argument', 'direction must be "expenses" or "income"');
     }
-    if (!startDate || !endDate) {
-      throw new HttpsError('invalid-argument', 'startDate and endDate are required');
+    if (!monthKey && (!startDate || !endDate)) {
+      throw new HttpsError('invalid-argument', 'monthKey or startDate/endDate are required');
     }
 
-    const selectedStart = new Date(startDate);
-    const selectedEnd = new Date(endDate);
+    // The focal month is unambiguous when sent as `monthKey` (yyyy-MM): the
+    // frontend formats `selectedMonth` in local time, so May local → '2026-05'
+    // regardless of TZ. We anchor in UTC so date-fns format/subMonths produce
+    // the same yyyy-MM bucket on the (UTC) Functions runtime as the client.
+    let selectedStart: Date;
+    let selectedEnd: Date;
+    if (monthKey) {
+      if (!/^\d{4}-\d{2}$/.test(monthKey)) {
+        throw new HttpsError('invalid-argument', 'monthKey must be yyyy-MM');
+      }
+      selectedStart = new Date(`${monthKey}-01T00:00:00.000Z`);
+      selectedEnd = endOfMonth(selectedStart);
+    } else {
+      selectedStart = new Date(startDate as string);
+      selectedEnd = new Date(endDate as string);
+    }
     if (isNaN(selectedStart.getTime()) || isNaN(selectedEnd.getTime())) {
-      throw new HttpsError('invalid-argument', 'startDate and endDate must be valid ISO date strings');
+      throw new HttpsError('invalid-argument', 'invalid date inputs');
     }
 
     // Calculate 6-month window: selected month + 5 previous months
