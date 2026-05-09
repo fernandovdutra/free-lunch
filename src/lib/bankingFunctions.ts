@@ -245,6 +245,8 @@ export interface SpendingExplorerRequest {
   direction: 'expenses' | 'income';
   startDate: string;
   endDate: string;
+  /** 'yyyy-MM' — TZ-stable focal month; takes precedence over startDate/endDate on the backend */
+  monthKey?: string | undefined;
   categoryId?: string | undefined;
   subcategoryId?: string | undefined;
   counterparty?: string | undefined;
@@ -289,6 +291,8 @@ export interface IcsBreakdownRequest {
   statementId: string;
   startDate: string;
   endDate: string;
+  /** 'yyyy-MM' — TZ-stable focal month; takes precedence over startDate/endDate on the backend */
+  monthKey?: string | undefined;
   categoryId?: string | undefined;
   counterparty?: string | undefined;
   breakdownMonthKey?: string | undefined;

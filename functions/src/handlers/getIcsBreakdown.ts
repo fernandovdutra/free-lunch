@@ -48,6 +48,7 @@ export const getIcsBreakdown = onCall(
       statementId,
       startDate,
       endDate,
+      monthKey,
       categoryId,
       counterparty,
       breakdownMonthKey,
@@ -55,6 +56,7 @@ export const getIcsBreakdown = onCall(
       statementId: string;
       startDate?: string;
       endDate?: string;
+      monthKey?: string; // 'yyyy-MM' — TZ-stable focal month; takes precedence over startDate/endDate
       categoryId?: string;
       counterparty?: string;
       breakdownMonthKey?: string;
@@ -62,6 +64,9 @@ export const getIcsBreakdown = onCall(
 
     if (!statementId) {
       throw new HttpsError('invalid-argument', 'statementId is required');
+    }
+    if (monthKey && !/^\d{4}-\d{2}$/.test(monthKey)) {
+      throw new HttpsError('invalid-argument', 'monthKey must be yyyy-MM');
     }
 
     const db = getFirestore();
@@ -100,26 +105,34 @@ export const getIcsBreakdown = onCall(
     // Calculate 6-month totals across ALL ICS transactions (not just this statement)
     // ========================================================================
 
-    // Determine the date range for the 6-month window based on provided dates
-    // or fall back to the transactions' own dates
+    // Determine the focal month and 6-month window. `monthKey` (yyyy-MM) is
+    // TZ-stable and is the source of truth when provided — anchor in UTC so
+    // date-fns format/subMonths bucket the same way on the Functions runtime
+    // as the client. Fall back to startDate/endDate, then to transaction
+    // history, then to today.
+    let referenceDate: Date;
     let windowStart: Date;
     let windowEnd: Date;
 
-    if (startDate && endDate) {
-      const selectedStart = new Date(startDate);
+    if (monthKey) {
+      referenceDate = new Date(`${monthKey}-01T00:00:00.000Z`);
+      windowStart = startOfMonth(subMonths(referenceDate, 5));
+      windowEnd = endOfMonth(referenceDate);
+    } else if (startDate && endDate) {
+      referenceDate = new Date(startDate);
       const selectedEnd = new Date(endDate);
-      windowStart = startOfMonth(subMonths(selectedStart, 5));
+      windowStart = startOfMonth(subMonths(referenceDate, 5));
       windowEnd = endOfMonth(selectedEnd);
     } else if (allTransactions.length > 0) {
       // Use the most recent transaction's date as the reference point
-      const latestDate = allTransactions[0].doc.date.toDate();
-      windowStart = startOfMonth(subMonths(latestDate, 5));
-      windowEnd = endOfMonth(latestDate);
+      referenceDate = allTransactions[0].doc.date.toDate();
+      windowStart = startOfMonth(subMonths(referenceDate, 5));
+      windowEnd = endOfMonth(referenceDate);
     } else {
       // No transactions, use current date
-      const now = new Date();
-      windowStart = startOfMonth(subMonths(now, 5));
-      windowEnd = endOfMonth(now);
+      referenceDate = new Date();
+      windowStart = startOfMonth(subMonths(referenceDate, 5));
+      windowEnd = endOfMonth(referenceDate);
     }
 
     // Fetch ALL ICS transactions for the chart
@@ -144,8 +157,7 @@ export const getIcsBreakdown = onCall(
     // Build monthly totals from ALL ICS transactions
     const monthlyMap = new Map<string, { amount: number; count: number }>();
 
-    // Initialize all 6 months
-    const referenceDate = startDate ? new Date(startDate) : (allTransactions.length > 0 ? allTransactions[0].doc.date.toDate() : new Date());
+    // Initialize all 6 months from the (UTC-anchored) referenceDate
     for (let i = 5; i >= 0; i--) {
       const monthDate = subMonths(referenceDate, i);
       const key = format(monthDate, 'yyyy-MM');
@@ -153,8 +165,8 @@ export const getIcsBreakdown = onCall(
     }
 
     for (const { doc } of allIcsTransactions) {
-      const monthKey = format(doc.date.toDate(), 'yyyy-MM');
-      const entry = monthlyMap.get(monthKey);
+      const txMonthKey = format(doc.date.toDate(), 'yyyy-MM');
+      const entry = monthlyMap.get(txMonthKey);
       if (entry) {
         entry.amount += Math.abs(doc.amount);
         entry.count += 1;
