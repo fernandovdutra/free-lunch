@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { format, getDate, getDaysInMonth, isAfter } from 'date-fns';
+import { useBankConnections } from '@/hooks/useBankConnection';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useCategories } from '@/hooks/useCategories';
 import { useBudgets } from '@/hooks/useBudgets';
@@ -26,6 +27,7 @@ export function Home() {
   const { data: budgetProgress } = useBudgetProgress(dateRange);
   const { data: categories = [] } = useCategories();
   const { data: pendingReimbursements = [] } = usePendingReimbursements();
+  const { data: connections = [] } = useBankConnections();
 
   if (error) {
     return (
@@ -121,11 +123,11 @@ export function Home() {
     void navigate(`/expenses/${topLevelId}`);
   };
 
-  // Bank-account balance is not yet exposed by any current hook —
-  // useBankConnections returns connection metadata only. Until Phase 10 wires
-  // a real balance hook, fall back to net cashflow for the period as a
-  // stand-in. Label per v8 (only ABN AMRO is supported in MVP).
-  const balance = { label: 'ABN AMRO BALANCE', amount: summary.netBalance };
+  const liveBankBalance = connections
+    .filter((c) => c.status === 'active')
+    .flatMap((c) => c.accounts)
+    .reduce((sum, a) => sum + (a.balance?.amount ?? 0), 0);
+  const balance = { label: 'ABN AMRO BALANCE', amount: liveBankBalance };
 
   return (
     <div className="-mx-4 pb-8">
