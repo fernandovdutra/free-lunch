@@ -31,15 +31,29 @@ const admin = require('./../functions/node_modules/firebase-admin');
 
 // ---- Args --------------------------------------------------------------
 
-const args = Object.fromEntries(
-  process.argv
-    .slice(2)
-    .filter((a) => a.startsWith('--'))
-    .map((a) => {
-      const [k, v] = a.replace(/^--/, '').split('=');
-      return [k, v ?? true];
-    })
-);
+// Supports both `--key=value` and `--key value` forms.
+const args = (() => {
+  const out = {};
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (!a.startsWith('--')) continue;
+    const stripped = a.replace(/^--/, '');
+    const eq = stripped.indexOf('=');
+    if (eq >= 0) {
+      out[stripped.slice(0, eq)] = stripped.slice(eq + 1);
+    } else {
+      const next = argv[i + 1];
+      if (next !== undefined && !next.startsWith('--')) {
+        out[stripped] = next;
+        i++;
+      } else {
+        out[stripped] = true;
+      }
+    }
+  }
+  return out;
+})();
 
 const PROD_UID = process.env.PROD_UID;
 const SA_PATH = process.env.SA_PATH;
