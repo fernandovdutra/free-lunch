@@ -213,50 +213,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Listen for auth state changes
   useEffect(() => {
     let cancelled = false;
-    let watchdog: ReturnType<typeof setTimeout> | null = null;
-
-    const clearWatchdog = () => {
-      if (watchdog) {
-        clearTimeout(watchdog);
-        watchdog = null;
-      }
-    };
 
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-      clearWatchdog();
+      if (cancelled) return;
 
-      if (fbUser) {
-        setFirebaseUser(fbUser);
-        // Safety net: never let the loading spinner hang past 8s, even if
-        // a Firestore read or Cloud Function call stalls indefinitely.
-        watchdog = setTimeout(() => {
-          if (!cancelled) setIsLoading(false);
-        }, 8000);
-
-        fetchOrCreateUser(fbUser)
-          .then(async (userData) => {
-            if (cancelled) return;
-            setUser(userData);
-            await resolveAccess(fbUser.uid);
-            subscribeMembership(fbUser.uid);
-            // Fire-and-forget: idempotent invite claim. Must not block the
-            // spinner — `subscribeMembership` picks up any role change.
-            acceptInvitationFn().catch((err) => {
-              console.error('acceptInvitation failed:', err);
-            });
-          })
-          .catch((error: unknown) => {
-            console.error('Error fetching user data:', error);
-            setUser(null);
-            setDataOwnerId(null);
-            setCurrentRole(null);
-            setOwnerProfile(null);
-          })
-          .finally(() => {
-            clearWatchdog();
-            if (!cancelled) setIsLoading(false);
-          });
-      } else {
+      if (!fbUser) {
         membershipUnsubRef.current?.();
         membershipUnsubRef.current = null;
         setFirebaseUser(null);
@@ -265,12 +226,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setCurrentRole(null);
         setOwnerProfile(null);
         setIsLoading(false);
+        return;
       }
+
+      // The instant Firebase auth says the user is signed in, render the app.
+      // No Firestore read or Cloud Function call is allowed to gate the
+      // spinner — any of them stalling would otherwise hang the UI forever
+      // (which is exactly what the multi-user PR's mandatory CF call did).
+      setFirebaseUser(fbUser);
+      setUser({
+        id: fbUser.uid,
+        email: fbUser.email ?? '',
+        displayName: fbUser.displayName,
+        createdAt: new Date(),
+        settings: DEFAULT_SETTINGS,
+        bankConnections: [],
+      });
+      setDataOwnerId(fbUser.uid);
+      setCurrentRole('owner');
+      setOwnerProfile(null);
+      setIsLoading(false);
+
+      // Background refinement: real user doc, role/owner resolution, pending
+      // invite claim, membership subscription. Failures here only degrade the
+      // app (default settings, own data instead of shared) — they cannot hang
+      // the spinner.
+      fetchOrCreateUser(fbUser)
+        .then((userData) => {
+          if (cancelled) return;
+          setUser(userData);
+        })
+        .catch((err: unknown) => {
+          console.error('fetchOrCreateUser failed:', err);
+        });
+
+      resolveAccess(fbUser.uid).catch((err: unknown) => {
+        console.error('resolveAccess failed:', err);
+      });
+
+      subscribeMembership(fbUser.uid);
+
+      acceptInvitationFn().catch((err: unknown) => {
+        console.error('acceptInvitation failed:', err);
+      });
     });
 
     return () => {
       cancelled = true;
-      clearWatchdog();
       unsubscribe();
       membershipUnsubRef.current?.();
       membershipUnsubRef.current = null;
