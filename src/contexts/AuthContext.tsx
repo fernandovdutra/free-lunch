@@ -212,20 +212,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Listen for auth state changes
   useEffect(() => {
+    let cancelled = false;
+    let watchdog: ReturnType<typeof setTimeout> | null = null;
+
+    const clearWatchdog = () => {
+      if (watchdog) {
+        clearTimeout(watchdog);
+        watchdog = null;
+      }
+    };
+
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      clearWatchdog();
+
       if (fbUser) {
         setFirebaseUser(fbUser);
+        // Safety net: never let the loading spinner hang past 8s, even if
+        // a Firestore read or Cloud Function call stalls indefinitely.
+        watchdog = setTimeout(() => {
+          if (!cancelled) setIsLoading(false);
+        }, 8000);
+
         fetchOrCreateUser(fbUser)
           .then(async (userData) => {
+            if (cancelled) return;
             setUser(userData);
-            // Idempotent — claim any pending invitation matching this email.
-            try {
-              await acceptInvitationFn();
-            } catch (err) {
-              console.error('acceptInvitation failed:', err);
-            }
             await resolveAccess(fbUser.uid);
             subscribeMembership(fbUser.uid);
+            // Fire-and-forget: idempotent invite claim. Must not block the
+            // spinner — `subscribeMembership` picks up any role change.
+            acceptInvitationFn().catch((err) => {
+              console.error('acceptInvitation failed:', err);
+            });
           })
           .catch((error: unknown) => {
             console.error('Error fetching user data:', error);
@@ -235,7 +253,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setOwnerProfile(null);
           })
           .finally(() => {
-            setIsLoading(false);
+            clearWatchdog();
+            if (!cancelled) setIsLoading(false);
           });
       } else {
         membershipUnsubRef.current?.();
@@ -250,6 +269,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     return () => {
+      cancelled = true;
+      clearWatchdog();
       unsubscribe();
       membershipUnsubRef.current?.();
       membershipUnsubRef.current = null;
