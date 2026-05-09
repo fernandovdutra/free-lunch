@@ -5,16 +5,21 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { useCategories } from '@/hooks/useCategories';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useBudgetProgress } from '@/hooks/useBudgetProgress';
+import { useFixedSchedule } from '@/hooks/useFixedSchedule';
 import { usePendingReimbursements } from '@/hooks/useReimbursements';
 import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount } from '@/lib/utils';
+import {
+  buildDailyActual,
+  computeProjection,
+  fixedRemaining as fixedRemainingSum,
+} from '@/lib/burnUp';
 import { TransactionRow } from '@/components/redesign';
 import {
   BalanceRow,
-  BudgetLine,
   HomeCategoryList,
   PendingBanner,
-  SpentBlock,
+  SpentCard,
   type HomeCategoryEntry,
 } from '@/components/home';
 
@@ -28,6 +33,7 @@ export function Home() {
   const { data: categories = [] } = useCategories();
   const { data: pendingReimbursements = [] } = usePendingReimbursements();
   const { data: connections = [] } = useBankConnections();
+  const { data: fixedSchedule = [] } = useFixedSchedule();
 
   if (error) {
     return (
@@ -58,23 +64,38 @@ export function Home() {
   const dayOfMonth = isCurrentMonth ? getDate(today) : daysInMonth;
   const isFutureMonth = isAfter(selectedMonth, today);
 
-  const projection: { amount: number; delta: number } | null =
-    isCurrentMonth && spent > 0 && dayOfMonth > 0 && !isFutureMonth
+  // Cumulative spend per day, anchored to whichever day "today" is in
+  // the visible month. For past months, today === daysInMonth.
+  const dailyActual = buildDailyActual(current?.timeline ?? [], dayOfMonth);
+
+  // Burn-up projection. Both the chart's dashed projection line and the
+  // bottom-summary "AT THIS PACE €X" use this number, so the line and
+  // the readout always agree.
+  const burnProjection = !isFutureMonth && dayOfMonth > 0
+    ? computeProjection(dailyActual, fixedSchedule, dayOfMonth, daysInMonth)
+    : null;
+
+  const projection: { amount: number; delta: number; isOver: boolean } | null =
+    isCurrentMonth && spent > 0 && burnProjection
       ? (() => {
-          const projectedAmount = (spent / dayOfMonth) * daysInMonth;
+          const projectedAmount = burnProjection.projectedEnd;
           const delta = projectedAmount - budget;
-          return { amount: projectedAmount, delta };
+          return {
+            amount: projectedAmount,
+            delta,
+            isOver: budget > 0 && projectedAmount > budget,
+          };
         })()
       : null;
 
-  const projectionView = projection
-    ? {
-        amountFormatted: formatAmount(projection.amount, { showSign: false, noCents: true }),
-        deltaFormatted: formatAmount(Math.abs(projection.delta), { showSign: false, noCents: true }),
-        deltaSign:
-          projection.delta > 0 ? ('+' as const) : projection.delta < 0 ? ('-' as const) : ('·' as const),
-      }
-    : null;
+  const monthEndLabel = format(
+    new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), daysInMonth),
+    'MMM d'
+  ).toUpperCase();
+
+  const fixedRemainingAmount = isCurrentMonth
+    ? fixedRemainingSum(fixedSchedule, dayOfMonth)
+    : 0;
 
   // Pending reimbursements: derive from the dedicated hook so the banner
   // shows even when the dashboard summary aggregator is stale (e.g., right
@@ -135,13 +156,18 @@ export function Home() {
       <BalanceRow label={balance.label} amount={balance.amount} />
 
       <section className="mt-5 border-b border-rule px-5 pb-4">
-        <SpentBlock
-          spentFormatted={formatAmount(spent, { showSign: false, noCents: true })}
+        <SpentCard
+          spent={spent}
           monthLabel={monthAbbr}
-          projection={projectionView}
+          monthEndLabel={monthEndLabel}
+          budget={budget}
           isOver={isOver}
+          daily={dailyActual}
+          fixed={fixedSchedule}
+          daysInMonth={daysInMonth}
+          projection={projection}
+          fixedRemainingAmount={fixedRemainingAmount}
         />
-        <BudgetLine spent={spent} budget={budget} isOver={isOver} />
       </section>
 
       <HomeCategoryList
