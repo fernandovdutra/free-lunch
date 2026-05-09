@@ -1,5 +1,4 @@
 import { cn } from '@/lib/utils';
-import { ProgressBar } from './ProgressBar';
 import { CategoryIcon } from '@/lib/categoryIcons';
 
 interface DrillRowProps {
@@ -25,13 +24,10 @@ interface DrillRowProps {
 
 /**
  * Indexed row used at L1 (categories) and L2 (subcategories) of the drill
- * funnel. Per v8 frames 04/05:
- *   01  Groceries                         €919  ›
- *         · €31 LEFT
- *         ━━━━━━━━━━━━━━━━━━━━━━━━━━ (bar)
- *
- * The ProgressBar's max can be the row's own budget (L1) or the parent
- * category's budget (L2 subcategories), depending on caller.
+ * funnel. When `progress`/`max` are provided, the row paints a left-aligned
+ * background fill whose width = min(100%, progress/max). The fill uses the
+ * dim accent (or dim warn when over budget) so the bright Phosphor icon
+ * still pops against it.
  */
 export function DrillRow({
   index,
@@ -46,10 +42,12 @@ export function DrillRow({
   className,
 }: DrillRowProps) {
   const isOver = variant === 'over';
-  const showBar = progress !== undefined && max !== undefined;
   const indexLabel = index.toString().padStart(2, '0');
   const showIcon = Boolean(categoryId);
   const leadingIndent = showIcon ? 'pl-7' : 'pl-9';
+
+  const showFill = progress !== undefined && max !== undefined && max > 0;
+  const fillPct = showFill ? Math.min(100, Math.max(0, (progress / max) * 100)) : 0;
 
   const bodyContent = (
     <>
@@ -87,18 +85,20 @@ export function DrillRow({
           {meta}
         </div>
       )}
-      {showBar && (
-        <ProgressBar
-          value={progress}
-          max={max}
-          variant={isOver ? 'warn' : 'accent'}
-          className={cn('mt-2', showIcon ? 'ml-7' : 'ml-9')}
-        />
-      )}
     </>
   );
 
-  const baseClasses = 'block w-full px-4 py-3 hairline-b text-left';
+  const baseClasses = 'relative block w-full overflow-hidden px-4 py-3 hairline-b text-left';
+  const fill = showFill ? (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-y-0 left-0"
+      style={{
+        width: `${fillPct}%`,
+        backgroundColor: isOver ? 'var(--warn-dim)' : 'var(--accent-dim)',
+      }}
+    />
+  ) : null;
 
   if (onClick) {
     return (
@@ -106,11 +106,20 @@ export function DrillRow({
         type="button"
         onClick={onClick}
         className={cn(baseClasses, 'press', className)}
+        aria-valuenow={showFill ? Math.round(fillPct) : undefined}
+        aria-valuemin={showFill ? 0 : undefined}
+        aria-valuemax={showFill ? 100 : undefined}
       >
-        {bodyContent}
+        {fill}
+        <div className="relative">{bodyContent}</div>
       </button>
     );
   }
 
-  return <div className={cn(baseClasses, className)}>{bodyContent}</div>;
+  return (
+    <div className={cn(baseClasses, className)}>
+      {fill}
+      <span className="relative block">{bodyContent}</span>
+    </div>
+  );
 }

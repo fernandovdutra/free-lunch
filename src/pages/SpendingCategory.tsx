@@ -165,7 +165,11 @@ export function SpendingCategory() {
           )}
 
           {sortedSubcategories.map((sub, i) => {
-            const meta = `${sub.transactionCount} TXN · ${sub.percentage.toFixed(1)}% OF ${breakdownMonthShort}`;
+            const budgetPctLabel =
+              parentCategoryBudget !== undefined && parentCategoryBudget > 0
+                ? ` · ${Math.round((sub.amount / parentCategoryBudget) * 100)}% OF BUDGET`
+                : '';
+            const meta = `${sub.transactionCount} TXN · ${sub.percentage.toFixed(1)}% OF ${breakdownMonthShort}${budgetPctLabel}`;
             return (
               <DrillRow
                 key={sub.categoryId}
