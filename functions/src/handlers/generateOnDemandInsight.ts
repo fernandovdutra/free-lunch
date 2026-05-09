@@ -12,6 +12,7 @@ import { detectAnomalies } from '../shared/anomalyDetection.js';
 import { storeInsight } from '../shared/insightStorage.js';
 import { loadAdvisorMemory, formatMemoryForPrompt } from '../shared/memoryManager.js';
 import { config } from '../config.js';
+import { resolveDataOwner } from '../shared/dataOwner.js';
 
 /**
  * On-demand insight generation — callable by the user from the app.
@@ -29,7 +30,7 @@ export const generateOnDemandInsight = onCall(
       throw new HttpsError('internal', 'AI analysis not configured');
     }
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
     const {
       question,
       startDate: startStr,

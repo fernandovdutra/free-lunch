@@ -14,13 +14,13 @@ export const budgetProgressKeys = {
  * Hook to get current month's budget progress
  */
 export function useBudgetProgress(dateRange?: { startDate: Date; endDate: Date }) {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
   const { data: budgets = [] } = useBudgets();
 
   const { data: budgetProgress = [], isLoading } = useQuery({
-    queryKey: budgetProgressKeys.current(user?.id ?? ''),
+    queryKey: budgetProgressKeys.current(dataOwnerId ?? ''),
     queryFn: async (): Promise<BudgetProgress[]> => {
-      if (!user?.id) return [];
+      if (!dataOwnerId) return [];
 
       const params: { startDate?: string; endDate?: string } = {};
       if (dateRange) {
@@ -56,7 +56,7 @@ export function useBudgetProgress(dateRange?: { startDate: Date; endDate: Date }
         };
       });
     },
-    enabled: !!user?.id && budgets.length > 0,
+    enabled: !!dataOwnerId && budgets.length > 0,
   });
 
   return {
@@ -69,17 +69,17 @@ export function useBudgetProgress(dateRange?: { startDate: Date; endDate: Date }
  * Hook to get spending suggestions based on 3-month average
  */
 export function useBudgetSuggestions() {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: budgetProgressKeys.suggestions(user?.id ?? ''),
+    queryKey: budgetProgressKeys.suggestions(dataOwnerId ?? ''),
     queryFn: async () => {
-      if (!user?.id) return new Map<string, number>();
+      if (!dataOwnerId) return new Map<string, number>();
 
       const result = await getBudgetProgressFn({ suggestions: true });
       return new Map(Object.entries(result.data.suggestions ?? {}));
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
     staleTime: 1000 * 60 * 30, // 30 minutes
   });
 }

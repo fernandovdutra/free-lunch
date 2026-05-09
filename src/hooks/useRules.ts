@@ -50,18 +50,18 @@ function transformRule(docSnap: QueryDocumentSnapshot): CategorizationRule {
 }
 
 export function useRules() {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: ruleKeys.all(user?.id ?? ''),
+    queryKey: ruleKeys.all(dataOwnerId ?? ''),
     queryFn: async () => {
-      if (!user?.id) return [];
-      const rulesRef = collection(db, 'users', user.id, 'rules');
+      if (!dataOwnerId) return [];
+      const rulesRef = collection(db, 'users', dataOwnerId, 'rules');
       const q = query(rulesRef, orderBy('priority', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(transformRule);
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }
 
@@ -74,13 +74,13 @@ export interface CreateRuleData {
 
 export function useCreateRule() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (data: CreateRuleData) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
       const id = generateId();
-      const ruleRef = doc(db, 'users', user.id, 'rules', id);
+      const ruleRef = doc(db, 'users', dataOwnerId, 'rules', id);
       await setDoc(ruleRef, {
         pattern: data.pattern,
         matchType: data.matchType,
@@ -101,12 +101,12 @@ export function useCreateRule() {
 
 export function useDeleteRule() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const ruleRef = doc(db, 'users', user.id, 'rules', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const ruleRef = doc(db, 'users', dataOwnerId, 'rules', id);
       await deleteDoc(ruleRef);
       return id;
     },

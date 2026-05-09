@@ -12,6 +12,7 @@ import {
   type TimelineDataResult,
   type TransactionResult,
 } from '../shared/aggregations.js';
+import { resolveDataOwner } from '../shared/dataOwner.js';
 
 export interface DashboardDataResponse {
   summary: SpendingSummaryResult;
@@ -30,7 +31,7 @@ export const getDashboardData = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
     const { startDate, endDate } = request.data as {
       startDate?: string;
       endDate?: string;

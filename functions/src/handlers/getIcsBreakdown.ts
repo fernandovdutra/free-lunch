@@ -6,6 +6,7 @@ import {
   type TransactionDoc,
   type CategoryDoc,
 } from '../shared/aggregations.js';
+import { resolveDataOwner } from '../shared/dataOwner.js';
 
 // Reuse response types from spending explorer
 import type {
@@ -43,7 +44,7 @@ export const getIcsBreakdown = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
     const {
       statementId,
       startDate,

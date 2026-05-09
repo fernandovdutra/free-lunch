@@ -5,6 +5,7 @@ import type { EnableBankingTransaction } from '../enableBanking/types.js';
 import { config } from '../config.js';
 import { Categorizer } from '../categorization/index.js';
 import { syncTransactionsSchema } from '../validation/schemas.js';
+import { resolveDataOwner, requireRole } from '../shared/dataOwner.js';
 
 interface SyncResult {
   accountId: string;
@@ -34,7 +35,8 @@ export const syncTransactions = onCall(
     }
     const { connectionId } = parseResult.data;
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
+    await requireRole(request.auth.uid, userId, ['owner']);
     const db = getFirestore();
 
     // Get bank connection

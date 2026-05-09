@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -10,31 +10,55 @@ import {
 import {
   doc,
   getDoc,
+  onSnapshot,
   setDoc,
   serverTimestamp,
   type DocumentData,
   type Timestamp,
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import { createDefaultCategoriesFn } from '@/lib/bankingFunctions';
-import type { User, UserSettings, BankConnection } from '@/types';
+import { acceptInvitationFn, createDefaultCategoriesFn } from '@/lib/bankingFunctions';
+import type { MemberRole, User, UserSettings } from '@/types';
 
 // Firestore document shape
 interface UserDocument extends DocumentData {
   displayName?: string | null;
   createdAt?: Timestamp;
   settings?: UserSettings;
-  bankConnections?: BankConnection[];
+  bankConnections?: User['bankConnections'];
+  members?: Record<string, MemberRole>;
+}
+
+interface MembershipDocument extends DocumentData {
+  ownerIds?: string[];
+  primaryOwnerId?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   firebaseUser: FirebaseUser | null;
+  /**
+   * UID of the account whose data the app is currently displaying. Equal to
+   * `user.id` for the owner; equal to `primaryOwnerId` for a member viewing
+   * someone else's data.
+   */
+  dataOwnerId: string | null;
+  /** Role of the signed-in user on `dataOwnerId`'s account. */
+  currentRole: MemberRole | null;
+  /** True when role is `viewer` — UI mutations should be disabled. */
+  isReadOnly: boolean;
+  /** Email/displayName of the data owner when the signed-in user is not the owner. */
+  ownerProfile: { email: string; displayName: string | null } | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  /**
+   * Manually re-runs the invitation claim. Used as a fallback when an invite
+   * was issued after the member's first sign-in.
+   */
+  checkForInvitations: () => Promise<{ accepted: boolean }>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -62,7 +86,11 @@ const googleProvider = new GoogleAuthProvider();
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [dataOwnerId, setDataOwnerId] = useState<string | null>(null);
+  const [currentRole, setCurrentRole] = useState<MemberRole | null>(null);
+  const [ownerProfile, setOwnerProfile] = useState<{ email: string; displayName: string | null } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const membershipUnsubRef = useRef<(() => void) | null>(null);
 
   // Fetch or create user document in Firestore
   const fetchOrCreateUser = async (fbUser: FirebaseUser): Promise<User> => {
@@ -101,31 +129,130 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return { id: fbUser.uid, ...newUser };
   };
 
+  /**
+   * Resolves which account's data the user is looking at and what role they
+   * have on it. Loads the owner's email/name into `ownerProfile` for the UI
+   * banner. Subscribes to `memberships/{uid}` so role changes (promotion,
+   * removal) propagate without needing a re-login.
+   */
+  const resolveAccess = async (selfUid: string) => {
+    const membershipRef = doc(db, 'memberships', selfUid);
+    const membershipSnap = await getDoc(membershipRef);
+
+    if (!membershipSnap.exists()) {
+      setDataOwnerId(selfUid);
+      setCurrentRole('owner');
+      setOwnerProfile(null);
+      return;
+    }
+
+    const membership = membershipSnap.data() as MembershipDocument;
+    const primaryId = membership.primaryOwnerId;
+
+    if (!primaryId || primaryId === selfUid) {
+      setDataOwnerId(selfUid);
+      setCurrentRole('owner');
+      setOwnerProfile(null);
+      return;
+    }
+
+    const ownerRef = doc(db, 'users', primaryId);
+    const ownerSnap = await getDoc(ownerRef);
+    if (!ownerSnap.exists()) {
+      // Owner doc gone — fall back to standalone view.
+      setDataOwnerId(selfUid);
+      setCurrentRole('owner');
+      setOwnerProfile(null);
+      return;
+    }
+
+    const ownerData = ownerSnap.data() as UserDocument;
+    const role = ownerData.members?.[selfUid] ?? null;
+    if (!role) {
+      setDataOwnerId(selfUid);
+      setCurrentRole('owner');
+      setOwnerProfile(null);
+      return;
+    }
+
+    setDataOwnerId(primaryId);
+    setCurrentRole(role);
+    setOwnerProfile({
+      email: (ownerData as { email?: string }).email ?? '',
+      displayName: ownerData.displayName ?? null,
+    });
+  };
+
+  const subscribeMembership = (selfUid: string) => {
+    membershipUnsubRef.current?.();
+    const membershipRef = doc(db, 'memberships', selfUid);
+    membershipUnsubRef.current = onSnapshot(membershipRef, () => {
+      // Re-resolve from scratch when the membership doc changes (added,
+      // removed, or primaryOwnerId flipped). Errors are swallowed so a
+      // transient permission/network blip doesn't crash the app.
+      resolveAccess(selfUid).catch((err: unknown) => {
+        console.error('Failed to refresh membership:', err);
+      });
+    });
+  };
+
+  const checkForInvitations = async (): Promise<{ accepted: boolean }> => {
+    try {
+      const result = await acceptInvitationFn();
+      const accepted = !!result.data.acceptedFor;
+      if (accepted && firebaseUser) {
+        await resolveAccess(firebaseUser.uid);
+      }
+      return { accepted };
+    } catch (err) {
+      console.error('Failed to check for invitations:', err);
+      return { accepted: false };
+    }
+  };
+
   // Listen for auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       if (fbUser) {
         setFirebaseUser(fbUser);
         fetchOrCreateUser(fbUser)
-          .then((userData) => {
+          .then(async (userData) => {
             setUser(userData);
+            // Idempotent — claim any pending invitation matching this email.
+            try {
+              await acceptInvitationFn();
+            } catch (err) {
+              console.error('acceptInvitation failed:', err);
+            }
+            await resolveAccess(fbUser.uid);
+            subscribeMembership(fbUser.uid);
           })
           .catch((error: unknown) => {
             console.error('Error fetching user data:', error);
             setUser(null);
+            setDataOwnerId(null);
+            setCurrentRole(null);
+            setOwnerProfile(null);
           })
           .finally(() => {
             setIsLoading(false);
           });
       } else {
+        membershipUnsubRef.current?.();
+        membershipUnsubRef.current = null;
         setFirebaseUser(null);
         setUser(null);
+        setDataOwnerId(null);
+        setCurrentRole(null);
+        setOwnerProfile(null);
         setIsLoading(false);
       }
     });
 
     return () => {
       unsubscribe();
+      membershipUnsubRef.current?.();
+      membershipUnsubRef.current = null;
     };
   }, []);
 
@@ -152,6 +279,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await signOut(auth);
     setUser(null);
     setFirebaseUser(null);
+    setDataOwnerId(null);
+    setCurrentRole(null);
+    setOwnerProfile(null);
   };
 
   return (
@@ -159,11 +289,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       value={{
         user,
         firebaseUser,
+        dataOwnerId,
+        currentRole,
+        isReadOnly: currentRole === 'viewer',
+        ownerProfile,
         isLoading,
         isAuthenticated: !!user,
         login,
         loginWithGoogle,
         logout,
+        checkForInvitations,
       }}
     >
       {children}

@@ -7,6 +7,7 @@ import {
   type ReimbursementSummaryResult,
   type TransactionResult,
 } from '../shared/aggregations.js';
+import { resolveDataOwner } from '../shared/dataOwner.js';
 
 export interface ReimbursementSummaryResponse {
   summary: ReimbursementSummaryResult;
@@ -24,7 +25,7 @@ export const getReimbursementSummary = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
     const data = (request.data ?? {}) as { clearedLimit?: number };
     const clearedLimit = data.clearedLimit ?? 10;
 

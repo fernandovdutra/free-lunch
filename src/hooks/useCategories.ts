@@ -98,30 +98,30 @@ export function getFlatCategoriesWithLevel(
 }
 
 export function useCategories() {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: categoryKeys.all(user?.id ?? ''),
+    queryKey: categoryKeys.all(dataOwnerId ?? ''),
     queryFn: async () => {
-      if (!user?.id) return [];
-      const categoriesRef = collection(db, 'users', user.id, 'categories');
+      if (!dataOwnerId) return [];
+      const categoriesRef = collection(db, 'users', dataOwnerId, 'categories');
       const q = query(categoriesRef, orderBy('order'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(transformCategory);
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }
 
 export function useCreateCategory() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (data: CategoryFormData) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
       const id = generateId();
-      const categoryRef = doc(db, 'users', user.id, 'categories', id);
+      const categoryRef = doc(db, 'users', dataOwnerId, 'categories', id);
       await setDoc(categoryRef, {
         ...data,
         order: Date.now(),
@@ -139,12 +139,12 @@ export function useCreateCategory() {
 
 export function useUpdateCategory() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CategoryFormData> }) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const categoryRef = doc(db, 'users', user.id, 'categories', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const categoryRef = doc(db, 'users', dataOwnerId, 'categories', id);
       await updateDoc(categoryRef, {
         ...data,
         updatedAt: serverTimestamp(),
@@ -159,12 +159,12 @@ export function useUpdateCategory() {
 
 export function useDeleteCategory() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
   const { data: categories = [] } = useCategories();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
 
       // Find all children recursively
       const idsToDelete = [id];
@@ -181,7 +181,7 @@ export function useDeleteCategory() {
       // Delete all in batch
       const batch = writeBatch(db);
       idsToDelete.forEach((catId) => {
-        const categoryRef = doc(db, 'users', user.id, 'categories', catId);
+        const categoryRef = doc(db, 'users', dataOwnerId, 'categories', catId);
         batch.delete(categoryRef);
       });
       await batch.commit();

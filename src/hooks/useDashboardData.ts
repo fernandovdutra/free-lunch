@@ -28,16 +28,16 @@ interface DashboardData {
 }
 
 export function useDashboardData(dateRange: DashboardDateRange) {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
     queryKey: dashboardKeys.dateRange(
-      user?.id ?? '',
+      dataOwnerId ?? '',
       dateRange.startDate.toISOString(),
       dateRange.endDate.toISOString()
     ),
     queryFn: async (): Promise<DashboardData> => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
 
       const result = await getDashboardDataFn({
         startDate: dateRange.startDate.toISOString(),
@@ -51,6 +51,6 @@ export function useDashboardData(dateRange: DashboardDateRange) {
         recentTransactions: result.data.recentTransactions.map(deserializeTransaction),
       };
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }

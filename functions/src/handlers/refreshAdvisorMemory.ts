@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import Anthropic from '@anthropic-ai/sdk';
 import { consolidateAdvisorMemory } from '../shared/memoryManager.js';
 import { config } from '../config.js';
+import { resolveDataOwner, requireRole } from '../shared/dataOwner.js';
 
 /**
  * On-demand memory consolidation — callable from the app.
@@ -27,7 +28,8 @@ export const refreshAdvisorMemory = onCall(
       throw new HttpsError('failed-precondition', 'Anthropic API key not configured');
     }
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
+    await requireRole(request.auth.uid, userId, ['owner', 'editor']);
     const client = new Anthropic({ apiKey });
 
     const result = await consolidateAdvisorMemory(userId, client);

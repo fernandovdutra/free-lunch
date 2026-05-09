@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { resolveDataOwner } from '../shared/dataOwner.js';
 
 export const getBankStatus = onCall(
   {
@@ -11,7 +12,7 @@ export const getBankStatus = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const userId = request.auth.uid;
+    const userId = await resolveDataOwner(request.auth.uid);
     const db = getFirestore();
 
     const connectionsRef = db.collection('users').doc(userId).collection('bankConnections');

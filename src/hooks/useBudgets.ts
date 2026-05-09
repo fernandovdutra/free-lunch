@@ -49,30 +49,30 @@ function transformBudget(docSnap: QueryDocumentSnapshot): Budget {
 }
 
 export function useBudgets() {
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: budgetKeys.all(user?.id ?? ''),
+    queryKey: budgetKeys.all(dataOwnerId ?? ''),
     queryFn: async () => {
-      if (!user?.id) return [];
-      const budgetsRef = collection(db, 'users', user.id, 'budgets');
+      if (!dataOwnerId) return [];
+      const budgetsRef = collection(db, 'users', dataOwnerId, 'budgets');
       const q = query(budgetsRef, orderBy('name'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(transformBudget);
     },
-    enabled: !!user?.id,
+    enabled: !!dataOwnerId,
   });
 }
 
 export function useCreateBudget() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (data: BudgetFormData) => {
-      if (!user?.id) throw new Error('Not authenticated');
+      if (!dataOwnerId) throw new Error('Not authenticated');
       const id = generateId();
-      const budgetRef = doc(db, 'users', user.id, 'budgets', id);
+      const budgetRef = doc(db, 'users', dataOwnerId, 'budgets', id);
       await setDoc(budgetRef, {
         ...data,
         isActive: true,
@@ -89,12 +89,12 @@ export function useCreateBudget() {
 
 export function useUpdateBudget() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<BudgetFormData> }) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const budgetRef = doc(db, 'users', user.id, 'budgets', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const budgetRef = doc(db, 'users', dataOwnerId, 'budgets', id);
       await updateDoc(budgetRef, {
         ...data,
         updatedAt: serverTimestamp(),
@@ -109,12 +109,12 @@ export function useUpdateBudget() {
 
 export function useDeleteBudget() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { dataOwnerId } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      const budgetRef = doc(db, 'users', user.id, 'budgets', id);
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const budgetRef = doc(db, 'users', dataOwnerId, 'budgets', id);
       await deleteDoc(budgetRef);
       return id;
     },

@@ -358,3 +358,40 @@ export const importIcsStatementFn = httpsCallable<ImportIcsRequest, ImportIcsRes
   functions,
   'importIcsStatement'
 );
+
+// ============================================================================
+// Sharing / multi-user access
+// ============================================================================
+
+export type SharedMemberRole = 'editor' | 'viewer';
+
+export interface InviteMemberResult {
+  email: string;
+  role: SharedMemberRole;
+  status: 'invited';
+}
+
+export const inviteMemberFn = httpsCallable<
+  { email: string; role: SharedMemberRole },
+  InviteMemberResult
+>(functions, 'inviteMember');
+
+export interface AcceptInvitationResult {
+  acceptedFor: string | null;
+  role: SharedMemberRole | null;
+}
+
+export const acceptInvitationFn = httpsCallable<undefined, AcceptInvitationResult>(
+  functions,
+  'acceptInvitation'
+);
+
+export const removeMemberFn = httpsCallable<{ memberUid: string }, { removed: string }>(
+  functions,
+  'removeMember'
+);
+
+export const cancelInvitationFn = httpsCallable<{ email: string }, { cancelled: string }>(
+  functions,
+  'cancelInvitation'
+);

@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { BankConnectionCard } from '@/components/settings/BankConnectionCard';
 import { IcsImportCard } from '@/components/settings/IcsImportCard';
+import { useAuth } from '@/contexts/AuthContext';
 import { SectionHeader } from '@/components/redesign';
 import { SettingsScreen } from './_shared/SettingsScreen';
 import { ToggleRow } from './_shared/ToggleRow';
@@ -18,6 +20,10 @@ import { ToggleRow } from './_shared/ToggleRow';
  * trigger lands, it can wire these to a hook.
  */
 export function SettingsAccountsSync() {
+  const { currentRole } = useAuth();
+  if (currentRole && currentRole !== 'owner') {
+    return <Navigate to="/settings" replace />;
+  }
   const [autoSyncOnOpen, setAutoSyncOnOpen] = useState(true);
   const [backgroundRefresh, setBackgroundRefresh] = useState(true);
   const [syncNotifications, setSyncNotifications] = useState(false);
