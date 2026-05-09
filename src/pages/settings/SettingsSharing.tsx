@@ -7,10 +7,11 @@ import {
   useInviteMember,
   useRemoveMember,
   useCancelInvitation,
+  useRepairSharing,
   type SharingMemberRow,
   type SharingPendingRow,
 } from '@/hooks/useSharing';
-import type { SharedMemberRole } from '@/lib/bankingFunctions';
+import type { RepairSharingResult, SharedMemberRole } from '@/lib/bankingFunctions';
 import { SectionHeader } from '@/components/redesign';
 import { SettingsScreen } from './_shared/SettingsScreen';
 
@@ -103,9 +104,12 @@ export function SettingsSharing() {
   const invite = useInviteMember();
   const remove = useRemoveMember();
   const cancel = useCancelInvitation();
+  const repair = useRepairSharing();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<SharedMemberRole>('viewer');
   const [error, setError] = useState<string | null>(null);
+  const [repairResult, setRepairResult] = useState<RepairSharingResult | null>(null);
+  const [repairError, setRepairError] = useState<string | null>(null);
 
   useEffect(() => {
     setError(null);
@@ -231,6 +235,53 @@ export function SettingsSharing() {
           ))}
         </>
       )}
+
+      <SectionHeader>TROUBLESHOOTING</SectionHeader>
+      <div className="border-t border-rule px-4 py-4 space-y-3">
+        <p className="text-[13px] leading-snug text-textMid">
+          If a member can sign in but only the Home page loads data, your
+          account may be in an inconsistent state from an older invite-acceptance
+          bug. Run repair to rewrite the sharing fields and backfill any missing
+          membership entries.
+        </p>
+        <button
+          type="button"
+          disabled={repair.isPending}
+          onClick={() => {
+            setRepairError(null);
+            setRepairResult(null);
+            repair.mutate(undefined, {
+              onSuccess: (data) => {
+                setRepairResult(data);
+              },
+              onError: (err: unknown) => {
+                const message = err instanceof Error ? err.message : 'Repair failed';
+                setRepairError(message);
+              },
+            });
+          }}
+          className="w-full border border-rule bg-bg px-3 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-textHi disabled:opacity-50"
+        >
+          {repair.isPending ? 'REPAIRING…' : 'REPAIR SHARING ACCESS'}
+        </button>
+        {repairError ? (
+          <div className="text-[13px] text-warn">{repairError}</div>
+        ) : null}
+        {repairResult ? (
+          <div className="text-[12.5px] leading-snug text-textMid">
+            {repairResult.literalFieldsRemoved === 0 &&
+            repairResult.membersTotal === members.length ? (
+              <>Account looks healthy — nothing to repair.</>
+            ) : (
+              <>
+                Repaired: {repairResult.literalFieldsRemoved} stale field(s)
+                removed, {repairResult.membersTotal} member(s) now in the access
+                list. Members may need to refresh to see shared data.
+              </>
+            )}
+          </div>
+        ) : null}
+      </div>
     </SettingsScreen>
   );
 }

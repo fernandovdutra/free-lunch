@@ -44,11 +44,13 @@ export const removeMember = onCall(
         throw new HttpsError('not-found', 'That user is not a member of your account');
       }
 
+      // Nested-object syntax — see comment in `acceptInvitation.ts`. Admin
+      // SDK `set({merge:true})` does not treat dotted keys as field paths.
       tx.set(
         ownerRef,
         {
-          [`members.${memberUid}`]: FieldValue.delete(),
-          [`memberProfiles.${memberUid}`]: FieldValue.delete(),
+          members: { [memberUid]: FieldValue.delete() },
+          memberProfiles: { [memberUid]: FieldValue.delete() },
         },
         { merge: true }
       );

@@ -57,12 +57,17 @@ export const acceptInvitation = onCall(
 
       const membershipSnap = await tx.get(membershipRef);
 
+      // Use nested-object syntax with merge — admin SDK's `set({merge:true})`
+      // does NOT interpret dotted keys as field paths (only `update()` does),
+      // so `{ 'members.UID': role }` would write a literal top-level field
+      // named `members.UID` and break the security rule check
+      // `users/{owner}.members[uid]`.
       tx.set(
         ownerRef,
         {
-          [`members.${memberUid}`]: role,
-          [`memberProfiles.${memberUid}`]: { email, displayName },
-          [`pendingMembers.${email}`]: FieldValue.delete(),
+          members: { [memberUid]: role },
+          memberProfiles: { [memberUid]: { email, displayName } },
+          pendingMembers: { [email]: FieldValue.delete() },
         },
         { merge: true }
       );
