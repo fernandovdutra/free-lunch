@@ -21,6 +21,7 @@ import {
   recategorizeTransactions,
 } from '@/lib/bankingFunctions';
 import {
+  pickSiblingsByIban,
   routeTxnsForDisconnect,
   type ConnectionLike,
   type TxnLike,
@@ -260,41 +261,40 @@ export function useDisconnectBankConnection() {
         };
       });
 
+      // Bulk-load externalIds for every distinct sibling we'd reassign to
+      // (one query per sibling, in parallel). One sequential dedup query
+      // per target txn caused the disconnect to hang on large duplicate
+      // accounts; this collapses it to ~M reads (M = number of siblings).
+      const siblingIds = Array.from(
+        new Set(
+          Array.from(pickSiblingsByIban(target, allConnections).values()).map((s) => s.id)
+        )
+      );
+      const siblingExternalIds = new Map<string, Set<string>>();
+      await Promise.all(
+        siblingIds.map(async (sid) => {
+          const snap = await getDocs(
+            query(transactionsRef, where('bankConnectionId', '==', sid))
+          );
+          const set = new Set<string>();
+          snap.docs.forEach((d) => {
+            const ext = d.data().externalId as string | null | undefined;
+            if (ext) set.add(ext);
+          });
+          siblingExternalIds.set(sid, set);
+        })
+      );
+
       const decision = routeTxnsForDisconnect({
         target,
         allConnections,
         targetTxns,
-        // Inline sibling-dedup check: txns are scoped per user so we can
-        // safely query the global transactions collection for matches.
-        siblingHasExternalId: () => false, // placeholder; overridden below
+        siblingHasExternalId: (siblingId, externalId) =>
+          siblingExternalIds.get(siblingId)?.has(externalId) ?? false,
       });
 
-      // We need real duplicate detection against the sibling. Build it now,
-      // querying once per (sibling, externalId) we'd otherwise reassign.
-      const reassignWithDedup: { txnId: string; newConnectionId: string }[] = [];
-      const extraDeletes: string[] = [];
-      for (const r of decision.toReassign) {
-        const txn = targetTxns.find((t) => t.id === r.txnId);
-        if (!txn?.externalId) {
-          reassignWithDedup.push(r);
-          continue;
-        }
-        const dupSnap = await getDocs(
-          query(
-            transactionsRef,
-            where('bankConnectionId', '==', r.newConnectionId),
-            where('externalId', '==', txn.externalId)
-          )
-        );
-        if (dupSnap.empty) {
-          reassignWithDedup.push(r);
-        } else {
-          extraDeletes.push(r.txnId);
-        }
-      }
-
-      const toDelete = [...decision.toDelete, ...extraDeletes];
-      const toReassign = reassignWithDedup;
+      const toDelete = decision.toDelete;
+      const toReassign = decision.toReassign;
 
       // Apply writes in batches of 500 (Firestore's batch limit).
       const allOps: { kind: 'delete' | 'reassign'; txnId: string; newConnectionId?: string }[] = [

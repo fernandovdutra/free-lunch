@@ -330,6 +330,7 @@ export function BankConnectionCard() {
         : `Removed ${target.bankName} and ${result.deleted} transaction${result.deleted !== 1 ? 's' : ''}.`;
       toast({ title: 'Disconnected', description: summary });
     } catch (err) {
+      console.error('[disconnect]', err);
       toast({
         title: 'Disconnect failed',
         description: err instanceof Error ? err.message : 'Please try again.',
