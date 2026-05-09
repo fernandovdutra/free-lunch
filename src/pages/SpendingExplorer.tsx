@@ -169,13 +169,17 @@ export function SpendingExplorer() {
           const isOver = limit !== undefined && cat.amount > limit;
           const remaining = limit !== undefined ? limit - cat.amount : null;
           const pctLabel = `${cat.percentage.toFixed(1)}% OF ${breakdownMonthShort}`;
+          const budgetPctLabel =
+            limit !== undefined && limit > 0
+              ? ` · ${Math.round((cat.amount / limit) * 100)}% OF BUDGET`
+              : '';
           const tail =
             remaining === null
               ? ''
               : isOver
                 ? ` · ${formatAmount(Math.abs(remaining), { showSign: false, noCents: true })} OVER`
                 : ` · ${formatAmount(remaining, { showSign: false, noCents: true })} LEFT`;
-          const meta = `${cat.transactionCount} TXN · ${pctLabel}${tail}`;
+          const meta = `${cat.transactionCount} TXN · ${pctLabel}${budgetPctLabel}${tail}`;
           return (
             <DrillRow
               key={cat.categoryId}
