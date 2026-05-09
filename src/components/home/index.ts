@@ -1,5 +1,5 @@
 export { PendingBanner } from './PendingBanner';
 export { BalanceRow } from './BalanceRow';
-export { SpentBlock } from './SpentBlock';
-export { BudgetLine } from './BudgetLine';
+export { SpentCard } from './SpentCard';
+export { BurnUp } from './BurnUp';
 export { HomeCategoryList, type HomeCategoryEntry } from './HomeCategoryList';
