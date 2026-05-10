@@ -29,6 +29,7 @@ import { IcsBreakdown } from '@/pages/IcsBreakdown';
 import { IcsBreakdownCategory } from '@/pages/IcsBreakdownCategory';
 import { IcsBreakdownCounterparty } from '@/pages/IcsBreakdownCounterparty';
 import { Goals } from '@/pages/Goals';
+import { FixedCosts } from '@/pages/FixedCosts';
 import { Investments } from '@/pages/Investments';
 import { Insights } from '@/pages/Insights';
 import { InsightDetail } from '@/pages/InsightDetail';
@@ -96,6 +97,7 @@ export function App() {
                 <Route path="ics/:statementId/:categoryId" element={<IcsBreakdownCategory />} />
                 <Route path="ics/:statementId/:categoryId/counterparty/:counterparty" element={<IcsBreakdownCounterparty />} />
                 <Route path="goals" element={<Goals />} />
+                <Route path="fixed-costs" element={<FixedCosts />} />
                 <Route path="investments" element={<Investments />} />
                 <Route path="insights" element={<Insights />} />
                 <Route path="insights/:insightId" element={<InsightDetail />} />
