@@ -100,6 +100,11 @@ service cloud.firestore {
         allow read: if canRead(userId);
         allow create, update, delete: if false;
       }
+
+      match /settings/{settingId} {
+        allow read: if canRead(userId);
+        allow write: if canWrite(userId);
+      }
     }
 
     // Reverse index of accounts a user has access to. Server-written only.
