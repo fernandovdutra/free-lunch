@@ -288,8 +288,9 @@ export function PrimitivesPlayground() {
         <DrillRow
           index={1}
           name="Groceries"
-          amount="€919"
-          meta="· €31 LEFT"
+          amount="€950"
+          spentLabel="€919"
+          meta="12 TXN · 27.4% OF MAY · €31 LEFT"
           progress={919}
           max={950}
           onClick={() => undefined}
@@ -297,26 +298,39 @@ export function PrimitivesPlayground() {
         <DrillRow
           index={2}
           name="Car"
-          amount="€658"
-          meta="· €42 LEFT"
+          amount="€700"
+          spentLabel="€658"
+          meta="4 TXN · 27.3% OF MAY · €42 LEFT"
           progress={658}
           max={700}
           onClick={() => undefined}
         />
         <DrillRow
           index={3}
+          name="Housing"
+          amount="€1.990"
+          spentLabel="€100"
+          meta="3 TXN · 4.1% OF MAY · €1.890 LEFT"
+          progress={100}
+          max={1990}
+          onClick={() => undefined}
+        />
+        <DrillRow
+          index={4}
           name="Entertainment"
-          amount="€242"
-          meta="· €42 OVER"
+          amount="€200"
+          spentLabel="€242"
+          meta="6 TXN · 9.1% OF MAY · €42 OVER"
           progress={242}
           max={200}
           variant="over"
           onClick={() => undefined}
         />
         <DrillRow
-          index={4}
+          index={5}
           name="Subscriptions (no budget)"
           amount="€87"
+          meta="2 TXN · 3.2% OF MAY · NO BUDGET"
           onClick={() => undefined}
         />
       </Block>
