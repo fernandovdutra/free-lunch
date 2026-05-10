@@ -172,31 +172,32 @@ export function SpendingExplorer() {
 
         {sortedCategories.map((cat, i) => {
           const limit = limitByCategory.get(cat.categoryId);
-          const isOver = limit !== undefined && cat.amount > limit;
-          const remaining = limit !== undefined ? limit - cat.amount : null;
+          const hasBudget = limit !== undefined && limit > 0;
+          const isOver = hasBudget && cat.amount > limit;
+          const remaining = hasBudget ? limit - cat.amount : null;
           const pctLabel = `${cat.percentage.toFixed(1)}% OF ${breakdownMonthShort}`;
-          const budgetPctLabel =
-            limit !== undefined && limit > 0
-              ? ` · ${Math.round((cat.amount / limit) * 100)}% OF BUDGET`
-              : '';
           const tail =
             remaining === null
-              ? ''
+              ? ' · NO BUDGET'
               : isOver
                 ? ` · ${formatAmount(Math.abs(remaining), { showSign: false, noCents: true })} OVER`
                 : ` · ${formatAmount(remaining, { showSign: false, noCents: true })} LEFT`;
-          const meta = `${cat.transactionCount} TXN · ${pctLabel}${budgetPctLabel}${tail}`;
+          const meta = `${cat.transactionCount} TXN · ${pctLabel}${tail}`;
+          const spentFormatted = formatAmount(cat.amount, { showSign: false, noCents: true });
           return (
             <DrillRow
               key={cat.categoryId}
               index={i + 1}
               categoryId={cat.categoryId}
               name={cat.categoryName}
-              amount={formatAmount(cat.amount, { showSign: false, noCents: true })}
+              amount={
+                hasBudget
+                  ? formatAmount(limit, { showSign: false, noCents: true })
+                  : spentFormatted
+              }
+              {...(hasBudget ? { spentLabel: spentFormatted } : {})}
               meta={meta}
-              {...(limit !== undefined
-                ? { progress: cat.amount, max: limit }
-                : {})}
+              {...(hasBudget ? { progress: cat.amount, max: limit } : {})}
               variant={isOver ? 'over' : 'ok'}
               onClick={() => {
                 void navigate(`${basePath}/${cat.categoryId}`);

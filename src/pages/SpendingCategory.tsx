@@ -191,22 +191,30 @@ export function SpendingCategory() {
 
           {sortedSubcategories.map((sub, i) => {
             const subLimit = limitBySubcategory.get(sub.categoryId);
-            const isOver = subLimit !== undefined && sub.amount > subLimit;
-            const budgetPctLabel =
-              subLimit !== undefined && subLimit > 0
-                ? ` · ${Math.round((sub.amount / subLimit) * 100)}% OF BUDGET`
-                : '';
-            const meta = `${sub.transactionCount} TXN · ${sub.percentage.toFixed(1)}% OF ${breakdownMonthShort}${budgetPctLabel}`;
+            const hasBudget = subLimit !== undefined && subLimit > 0;
+            const isOver = hasBudget && sub.amount > subLimit;
+            const remaining = hasBudget ? subLimit - sub.amount : null;
+            const tail =
+              remaining === null
+                ? ' · NO BUDGET'
+                : isOver
+                  ? ` · ${formatAmount(Math.abs(remaining), { showSign: false, noCents: true })} OVER`
+                  : ` · ${formatAmount(remaining, { showSign: false, noCents: true })} LEFT`;
+            const meta = `${sub.transactionCount} TXN · ${sub.percentage.toFixed(1)}% OF ${breakdownMonthShort}${tail}`;
+            const spentFormatted = formatAmount(sub.amount, { showSign: false, noCents: true });
             return (
               <DrillRow
                 key={sub.categoryId}
                 index={i + 1}
                 name={sub.categoryName}
-                amount={formatAmount(sub.amount, { showSign: false, noCents: true })}
+                amount={
+                  hasBudget
+                    ? formatAmount(subLimit, { showSign: false, noCents: true })
+                    : spentFormatted
+                }
+                {...(hasBudget ? { spentLabel: spentFormatted } : {})}
                 meta={meta}
-                {...(subLimit !== undefined
-                  ? { progress: sub.amount, max: subLimit }
-                  : {})}
+                {...(hasBudget ? { progress: sub.amount, max: subLimit } : {})}
                 variant={isOver ? 'over' : 'ok'}
                 onClick={() => {
                   void navigate(`${basePath}/${categoryId}/${sub.categoryId}`);
