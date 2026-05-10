@@ -74,7 +74,18 @@ export function BurnUp({
     : '';
 
   const todayY = yOf(daily[today] ?? 0);
-  const projEndY = yOf(projection.projectedEnd);
+
+  // Per-day projection path so upcoming fixed-cost steps are visible
+  // instead of being smoothed into a straight diagonal.
+  const projectionPath = (() => {
+    if (today <= 0 || today >= daysInMonth) return '';
+    const segs: string[] = [];
+    for (let d = today; d <= daysInMonth; d++) {
+      const v = projection.perDay(d);
+      segs.push(`${d === today ? 'M' : 'L'}${xOf(d).toFixed(2)},${yOf(v).toFixed(2)}`);
+    }
+    return segs.join(' ');
+  })();
 
   // Future fixed-cost markers — only items strictly after today.
   const futureMarkers = fixed.filter((f) => f.d > today && f.d <= daysInMonth);
@@ -175,13 +186,12 @@ export function BurnUp({
         />
       )}
 
-      {/* Projection line */}
-      {today > 0 && today < daysInMonth && (
-        <line
-          x1={xOf(today)}
-          x2={xOf(daysInMonth)}
-          y1={todayY}
-          y2={projEndY}
+      {/* Projection path — steps up at each upcoming fixed-cost date,
+          slopes by observed variable burn rate in between. */}
+      {projectionPath && (
+        <path
+          d={projectionPath}
+          fill="none"
           stroke={projColor}
           strokeWidth="1"
           strokeDasharray="3 3"
