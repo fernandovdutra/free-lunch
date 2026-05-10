@@ -11,5 +11,5 @@ export { Breadcrumb, type BreadcrumbSegment } from './Breadcrumb';
 export { buildDrillBreadcrumb } from './buildDrillBreadcrumb';
 export { DrillRow } from './DrillRow';
 export { DrillHeadline } from './DrillHeadline';
-export { AllocationStrip, type AllocationSlice } from './AllocationStrip';
+export { BudgetWaterfall, type AllocationSlice } from './BudgetWaterfall';
 export { CategoryIconPicker } from './CategoryIconPicker';

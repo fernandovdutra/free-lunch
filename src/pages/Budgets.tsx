@@ -9,7 +9,7 @@ import {
 import { useCategories } from '@/hooks/useCategories';
 import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount } from '@/lib/utils';
-import { AllocationStrip, PhosphorButton, type AllocationSlice } from '@/components/redesign';
+import { BudgetWaterfall, PhosphorButton, type AllocationSlice } from '@/components/redesign';
 import { CategoryIcon } from '@/lib/categoryIcons';
 import { CategoryCreateSheet } from '@/components/budgets/CategoryCreateSheet';
 import type { Budget, Category } from '@/types';
@@ -350,7 +350,7 @@ export function Budgets() {
             {formatAmount(free, { showSign: false, noCents: true })} FREE
           </span>
         </div>
-        <AllocationStrip slices={slices} total={totalCap} />
+        <BudgetWaterfall slices={slices} total={totalCap} />
         <div
           className="mt-2 flex justify-between font-mono text-textLo"
           style={{ fontSize: 9.5, letterSpacing: '0.04em' }}
