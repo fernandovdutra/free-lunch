@@ -137,11 +137,16 @@ export function Budgets() {
   const totalCap = Math.max(allocated, CAP_FALLBACK);
   const categoryCount = entries.length;
 
-  const slices: AllocationSlice[] = entries.map((e) => ({
-    id: e.id,
-    label: e.name,
-    value: entrySum(e),
-  }));
+  const iconByCatId = new Map(categories.map((c) => [c.id, c.icon]));
+  const slices: AllocationSlice[] = entries.map((e) => {
+    const icon = iconByCatId.get(e.id);
+    return {
+      id: e.id,
+      label: e.name,
+      value: entrySum(e),
+      ...(icon ? { icon } : {}),
+    };
+  });
 
   const isDirty =
     isEditing &&
@@ -286,8 +291,8 @@ export function Budgets() {
       className="-mx-4 pb-8"
       style={isEditing ? { paddingBottom: 'calc(env(safe-area-inset-bottom) + 68px + 76px)' } : undefined}
     >
-      {/* Section 1: MONTHLY BUDGET + EDIT + hero */}
-      <section className="border-b border-rule px-5 py-[18px]">
+      {/* Section 1: MONTHLY BUDGET + EDIT + waterfall */}
+      <section className="border-b border-rule px-5" style={{ paddingTop: 16, paddingBottom: 16 }}>
         <div className="mb-3 flex items-center justify-between">
           <span
             className="font-mono text-[10px] text-textLo"
@@ -312,29 +317,6 @@ export function Budgets() {
             {isEditing ? '● EDITING' : '○ EDIT'}
           </button>
         </div>
-        <div
-          className="flex items-baseline justify-between nums font-mono"
-          style={{
-            fontWeight: 400,
-            letterSpacing: '-0.04em',
-            lineHeight: 1,
-            fontFeatureSettings: '"tnum"',
-          }}
-        >
-          <span className="text-textHi" style={{ fontSize: 38 }}>
-            {formatAmount(totalCap, { showSign: false, noCents: true })}
-          </span>
-          <span
-            className="text-textLo"
-            style={{ fontSize: 10, letterSpacing: '0.06em', alignSelf: 'flex-end', paddingBottom: 4 }}
-          >
-            /MONTH
-          </span>
-        </div>
-      </section>
-
-      {/* Section 2: Waterfall */}
-      <section className="border-b border-rule px-5" style={{ paddingTop: 16, paddingBottom: 16 }}>
         <BudgetWaterfall slices={slices} total={totalCap} />
       </section>
 
