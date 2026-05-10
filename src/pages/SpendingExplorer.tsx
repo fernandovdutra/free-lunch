@@ -178,24 +178,21 @@ export function SpendingExplorer() {
           const pctLabel = `${cat.percentage.toFixed(1)}% OF ${breakdownMonthShort}`;
           const tail =
             remaining === null
-              ? ' · NO BUDGET'
+              ? ''
               : isOver
                 ? ` · ${formatAmount(Math.abs(remaining), { showSign: false, noCents: true })} OVER`
                 : ` · ${formatAmount(remaining, { showSign: false, noCents: true })} LEFT`;
           const meta = `${cat.transactionCount} TXN · ${pctLabel}${tail}`;
-          const spentFormatted = formatAmount(cat.amount, { showSign: false, noCents: true });
           return (
             <DrillRow
               key={cat.categoryId}
               index={i + 1}
               categoryId={cat.categoryId}
               name={cat.categoryName}
-              amount={
-                hasBudget
-                  ? formatAmount(limit, { showSign: false, noCents: true })
-                  : spentFormatted
-              }
-              {...(hasBudget ? { spentLabel: spentFormatted } : {})}
+              amount={formatAmount(cat.amount, { showSign: false, noCents: true })}
+              {...(hasBudget
+                ? { budgetLabel: formatAmount(limit, { showSign: false, noCents: true }) }
+                : {})}
               meta={meta}
               {...(hasBudget ? { progress: cat.amount, max: limit } : {})}
               variant={isOver ? 'over' : 'ok'}

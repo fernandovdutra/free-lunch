@@ -196,23 +196,20 @@ export function SpendingCategory() {
             const remaining = hasBudget ? subLimit - sub.amount : null;
             const tail =
               remaining === null
-                ? ' · NO BUDGET'
+                ? ''
                 : isOver
                   ? ` · ${formatAmount(Math.abs(remaining), { showSign: false, noCents: true })} OVER`
                   : ` · ${formatAmount(remaining, { showSign: false, noCents: true })} LEFT`;
             const meta = `${sub.transactionCount} TXN · ${sub.percentage.toFixed(1)}% OF ${breakdownMonthShort}${tail}`;
-            const spentFormatted = formatAmount(sub.amount, { showSign: false, noCents: true });
             return (
               <DrillRow
                 key={sub.categoryId}
                 index={i + 1}
                 name={sub.categoryName}
-                amount={
-                  hasBudget
-                    ? formatAmount(subLimit, { showSign: false, noCents: true })
-                    : spentFormatted
-                }
-                {...(hasBudget ? { spentLabel: spentFormatted } : {})}
+                amount={formatAmount(sub.amount, { showSign: false, noCents: true })}
+                {...(hasBudget
+                  ? { budgetLabel: formatAmount(subLimit, { showSign: false, noCents: true }) }
+                  : {})}
                 meta={meta}
                 {...(hasBudget ? { progress: sub.amount, max: subLimit } : {})}
                 variant={isOver ? 'over' : 'ok'}
