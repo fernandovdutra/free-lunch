@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, getDate, getDaysInMonth, isAfter } from 'date-fns';
 import { useBankConnections } from '@/hooks/useBankConnection';
@@ -7,12 +8,14 @@ import { useBudgets } from '@/hooks/useBudgets';
 import { useBudgetProgress } from '@/hooks/useBudgetProgress';
 import { useFixedSchedule } from '@/hooks/useFixedSchedule';
 import { usePendingReimbursements } from '@/hooks/useReimbursements';
+import { useTransactions } from '@/hooks/useTransactions';
 import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount } from '@/lib/utils';
 import {
   buildDailyActual,
   computeProjection,
   fixedRemaining as fixedRemainingSum,
+  matchFixedToActuals,
 } from '@/lib/burnUp';
 import { TransactionRow } from '@/components/redesign';
 import {
@@ -34,6 +37,24 @@ export function Home() {
   const { data: pendingReimbursements = [] } = usePendingReimbursements();
   const { data: connections = [] } = useBankConnections();
   const { data: fixedSchedule = [] } = useFixedSchedule();
+  // Month transactions, used to match scheduled fixed costs against
+  // what's actually posted so the projection doesn't double-count.
+  const { data: monthTxns = [] } = useTransactions({
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+  });
+
+  // Match scheduled fixed costs against actual transactions so already-
+  // paid items aren't double-counted in the projection and overdue ones
+  // (scheduled day passed without a matching posted txn) keep showing
+  // up as still-expected. Memoized before any early return so hook order
+  // stays stable.
+  const matched = useMemo(() => {
+    const eligible = monthTxns.filter(
+      (t) => !t.excludeFromTotals && t.reimbursement?.status !== 'pending'
+    );
+    return matchFixedToActuals(fixedSchedule, eligible);
+  }, [fixedSchedule, monthTxns]);
 
   if (error) {
     return (
@@ -72,7 +93,7 @@ export function Home() {
   // bottom-summary "AT THIS PACE €X" use this number, so the line and
   // the readout always agree.
   const burnProjection = !isFutureMonth && dayOfMonth > 0
-    ? computeProjection(dailyActual, fixedSchedule, dayOfMonth, daysInMonth)
+    ? computeProjection(dailyActual, matched.posted, matched.unposted, dayOfMonth, daysInMonth)
     : null;
 
   const projection: { amount: number; delta: number; isOver: boolean } | null =
@@ -93,9 +114,7 @@ export function Home() {
     'MMM d'
   ).toUpperCase();
 
-  const fixedRemainingAmount = isCurrentMonth
-    ? fixedRemainingSum(fixedSchedule, dayOfMonth)
-    : 0;
+  const fixedRemainingAmount = isCurrentMonth ? fixedRemainingSum(matched.unposted) : 0;
 
   // Pending reimbursements: derive from the dedicated hook so the banner
   // shows even when the dashboard summary aggregator is stale (e.g., right
@@ -164,6 +183,8 @@ export function Home() {
           isOver={isOver}
           daily={dailyActual}
           fixed={fixedSchedule}
+          posted={matched.posted}
+          unposted={matched.unposted}
           daysInMonth={daysInMonth}
           projection={projection}
           fixedRemainingAmount={fixedRemainingAmount}
