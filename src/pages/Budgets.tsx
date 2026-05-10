@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getDaysInMonth } from 'date-fns';
 import {
   useBudgets,
   useCreateBudget,
@@ -7,7 +6,6 @@ import {
   useUpdateBudget,
 } from '@/hooks/useBudgets';
 import { useCategories } from '@/hooks/useCategories';
-import { useMonth } from '@/contexts/MonthContext';
 import { formatAmount } from '@/lib/utils';
 import { BudgetWaterfall, PhosphorButton, type AllocationSlice } from '@/components/redesign';
 import { CategoryIcon } from '@/lib/categoryIcons';
@@ -97,7 +95,6 @@ function composeCategories(
 }
 
 export function Budgets() {
-  const { selectedMonth } = useMonth();
   const { data: budgets = [], isLoading: budgetsLoading, error } = useBudgets();
   const { data: categories = [] } = useCategories();
   const createMut = useCreateBudget();
@@ -138,9 +135,6 @@ export function Budgets() {
 
   const allocated = entries.reduce((sum, e) => sum + entrySum(e), 0);
   const totalCap = Math.max(allocated, CAP_FALLBACK);
-  const free = Math.max(0, totalCap - allocated);
-  const daysInMonth = getDaysInMonth(selectedMonth);
-  const perDay = totalCap > 0 ? totalCap / daysInMonth : 0;
   const categoryCount = entries.length;
 
   const slices: AllocationSlice[] = entries.map((e) => ({
@@ -292,14 +286,14 @@ export function Budgets() {
       className="-mx-4 pb-8"
       style={isEditing ? { paddingBottom: 'calc(env(safe-area-inset-bottom) + 68px + 76px)' } : undefined}
     >
-      {/* Section 1: MONTHLY PLAN + EDIT + hero */}
+      {/* Section 1: MONTHLY BUDGET + EDIT + hero */}
       <section className="border-b border-rule px-5 py-[18px]">
         <div className="mb-3 flex items-center justify-between">
           <span
             className="font-mono text-[10px] text-textLo"
             style={{ letterSpacing: '0.06em' }}
           >
-            MONTHLY PLAN
+            MONTHLY BUDGET
           </span>
           <button
             type="button"
@@ -339,25 +333,9 @@ export function Budgets() {
         </div>
       </section>
 
-      {/* Section 2: ALLOCATION */}
+      {/* Section 2: Waterfall */}
       <section className="border-b border-rule px-5" style={{ paddingTop: 16, paddingBottom: 16 }}>
-        <div
-          className="mb-[10px] flex items-baseline justify-between font-mono text-[10px] text-textLo"
-          style={{ letterSpacing: '0.06em' }}
-        >
-          <span>ALLOCATION</span>
-          <span className="text-accent">
-            {formatAmount(free, { showSign: false, noCents: true })} FREE
-          </span>
-        </div>
         <BudgetWaterfall slices={slices} total={totalCap} />
-        <div
-          className="mt-2 flex justify-between font-mono text-textLo"
-          style={{ fontSize: 9.5, letterSpacing: '0.04em' }}
-        >
-          <span>{categoryCount} CATEGORIES</span>
-          <span>{formatAmount(perDay, { showSign: false, noCents: true })}/DAY</span>
-        </div>
       </section>
 
       {/* Section 3: BY CATEGORY header */}
