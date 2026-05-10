@@ -91,16 +91,22 @@ export function SpendingExplorer() {
   }, [data]);
   const breakdownMonthShort = breakdownLabel.split(' ')[0] ?? '';
 
-  // Per-category budget lookup → drives DrillRow's progress + over variant.
+  // Per-top-level-category budget lookup → drives DrillRow's progress + over
+  // variant. Budgets are stored per leaf (subcategory) in this app, but L1
+  // rows are top-level categories with rolled-up spend, so we roll the
+  // matching leaf budgets up into their parent for the comparison.
   const limitByCategory = useMemo(() => {
     const m = new Map<string, number>();
+    const catById = new Map((categories ?? []).map((c) => [c.id, c] as const));
     for (const bp of budgetProgress) {
-      if (bp.budget.categoryId) {
-        m.set(bp.budget.categoryId, bp.budget.monthlyLimit);
-      }
+      const budgetCatId = bp.budget.categoryId;
+      if (!budgetCatId) continue;
+      const cat = catById.get(budgetCatId);
+      const topLevelId = cat?.parentId ?? budgetCatId;
+      m.set(topLevelId, (m.get(topLevelId) ?? 0) + bp.budget.monthlyLimit);
     }
     return m;
-  }, [budgetProgress]);
+  }, [budgetProgress, categories]);
 
   const sortedCategories = useMemo(() => {
     return [...(data?.categories ?? [])].sort((a, b) => b.amount - a.amount);

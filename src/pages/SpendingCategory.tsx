@@ -25,10 +25,11 @@ import type { Category, Transaction } from '@/types';
  * Same shape as L1 (SpendingExplorer): in-page Breadcrumb, DrillHeadline,
  * Scrubber, indexed DrillRow list. Differences:
  *   - Breadcrumb: `← EXPENSES › <CATEGORY>` (resolved via buildDrillBreadcrumb).
- *   - Scrubber budget = parent category's monthlyLimit (when one exists).
- *   - Subcategory rows scale vs PARENT category budget. Subcats have no own
- *     budget, so meta drops the `· LEFT`/`· OVER` tail and rows never use the
- *     `over` variant.
+ *   - Scrubber budget = parent category's rolled-up budget total (sum of any
+ *     `(general)` parent line + every leaf budget under it).
+ *   - Subcategory rows scale vs THEIR OWN budget (rows without a budget skip
+ *     the fill and the `· OVER`/`· LEFT` tail). A sub goes warn/`over` when
+ *     its spend exceeds its own cap.
  *   - Leaf-category special case: when `data.categories` is empty but
  *     `data.transactions` is present (a category with no subcategories — the
  *     backend collapses txns under the parent), render the L3 layout
@@ -56,11 +57,35 @@ export function SpendingCategory() {
   const { data: budgetProgress } = useBudgetProgress();
   const { data: categories } = useCategories();
 
-  const parentCategoryBudget = useMemo(() => {
+  // Per-subcategory limit lookup → drives each sub row's progress + over.
+  const limitBySubcategory = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const bp of budgetProgress) {
+      const id = bp.budget.categoryId;
+      if (id) m.set(id, (m.get(id) ?? 0) + bp.budget.monthlyLimit);
+    }
+    return m;
+  }, [budgetProgress]);
+
+  // Headline + Scrubber cap = rolled-up budget for this parent: any
+  // parent-level `(general)` line PLUS every leaf budget underneath it.
+  const parentBudgetTotal = useMemo(() => {
     if (!categoryId) return undefined;
-    const bp = budgetProgress.find((b) => b.budget.categoryId === categoryId);
-    return bp?.budget.monthlyLimit;
-  }, [budgetProgress, categoryId]);
+    const catById = new Map((categories ?? []).map((c) => [c.id, c] as const));
+    let total = 0;
+    for (const bp of budgetProgress) {
+      const id = bp.budget.categoryId;
+      if (!id) continue;
+      if (id === categoryId) {
+        total += bp.budget.monthlyLimit;
+        continue;
+      }
+      if (catById.get(id)?.parentId === categoryId) {
+        total += bp.budget.monthlyLimit;
+      }
+    }
+    return total > 0 ? total : undefined;
+  }, [budgetProgress, categories, categoryId]);
 
   const scrubberBars: ScrubberBar[] = useMemo(() => {
     const totals = data?.monthlyTotals ?? [];
@@ -126,8 +151,8 @@ export function SpendingCategory() {
       <DrillHeadline
         amountFormatted={formatAmount(total, { noCents: true })}
         monthLabel={breakdownLabel}
-        {...(direction === 'expenses' && parentCategoryBudget !== undefined
-          ? { budgetCaption: `BUDGET ${formatAmount(parentCategoryBudget, { showSign: false, noCents: true })}` }
+        {...(direction === 'expenses' && parentBudgetTotal !== undefined
+          ? { budgetCaption: `BUDGET ${formatAmount(parentBudgetTotal, { showSign: false, noCents: true })}` }
           : {})}
       />
 
@@ -135,8 +160,8 @@ export function SpendingCategory() {
         <Scrubber
           bars={scrubberBars}
           selectedMonthKey={selectedMonthKey}
-          {...(direction === 'expenses' && parentCategoryBudget !== undefined
-            ? { budget: parentCategoryBudget }
+          {...(direction === 'expenses' && parentBudgetTotal !== undefined
+            ? { budget: parentBudgetTotal }
             : {})}
           onSelectMonth={handleSelectMonth}
         />
@@ -165,9 +190,11 @@ export function SpendingCategory() {
           )}
 
           {sortedSubcategories.map((sub, i) => {
+            const subLimit = limitBySubcategory.get(sub.categoryId);
+            const isOver = subLimit !== undefined && sub.amount > subLimit;
             const budgetPctLabel =
-              parentCategoryBudget !== undefined && parentCategoryBudget > 0
-                ? ` · ${Math.round((sub.amount / parentCategoryBudget) * 100)}% OF BUDGET`
+              subLimit !== undefined && subLimit > 0
+                ? ` · ${Math.round((sub.amount / subLimit) * 100)}% OF BUDGET`
                 : '';
             const meta = `${sub.transactionCount} TXN · ${sub.percentage.toFixed(1)}% OF ${breakdownMonthShort}${budgetPctLabel}`;
             return (
@@ -177,10 +204,10 @@ export function SpendingCategory() {
                 name={sub.categoryName}
                 amount={formatAmount(sub.amount, { showSign: false, noCents: true })}
                 meta={meta}
-                {...(parentCategoryBudget !== undefined
-                  ? { progress: sub.amount, max: parentCategoryBudget }
+                {...(subLimit !== undefined
+                  ? { progress: sub.amount, max: subLimit }
                   : {})}
-                variant="ok"
+                variant={isOver ? 'over' : 'ok'}
                 onClick={() => {
                   void navigate(`${basePath}/${categoryId}/${sub.categoryId}`);
                 }}
