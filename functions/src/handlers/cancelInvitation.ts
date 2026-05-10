@@ -36,9 +36,11 @@ export const cancelInvitation = onCall(
 
       const lookupSnap = await tx.get(lookupRef);
 
+      // Nested-object syntax — see comment in `acceptInvitation.ts`. Admin
+      // SDK `set({merge:true})` does not treat dotted keys as field paths.
       tx.set(
         ownerRef,
-        { [`pendingMembers.${email}`]: FieldValue.delete() },
+        { pendingMembers: { [email]: FieldValue.delete() } },
         { merge: true }
       );
 

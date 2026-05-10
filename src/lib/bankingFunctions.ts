@@ -399,3 +399,20 @@ export const cancelInvitationFn = httpsCallable<{ email: string }, { cancelled: 
   functions,
   'cancelInvitation'
 );
+
+export interface RepairSharingResult {
+  ownerId: string;
+  membersTotal: number;
+  literalFieldsRemoved: number;
+  details: Array<{
+    memberUid: string;
+    email: string | null;
+    role: SharedMemberRole;
+    action: 'kept' | 'migrated-literal' | 'inserted-from-membership';
+  }>;
+}
+
+export const repairSharingFn = httpsCallable<undefined, RepairSharingResult>(
+  functions,
+  'repairSharing'
+);
