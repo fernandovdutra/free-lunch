@@ -9,8 +9,12 @@ import { formatAmount } from '@/lib/utils';
 interface BurnUpProps {
   /** Cumulative € spent at end of each day. Index 0 = €0. */
   daily: number[];
-  /** Scheduled fixed costs in this month. */
+  /** Full scheduled fixed costs in this month — drives the expected line. */
   fixed: FixedCost[];
+  /** Schedule items whose matching transaction has already posted. */
+  posted: FixedCost[];
+  /** Schedule items still expected (upcoming or overdue). */
+  unposted: FixedCost[];
   /** Monthly budget cap. */
   budget: number;
   /** Days in the visible month. */
@@ -31,6 +35,8 @@ const innerH = VB.h - PAD.t - PAD.b;
 export function BurnUp({
   daily,
   fixed,
+  posted,
+  unposted,
   budget,
   daysInMonth,
   today,
@@ -46,8 +52,8 @@ export function BurnUp({
   );
 
   const projection = useMemo(
-    () => computeProjection(daily, fixed, today, daysInMonth),
-    [daily, fixed, today, daysInMonth]
+    () => computeProjection(daily, posted, unposted, today, daysInMonth),
+    [daily, posted, unposted, today, daysInMonth]
   );
 
   const yMax = Math.max(budget, projection.projectedEnd, 1) * 1.06;
@@ -87,8 +93,11 @@ export function BurnUp({
     return segs.join(' ');
   })();
 
-  // Future fixed-cost markers — only items strictly after today.
-  const futureMarkers = fixed.filter((f) => f.d > today && f.d <= daysInMonth);
+  // Markers on the expected line for fixed costs still expected to post.
+  // Already-posted items disappear because the actual line has stepped
+  // up at their position. Items past month-end are capped to the last day.
+  const markerDay = (f: FixedCost) => Math.min(daysInMonth, f.d);
+  const futureMarkers = unposted.map((f) => ({ ...f, dx: markerDay(f) }));
 
   // ---- Labels -------------------------------------------------------------
 
@@ -160,9 +169,9 @@ export function BurnUp({
       {/* Future fixed-cost markers on the expected line */}
       {futureMarkers.map((f) => (
         <circle
-          key={`fm-${f.d}-${f.l}`}
-          cx={xOf(f.d)}
-          cy={yOf(expected[f.d] ?? 0)}
+          key={`fm-${f.d}-${f.l}-${f.a}`}
+          cx={xOf(f.dx)}
+          cy={yOf(expected[f.dx] ?? 0)}
           r="2.5"
           fill="var(--bg)"
           stroke="var(--text-lo)"

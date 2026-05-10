@@ -17,11 +17,15 @@ interface SpentCardProps {
   daily: number[];
   /** Confirmed fixed-cost schedule for the month. */
   fixed: FixedCost[];
+  /** Schedule items whose matching transaction has already posted. */
+  posted: FixedCost[];
+  /** Schedule items still expected (upcoming or overdue). */
+  unposted: FixedCost[];
   /** Days in the visible month. */
   daysInMonth: number;
   /** End-of-month projection. `null` for past months and day-zero. */
   projection: { amount: number; delta: number; isOver: boolean } | null;
-  /** Sum of fixed costs scheduled strictly after today. */
+  /** Sum of unposted fixed costs (upcoming + overdue). */
   fixedRemainingAmount: number;
 }
 
@@ -41,6 +45,8 @@ export function SpentCard({
   isOver,
   daily,
   fixed,
+  posted,
+  unposted,
   daysInMonth,
   projection,
   fixedRemainingAmount,
@@ -104,6 +110,8 @@ export function SpentCard({
           <BurnUp
             daily={daily}
             fixed={fixed}
+            posted={posted}
+            unposted={unposted}
             budget={budget}
             daysInMonth={daysInMonth}
             today={today}
