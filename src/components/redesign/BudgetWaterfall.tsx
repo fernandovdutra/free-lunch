@@ -1,10 +1,11 @@
-import { useId } from 'react';
 import { cn, formatAmount } from '@/lib/utils';
 
 export interface AllocationSlice {
   id: string;
   label: string;
   value: number;
+  /** Optional category emoji icon to render under the bar. */
+  icon?: string;
 }
 
 interface BudgetWaterfallProps {
@@ -13,25 +14,28 @@ interface BudgetWaterfallProps {
   className?: string;
 }
 
-const CHART_COLORS = [
+/**
+ * Sea-green family, ordered darkest → lightest. Bars are sorted descending
+ * by value upstream, so the heaviest bar gets the deepest tone and shades
+ * fade as the staircase climbs.
+ */
+const GREEN_SHADES = [
+  '#1F4A3A',
   '#2D5A4A',
-  '#5B6E8A',
-  '#4A6FA5',
-  '#C9A227',
-  '#A67B8A',
-  '#7B6B8A',
-  '#4A9A8A',
-  '#B87D4B',
-  '#6B7C72',
-  '#C45C4A',
+  '#3A6F5C',
+  '#4A8474',
+  '#5E9888',
+  '#7AAE9E',
+  '#96C2B4',
+  '#B3D5C9',
 ];
 
-const VB = { w: 320, h: 138 };
-const PAD = { l: 6, r: 6, t: 22, b: 36 };
+const VB = { w: 320, h: 122 };
+const PAD = { l: 6, r: 6, t: 22, b: 20 };
 const innerW = VB.w - PAD.l - PAD.r;
 const innerH = VB.h - PAD.t - PAD.b;
 const GAP = 3;
-const MAX_LABEL_CHARS = 6;
+const ICON_SIZE = 13;
 
 interface Step {
   id: string;
@@ -40,27 +44,11 @@ interface Step {
   cumBefore: number;
   cumAfter: number;
   color: string;
+  icon?: string;
   isFree?: boolean;
 }
 
-function lighten(hex: string, amount: number): string {
-  const c = hex.replace('#', '');
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
-  const lr = Math.round(r + (255 - r) * amount);
-  const lg = Math.round(g + (255 - g) * amount);
-  const lb = Math.round(b + (255 - b) * amount);
-  return `#${lr.toString(16).padStart(2, '0')}${lg.toString(16).padStart(2, '0')}${lb.toString(16).padStart(2, '0')}`;
-}
-
-function shortLabel(name: string): string {
-  const upper = name.toUpperCase();
-  return upper.length <= MAX_LABEL_CHARS ? upper : upper.slice(0, MAX_LABEL_CHARS);
-}
-
 export function BudgetWaterfall({ slices, total, className }: BudgetWaterfallProps) {
-  const idBase = useId().replace(/:/g, '');
   const positive = slices.filter((s) => s.value > 0);
   const allocated = positive.reduce((sum, s) => sum + s.value, 0);
   const free = Math.max(0, total - allocated);
@@ -68,7 +56,7 @@ export function BudgetWaterfall({ slices, total, className }: BudgetWaterfallPro
   const steps: Step[] = [];
   let running = 0;
   positive.forEach((s, i) => {
-    const color = CHART_COLORS[i % CHART_COLORS.length] ?? '#2D5A4A';
+    const color = GREEN_SHADES[i % GREEN_SHADES.length] ?? '#2D5A4A';
     steps.push({
       id: s.id,
       label: s.label,
@@ -76,6 +64,7 @@ export function BudgetWaterfall({ slices, total, className }: BudgetWaterfallPro
       cumBefore: running,
       cumAfter: running + s.value,
       color,
+      ...(s.icon ? { icon: s.icon } : {}),
     });
     running += s.value;
   });
@@ -116,25 +105,6 @@ export function BudgetWaterfall({ slices, total, className }: BudgetWaterfallPro
       role="img"
       aria-label={ariaLabel}
     >
-      <defs>
-        {steps.map((s, i) => {
-          if (s.isFree) return null;
-          return (
-            <linearGradient
-              key={`grad-${s.id}`}
-              id={`bw-${idBase}-${i}`}
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="1"
-            >
-              <stop offset="0%" stopColor={lighten(s.color, 0.45)} />
-              <stop offset="100%" stopColor={s.color} />
-            </linearGradient>
-          );
-        })}
-      </defs>
-
       {/* Cap dashed line */}
       <line
         x1={PAD.l}
@@ -145,17 +115,17 @@ export function BudgetWaterfall({ slices, total, className }: BudgetWaterfallPro
         strokeWidth="1"
         strokeDasharray="3 3"
       />
-      {/* Cap label */}
+      {/* Cap label sits above the line, replacing the duplicated hero number */}
       <text
         x={VB.w - PAD.r}
         y={capY - 8}
         textAnchor="end"
         fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-        fontSize="8"
-        fill="var(--text-lo)"
-        style={{ letterSpacing: '0.06em' }}
+        fontSize="10"
+        fill="var(--text-mid)"
+        style={{ letterSpacing: '0.04em' }}
       >
-        {`${formatAmount(total, { showSign: false, noCents: true })} CAP`}
+        {formatAmount(total, { showSign: false, noCents: true })}
       </text>
 
       {/* Baseline */}
@@ -191,7 +161,6 @@ export function BudgetWaterfall({ slices, total, className }: BudgetWaterfallPro
         const h = Math.max(0.5, yBot - yTop);
         const valueText = formatAmount(s.value, { showSign: false, noCents: true });
         const titleText = `${s.label}: ${valueText}`;
-        const xAxisText = s.isFree ? 'FREE' : shortLabel(s.label);
 
         return (
           <g key={s.id}>
@@ -214,7 +183,7 @@ export function BudgetWaterfall({ slices, total, className }: BudgetWaterfallPro
                 y={yTop}
                 width={slotW}
                 height={h}
-                fill={`url(#bw-${idBase}-${i})`}
+                fill={s.color}
               >
                 <title>{titleText}</title>
               </rect>
@@ -233,20 +202,31 @@ export function BudgetWaterfall({ slices, total, className }: BudgetWaterfallPro
               {valueText}
             </text>
 
-            {/* Category name on x-axis (tilted -45°) */}
-            <text
-              x={cx}
-              y={baselineY + 8}
-              textAnchor="end"
-              transform={`rotate(-45 ${cx} ${baselineY + 8})`}
-              fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-              fontSize="8"
-              fill={s.isFree ? 'var(--text-lo)' : s.color}
-              fillOpacity={s.isFree ? 1 : 0.85}
-              style={{ letterSpacing: '0.04em' }}
-            >
-              {xAxisText}
-            </text>
+            {/* Icon (or FREE marker) under the bar */}
+            {s.isFree ? (
+              <text
+                x={cx}
+                y={baselineY + 11}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+                fontSize="8"
+                fill="var(--text-lo)"
+                style={{ letterSpacing: '0.06em' }}
+              >
+                FREE
+              </text>
+            ) : s.icon ? (
+              <text
+                x={cx}
+                y={baselineY + 12}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={ICON_SIZE}
+              >
+                {s.icon}
+              </text>
+            ) : null}
           </g>
         );
       })}
