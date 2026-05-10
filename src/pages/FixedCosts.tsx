@@ -1,25 +1,14 @@
-import { useState } from 'react';
-import { Plus, AlertTriangle, Trash2, Pencil, Calendar } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useEffect, useRef, useState } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody } from '@/components/ui/sheet';
+import { SectionHeader } from '@/components/redesign/SectionHeader';
+import { PhosphorButton } from '@/components/redesign/PhosphorButton';
 import {
   useFixedSchedule,
   useAddFixedCost,
   useUpdateFixedCost,
   useDeleteFixedCost,
 } from '@/hooks/useFixedSchedule';
-import { formatAmount } from '@/lib/utils';
+import { formatAmount, cn } from '@/lib/utils';
 import type { FixedCost } from '@/lib/burnUp.types';
 
 interface EditingState {
@@ -27,10 +16,27 @@ interface EditingState {
   item: FixedCost;
 }
 
+function splitCents(formatted: string): { whole: string; cents: string | null } {
+  const m = /^(.*)([.,])(\d{2})$/.exec(formatted);
+  if (!m || m[1] === undefined || m[2] === undefined || m[3] === undefined) {
+    return { whole: formatted, cents: null };
+  }
+  return { whole: m[1].replace(/[.,]$/, ''), cents: m[3] };
+}
+
+const inputClass = cn(
+  'w-full rounded-md border border-rule bg-bg px-3 py-2.5',
+  'font-mono text-[14px] text-textHi tabular-nums',
+  'focus:border-ruleHi focus:outline-none',
+  'disabled:opacity-50'
+);
+
+const labelClass = 'font-mono text-[10px] uppercase tracking-[0.08em] text-textLo';
+
 export function FixedCosts() {
-  const [formOpen, setFormOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<EditingState | null>(null);
-  const [deleting, setDeleting] = useState<EditingState | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const { data: items, isLoading, error } = useFixedSchedule();
@@ -40,6 +46,32 @@ export function FixedCosts() {
 
   const list = items ?? [];
   const total = list.reduce((sum, i) => sum + i.a, 0);
+  const totalFormatted = formatAmount(total, { showSign: false });
+  const { whole, cents } = splitCents(totalFormatted);
+
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (!sheetOpen) {
+      setEditing(null);
+      setFormError(null);
+      setConfirmDelete(false);
+    }
+  }, [sheetOpen]);
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormError(null);
+    setConfirmDelete(false);
+    setSheetOpen(true);
+  };
+
+  const openEdit = (index: number, item: FixedCost) => {
+    setEditing({ index, item });
+    setFormError(null);
+    setConfirmDelete(false);
+    setSheetOpen(true);
+  };
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -70,274 +102,259 @@ export function FixedCosts() {
       } else {
         await addMutation.mutateAsync(item);
       }
-      setFormOpen(false);
-      setEditing(null);
+      setSheetOpen(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to save');
     }
   };
 
-  const handleConfirmDelete = async () => {
-    if (!deleting) return;
-    await deleteMutation.mutateAsync(deleting.index);
-    setDeleting(null);
-  };
-
-  const openCreate = () => {
-    setEditing(null);
-    setFormError(null);
-    setFormOpen(true);
-  };
-
-  const openEdit = (index: number, item: FixedCost) => {
-    setEditing({ index, item });
-    setFormError(null);
-    setFormOpen(true);
+  const handleDelete = async () => {
+    if (!editing) return;
+    await deleteMutation.mutateAsync(editing.index);
+    setSheetOpen(false);
   };
 
   if (error) {
     return (
-      <div className="flex h-[400px] items-center justify-center">
-        <div className="text-center">
-          <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
-          <h3 className="mt-4 text-lg font-semibold">Failed to load fixed costs</h3>
-          <p className="text-muted-foreground">Please try refreshing the page.</p>
-        </div>
+      <div className="px-5 py-12 font-mono text-[12px] uppercase tracking-[0.12em] text-warn">
+        ▲ FAILED TO LOAD FIXED COSTS
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="px-5 py-12 font-mono text-[10px] uppercase tracking-[0.12em] text-textLo">
+        LOADING…
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Fixed costs</h1>
-          <p className="text-muted-foreground">
-            Recurring monthly bills used by the burn-up chart on Home.
-          </p>
+    <div className="-mx-4 pb-8">
+      <section
+        className="border-b border-rule"
+        style={{ padding: '14px 20px 18px' }}
+      >
+        <div
+          className="font-mono text-[10px] text-textLo"
+          style={{ letterSpacing: '0.06em', marginBottom: 8 }}
+        >
+          MONTHLY TOTAL
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add fixed cost
-        </Button>
-      </div>
+        <div
+          className="flex items-baseline gap-2 nums font-mono text-textHi"
+          style={{
+            fontWeight: 400,
+            letterSpacing: '-0.04em',
+            lineHeight: 1,
+            fontFeatureSettings: '"tnum"',
+            fontSize: 36,
+          }}
+        >
+          <span>{whole}</span>
+          {cents && (
+            <span
+              className="text-textMid"
+              style={{ fontSize: 18 }}
+            >
+              .{cents}
+            </span>
+          )}
+        </div>
+        <div
+          className="font-mono text-[10.5px] text-textLo"
+          style={{ letterSpacing: '0.05em', marginTop: 10 }}
+        >
+          {list.length} ITEM{list.length === 1 ? '' : 'S'} · USED BY HOME BURN-UP
+        </div>
+      </section>
 
-      {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-24" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-32" />
-              </CardContent>
-            </Card>
-          ))}
+      <SectionHeader
+        right={`${list.length} ITEM${list.length === 1 ? '' : 'S'}`}
+      >
+        SCHEDULE
+      </SectionHeader>
+
+      {list.length === 0 ? (
+        <div className="px-5 py-10 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-textLo">
+          NOTHING SCHEDULED YET
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Items</CardTitle>
-              <Calendar className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold tabular-nums">{list.length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Monthly total</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold tabular-nums">
-                {formatAmount(total, { showSign: false })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Schedule</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full" />
-              ))}
-            </div>
-          ) : list.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              No fixed costs yet. Add your rent, utilities, and subscriptions to improve the home
-              burn-up chart.
-            </div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {list.map((item, index) => (
-                <li
-                  key={`${index}-${item.l}`}
-                  className="flex items-center justify-between gap-3 py-3"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="inline-flex h-9 w-12 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-mono uppercase tracking-wide text-muted-foreground">
-                      Day {item.d}
-                    </span>
-                    <span className="truncate font-medium">{item.l}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="tabular-nums font-medium">
-                      {formatAmount(item.a, { showSign: false })}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Edit ${item.l}`}
-                      onClick={() => {
-                        openEdit(index, item);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Delete ${item.l}`}
-                      onClick={() => {
-                        setDeleting({ index, item });
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <Dialog
-        open={formOpen}
-        onOpenChange={(open) => {
-          setFormOpen(open);
-          if (!open) {
-            setEditing(null);
-            setFormError(null);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editing ? 'Edit fixed cost' : 'Add fixed cost'}</DialogTitle>
-            <DialogDescription>
-              {editing
-                ? 'Update an existing recurring bill.'
-                : 'Add a recurring monthly bill (rent, utilities, subscriptions).'}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="label">Label</Label>
-              <Input
-                id="label"
-                name="label"
-                defaultValue={editing?.item.l ?? ''}
-                placeholder="Rent, Internet, Spotify…"
-                maxLength={40}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="day">Day of month</Label>
-                <Input
-                  id="day"
-                  name="day"
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={31}
-                  step={1}
-                  defaultValue={editing?.item.d ?? ''}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (€)</Label>
-                <Input
-                  id="amount"
-                  name="amount"
-                  type="number"
-                  inputMode="decimal"
-                  min={0.01}
-                  step={0.01}
-                  defaultValue={editing?.item.a ?? ''}
-                  required
-                />
-              </div>
-            </div>
-            {formError && (
-              <p className="text-sm text-destructive" role="alert">
-                {formError}
-              </p>
-            )}
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setFormOpen(false);
+        list.map((item, index) => {
+          const amountFormatted = formatAmount(item.a, { showSign: false });
+          return (
+            <button
+              key={`${index}-${item.l}-${item.d}`}
+              type="button"
+              onClick={() => {
+                openEdit(index, item);
+              }}
+              className="press grid w-full items-center border-b border-rule text-left"
+              style={{
+                gridTemplateColumns: '54px 1fr auto',
+                gap: 12,
+                padding: '12px 16px',
+              }}
+            >
+              <span
+                className="font-mono text-textLo"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
                 }}
               >
-                Cancel
-              </Button>
-              <Button
+                DAY {item.d}
+              </span>
+              <div className="min-w-0">
+                <div
+                  className="truncate text-textHi"
+                  style={{ fontSize: 13.5 }}
+                >
+                  {item.l}
+                </div>
+              </div>
+              <div
+                className="nums font-mono text-textMid"
+                style={{
+                  fontSize: 14,
+                  letterSpacing: '-0.02em',
+                  fontFeatureSettings: '"tnum"',
+                  textAlign: 'right',
+                }}
+              >
+                {amountFormatted}
+              </div>
+            </button>
+          );
+        })
+      )}
+
+      <div className="px-4 pt-6">
+        <PhosphorButton onClick={openCreate}>+ ADD FIXED COST</PhosphorButton>
+      </div>
+
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>{editing ? 'EDIT FIXED COST' : 'ADD FIXED COST'}</SheetTitle>
+          </SheetHeader>
+          <SheetBody className="px-4 pb-6">
+            <form
+              ref={formRef}
+              onSubmit={(e) => void handleSubmit(e)}
+              className="space-y-5"
+            >
+              <div className="space-y-2">
+                <label htmlFor="label" className={labelClass}>
+                  LABEL
+                </label>
+                <input
+                  id="label"
+                  name="label"
+                  type="text"
+                  defaultValue={editing?.item.l ?? ''}
+                  placeholder="Rent, Internet, Spotify…"
+                  maxLength={40}
+                  required
+                  autoComplete="off"
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label htmlFor="day" className={labelClass}>
+                    DAY
+                  </label>
+                  <input
+                    id="day"
+                    name="day"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={31}
+                    step={1}
+                    defaultValue={editing?.item.d ?? ''}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="amount" className={labelClass}>
+                    AMOUNT (€)
+                  </label>
+                  <input
+                    id="amount"
+                    name="amount"
+                    type="number"
+                    inputMode="decimal"
+                    min={0.01}
+                    step={0.01}
+                    defaultValue={editing?.item.a ?? ''}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              {formError && (
+                <p
+                  role="alert"
+                  className="font-mono text-[11px] uppercase tracking-[0.06em] text-warn"
+                >
+                  ▲ {formError}
+                </p>
+              )}
+
+              <PhosphorButton
                 type="submit"
                 disabled={addMutation.isPending || updateMutation.isPending}
               >
-                {editing ? 'Save changes' : 'Add'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+                {editing ? 'SAVE CHANGES' : 'ADD'}
+              </PhosphorButton>
+            </form>
 
-      <Dialog
-        open={!!deleting}
-        onOpenChange={(open) => {
-          if (!open) setDeleting(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete fixed cost</DialogTitle>
-            <DialogDescription>
-              Delete &quot;{deleting?.item.l}&quot;? This will affect the burn-up chart on Home.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleting(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => void handleConfirmDelete()}
-              disabled={deleteMutation.isPending}
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            {editing && (
+              <div className="mt-8 border-t border-rule pt-5">
+                {!confirmDelete ? (
+                  <PhosphorButton
+                    variant="warn"
+                    onClick={() => {
+                      setConfirmDelete(true);
+                    }}
+                  >
+                    DELETE FIXED COST
+                  </PhosphorButton>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-textMid">
+                      DELETE &ldquo;{editing.item.l}&rdquo;? AFFECTS HOME BURN-UP.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <PhosphorButton
+                        onClick={() => {
+                          setConfirmDelete(false);
+                        }}
+                      >
+                        CANCEL
+                      </PhosphorButton>
+                      <PhosphorButton
+                        variant="warn"
+                        onClick={() => void handleDelete()}
+                        disabled={deleteMutation.isPending}
+                      >
+                        CONFIRM DELETE
+                      </PhosphorButton>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
