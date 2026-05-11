@@ -1,10 +1,14 @@
+import { CategoryIcon } from '@/lib/categoryIcons';
 import { cn, formatAmount } from '@/lib/utils';
 
 export interface AllocationSlice {
   id: string;
   label: string;
   value: number;
-  /** Optional category emoji icon to render under the bar. */
+  /**
+   * Raw `Category.icon` string (Phosphor name, SF Symbol, or emoji). Passed
+   * through to <CategoryIcon> as a fallback when there is no registry hit.
+   */
   icon?: string;
 }
 
@@ -30,12 +34,13 @@ const GREEN_SHADES = [
   '#B3D5C9',
 ];
 
-const VB = { w: 320, h: 122 };
-const PAD = { l: 6, r: 6, t: 22, b: 20 };
+const VB = { w: 320, h: 116 };
+const PAD = { l: 6, r: 6, t: 30, b: 6 };
 const innerW = VB.w - PAD.l - PAD.r;
 const innerH = VB.h - PAD.t - PAD.b;
 const GAP = 3;
-const ICON_SIZE = 13;
+const ICON_ROW_HEIGHT = 22;
+const ICON_PIXEL_SIZE = 16;
 
 interface Step {
   id: string;
@@ -97,139 +102,151 @@ export function BudgetWaterfall({ slices, total, className }: BudgetWaterfallPro
     .join(', ')}. Cap ${formatAmount(total, { showSign: false, noCents: true })}.`;
 
   return (
-    <svg
-      className={cn('block', className)}
-      viewBox={`0 0 ${VB.w} ${VB.h}`}
-      width="100%"
-      preserveAspectRatio="none"
-      role="img"
-      aria-label={ariaLabel}
-    >
-      {/* Cap dashed line */}
-      <line
-        x1={PAD.l}
-        x2={VB.w - PAD.r}
-        y1={capY}
-        y2={capY}
-        stroke="var(--rule-hi)"
-        strokeWidth="1"
-        strokeDasharray="3 3"
-      />
-      {/* Cap label sits above the line, replacing the duplicated hero number */}
-      <text
-        x={VB.w - PAD.r}
-        y={capY - 8}
-        textAnchor="end"
-        fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-        fontSize="10"
-        fill="var(--text-mid)"
-        style={{ letterSpacing: '0.04em' }}
+    <div className={cn('block', className)}>
+      <svg
+        viewBox={`0 0 ${VB.w} ${VB.h}`}
+        width="100%"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={ariaLabel}
+        style={{ display: 'block' }}
       >
-        {formatAmount(total, { showSign: false, noCents: true })}
-      </text>
-
-      {/* Baseline */}
-      <line
-        x1={PAD.l}
-        x2={VB.w - PAD.r}
-        y1={baselineY}
-        y2={baselineY}
-        stroke="var(--rule)"
-        strokeWidth="1"
-      />
-
-      {/* Connectors between adjacent step tops */}
-      {steps.slice(0, -1).map((s, i) => (
+        {/* Cap dashed line */}
         <line
-          key={`conn-${s.id}`}
-          x1={xOf(i) + slotW}
-          x2={xOf(i + 1)}
-          y1={yOf(s.cumAfter)}
-          y2={yOf(s.cumAfter)}
-          stroke="var(--text-lo)"
-          strokeOpacity="0.35"
+          x1={PAD.l}
+          x2={VB.w - PAD.r}
+          y1={capY}
+          y2={capY}
+          stroke="var(--rule-hi)"
+          strokeWidth="1"
+          strokeDasharray="3 3"
+        />
+        {/* Cap label sits in its own row above bar value labels */}
+        <text
+          x={VB.w - PAD.r}
+          y={capY - 18}
+          textAnchor="end"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+          fontSize="10"
+          fill="var(--text-mid)"
+          style={{ letterSpacing: '0.04em' }}
+        >
+          {formatAmount(total, { showSign: false, noCents: true })}
+        </text>
+
+        {/* Baseline */}
+        <line
+          x1={PAD.l}
+          x2={VB.w - PAD.r}
+          y1={baselineY}
+          y2={baselineY}
+          stroke="var(--rule)"
           strokeWidth="1"
         />
-      ))}
 
-      {/* Bars + labels */}
-      {steps.map((s, i) => {
-        const x = xOf(i);
-        const cx = x + slotW / 2;
-        const yTop = yOf(s.cumAfter);
-        const yBot = yOf(s.cumBefore);
-        const h = Math.max(0.5, yBot - yTop);
-        const valueText = formatAmount(s.value, { showSign: false, noCents: true });
-        const titleText = `${s.label}: ${valueText}`;
+        {/* Connectors between adjacent step tops */}
+        {steps.slice(0, -1).map((s, i) => (
+          <line
+            key={`conn-${s.id}`}
+            x1={xOf(i) + slotW}
+            x2={xOf(i + 1)}
+            y1={yOf(s.cumAfter)}
+            y2={yOf(s.cumAfter)}
+            stroke="var(--text-lo)"
+            strokeOpacity="0.35"
+            strokeWidth="1"
+          />
+        ))}
 
-        return (
-          <g key={s.id}>
-            {s.isFree ? (
-              <rect
-                x={x}
-                y={yTop}
-                width={slotW}
-                height={h}
-                fill="rgba(255,255,255,0.04)"
-                stroke="rgba(255,255,255,0.32)"
-                strokeDasharray="3 3"
-                strokeWidth="1"
-              >
-                <title>{titleText}</title>
-              </rect>
-            ) : (
-              <rect
-                x={x}
-                y={yTop}
-                width={slotW}
-                height={h}
-                fill={s.color}
-              >
-                <title>{titleText}</title>
-              </rect>
-            )}
+        {/* Bars + value labels */}
+        {steps.map((s, i) => {
+          const x = xOf(i);
+          const cx = x + slotW / 2;
+          const yTop = yOf(s.cumAfter);
+          const yBot = yOf(s.cumBefore);
+          const h = Math.max(0.5, yBot - yTop);
+          const valueText = formatAmount(s.value, { showSign: false, noCents: true });
+          const titleText = `${s.label}: ${valueText}`;
 
-            {/* Value above bar */}
-            <text
-              x={cx}
-              y={yTop - 3}
-              textAnchor="middle"
-              fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-              fontSize="8"
-              fill="var(--text-mid)"
-              style={{ letterSpacing: '-0.02em' }}
-            >
-              {valueText}
-            </text>
-
-            {/* Icon (or FREE marker) under the bar */}
-            {s.isFree ? (
+          return (
+            <g key={s.id}>
+              {s.isFree ? (
+                <rect
+                  x={x}
+                  y={yTop}
+                  width={slotW}
+                  height={h}
+                  fill="rgba(255,255,255,0.04)"
+                  stroke="rgba(255,255,255,0.32)"
+                  strokeDasharray="3 3"
+                  strokeWidth="1"
+                >
+                  <title>{titleText}</title>
+                </rect>
+              ) : (
+                <rect
+                  x={x}
+                  y={yTop}
+                  width={slotW}
+                  height={h}
+                  fill={s.color}
+                >
+                  <title>{titleText}</title>
+                </rect>
+              )}
               <text
                 x={cx}
-                y={baselineY + 11}
+                y={yTop - 3}
                 textAnchor="middle"
-                dominantBaseline="central"
                 fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
                 fontSize="8"
-                fill="var(--text-lo)"
-                style={{ letterSpacing: '0.06em' }}
+                fill="var(--text-mid)"
+                style={{ letterSpacing: '-0.02em' }}
               >
-                FREE
+                {valueText}
               </text>
-            ) : s.icon ? (
-              <text
-                x={cx}
-                y={baselineY + 12}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={ICON_SIZE}
-              >
-                {s.icon}
-              </text>
-            ) : null}
-          </g>
-        );
-      })}
-    </svg>
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Icon row rendered as HTML so we can use <CategoryIcon> (Phosphor) */}
+      <div className="relative" style={{ height: ICON_ROW_HEIGHT }}>
+        {steps.map((s, i) => {
+          const cxPct = ((xOf(i) + slotW / 2) / VB.w) * 100;
+          return (
+            <div
+              key={s.id}
+              className="absolute flex items-center justify-center"
+              style={{
+                left: `${cxPct}%`,
+                top: 4,
+                transform: 'translateX(-50%)',
+                color: 'var(--accent)',
+              }}
+            >
+              {s.isFree ? (
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: 8,
+                    letterSpacing: '0.06em',
+                    color: 'var(--text-lo)',
+                  }}
+                >
+                  FREE
+                </span>
+              ) : (
+                <CategoryIcon
+                  categoryId={s.id}
+                  fallback={s.icon}
+                  size={ICON_PIXEL_SIZE}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
