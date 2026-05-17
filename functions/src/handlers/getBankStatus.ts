@@ -38,6 +38,12 @@ export const getBankStatus = onCall(
           data.consentExpiresAt instanceof Timestamp
             ? data.consentExpiresAt.toDate().toISOString()
             : null,
+        lastAutoSyncAt:
+          data.lastAutoSyncAt instanceof Timestamp
+            ? data.lastAutoSyncAt.toDate().toISOString()
+            : null,
+        lastAutoSyncError:
+          typeof data.lastAutoSyncError === 'string' ? data.lastAutoSyncError : null,
       };
     });
   }

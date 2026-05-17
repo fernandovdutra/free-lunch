@@ -125,6 +125,14 @@ function BankCard({ connection, onSync, onDisconnect, syncing }: BankCardProps) 
         );
       })}
 
+      {/* Background-sync failure notice (an active connection whose last
+          automatic sync failed — otherwise invisible until it goes expired) */}
+      {connection.status === 'active' && connection.lastAutoSyncError ? (
+        <div className="border-t border-warn/30 bg-warn/10 px-[14px] py-2 text-[11.5px] text-warn">
+          Last automatic sync failed: {connection.lastAutoSyncError}
+        </div>
+      ) : null}
+
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-rule px-[14px] py-[10px] font-mono text-[10px] uppercase tracking-[0.04em] text-textLo">
         <span>

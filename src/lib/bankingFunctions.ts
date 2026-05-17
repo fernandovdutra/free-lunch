@@ -31,6 +31,8 @@ export interface BankConnectionStatus {
   accounts: AccountInfo[];
   lastSync: string | null;
   consentExpiresAt: string | null;
+  lastAutoSyncAt: string | null;
+  lastAutoSyncError: string | null;
 }
 
 export interface RecategorizeRequest {
