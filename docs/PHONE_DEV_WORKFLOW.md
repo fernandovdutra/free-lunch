@@ -92,7 +92,7 @@ Proxy routes are configured in `vite.config.ts` → `server.proxy`.
 |---|---|---|
 | Portable Temurin JRE 21 | `C:\Users\<you>\.local\opt\jdk-21.0.10+7-jre` | Needed by Firebase emulators for Auth + Firestore |
 | Node / npm | System-wide | Used by Vite, Functions emulator, seed script |
-| `npm install` in root, `functions/`, `mcp-server/` | | |
+| `npm install` in root and `functions/` | | |
 | Firebase CLI logged in | `firebase projects:list` should show `<your-project-id>` | |
 | `.env.local` at repo root | See template in §Setup | Points the web app at the Vite-proxied emulator URLs |
 | `functions/.secret.local` | See template in §Setup | Loaded by the Functions emulator as env vars |

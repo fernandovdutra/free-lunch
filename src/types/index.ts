@@ -107,6 +107,10 @@ export interface Transaction {
   // factories / fixtures that pre-date this field don't need to be updated.
   note?: string | null;
 
+  // Free-form user tags. Managed via the MCP server; optional so transactions
+  // that pre-date the field read as untagged.
+  tags?: string[];
+
   // ICS Credit Card Import
   excludeFromTotals?: boolean | undefined;
   icsStatementId?: string | null | undefined;

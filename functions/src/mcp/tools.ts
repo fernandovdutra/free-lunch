@@ -1,10 +1,11 @@
 import { Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { subMonths } from 'date-fns';
+import { WRITE_TOOL_DEFINITIONS, callWriteTool } from './writeTools.js';
 
 /**
- * Read-only finance query tools exposed over MCP.
+ * Finance query tools exposed over MCP.
  *
- * Ported from the standalone stdio MCP server (mcp-server/src/tools/*). All
+ * This module holds the read tools; write tools live in ./writeTools.ts. All
  * queries are scoped to a single user id supplied by the caller — no tool
  * accepts a user id argument.
  */
@@ -14,6 +15,7 @@ interface TransactionFilter {
   endDate?: string;
   categoryId?: string;
   counterparty?: string;
+  tag?: string;
   minAmount?: number;
   maxAmount?: number;
   direction?: 'income' | 'expense' | 'all';
@@ -50,12 +52,16 @@ async function getTransactions(db: Firestore, userId: string, filter: Transactio
       categoryId: data.categoryId ?? null,
       categorySource: data.categorySource ?? 'none',
       isSplit: data.isSplit ?? false,
+      tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
     };
   });
 
   if (filter.counterparty) {
     const search = filter.counterparty.toLowerCase();
     results = results.filter((t) => t.counterparty?.toLowerCase().includes(search));
+  }
+  if (filter.tag) {
+    results = results.filter((t) => t.tags.includes(filter.tag!));
   }
   if (filter.direction === 'income') {
     results = results.filter((t) => t.amount > 0);
@@ -93,6 +99,7 @@ async function searchTransactions(db: Firestore, userId: string, searchText: str
         amount: data.amount,
         counterparty: data.counterparty ?? null,
         categoryId: data.categoryId ?? null,
+        tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
       };
     })
     .filter(
@@ -481,11 +488,11 @@ async function getRecurringExpenses(db: Firestore, userId: string) {
 // MCP tool definitions + dispatch
 // ---------------------------------------------------------------------------
 
-export const TOOL_DEFINITIONS = [
+const READ_TOOL_DEFINITIONS = [
   {
     name: 'get_transactions',
     description:
-      'Query bank transactions with filters (date range, category, counterparty, amount, direction)',
+      'Query bank transactions with filters (date range, category, counterparty, tag, amount, direction)',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -496,6 +503,7 @@ export const TOOL_DEFINITIONS = [
           type: 'string',
           description: 'Filter by counterparty name (partial match)',
         },
+        tag: { type: 'string', description: 'Filter by an exact tag' },
         minAmount: { type: 'number', description: 'Minimum absolute amount' },
         maxAmount: { type: 'number', description: 'Maximum absolute amount' },
         direction: {
@@ -586,6 +594,8 @@ export const TOOL_DEFINITIONS = [
   },
 ];
 
+export const TOOL_DEFINITIONS = [...READ_TOOL_DEFINITIONS, ...WRITE_TOOL_DEFINITIONS];
+
 function requireString(args: Record<string, unknown>, key: string): string {
   const value = args[key];
   if (typeof value !== 'string' || value.length === 0) {
@@ -617,6 +627,7 @@ export async function callTool(
         endDate: optionalString(args, 'endDate'),
         categoryId: optionalString(args, 'categoryId'),
         counterparty: optionalString(args, 'counterparty'),
+        tag: optionalString(args, 'tag'),
         minAmount: optionalNumber(args, 'minAmount'),
         maxAmount: optionalNumber(args, 'maxAmount'),
         direction: optionalString(args, 'direction') as
@@ -660,6 +671,6 @@ export async function callTool(
     case 'get_recurring_expenses':
       return getRecurringExpenses(db, userId);
     default:
-      throw new Error(`Unknown tool: ${name}`);
+      return callWriteTool(db, userId, name, args);
   }
 }
