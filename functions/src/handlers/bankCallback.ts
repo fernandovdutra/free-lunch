@@ -92,11 +92,15 @@ export const bankCallback = onRequest(
 
       if (existingMatch) {
         // Refresh existing connection: new session, fresh consent, mark active.
+        // Clear the auto-sync expiry reminder/error so they re-arm for the new
+        // 90-day consent cycle.
         await connectionRef.update({
           status: 'active',
           sessionId: session.session_id,
           accounts: sessionAccounts,
           consentExpiresAt: new Date(session.access.valid_until),
+          expiryReminderSentAt: FieldValue.delete(),
+          lastAutoSyncError: FieldValue.delete(),
           updatedAt: FieldValue.serverTimestamp(),
         });
       } else {
