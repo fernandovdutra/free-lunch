@@ -126,6 +126,46 @@ export function buildDailyEmailHtml(data: DailyEmailData): string {
   return baseLayout(`Daily Update — ${data.date}`, content);
 }
 
+interface ConsentExpiryEmailData {
+  bankName: string;
+  expiresAt: Date;
+  daysLeft: number;
+  settingsUrl: string;
+}
+
+export function buildConsentExpiryEmailHtml(data: ConsentExpiryEmailData): string {
+  const expiryDate = data.expiresAt.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const content = `
+    <p style="font-size:16px;font-weight:600;color:#111827;margin:0 0 12px;">
+      Your bank connection needs renewing
+    </p>
+    <p style="margin:8px 0;line-height:1.6;color:#374151;">
+      Your connection to <strong>${escapeHtml(data.bankName)}</strong> expires in
+      <strong>${data.daysLeft} day${data.daysLeft === 1 ? '' : 's'}</strong> (on ${escapeHtml(expiryDate)}).
+    </p>
+    <p style="margin:8px 0;line-height:1.6;color:#374151;">
+      Banking rules (PSD2) require you to re-authorize access every 90 days. Once the
+      connection expires, automatic transaction sync stops until you reconnect.
+      Reconnecting takes under a minute — you'll be sent to your bank to confirm.
+    </p>
+    <div style="margin:20px 0;text-align:center;">
+      <a href="${escapeHtml(data.settingsUrl)}"
+         style="display:inline-block;background:#18181b;color:white;text-decoration:none;
+                padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">
+        Reconnect ${escapeHtml(data.bankName)}
+      </a>
+    </div>
+  `;
+
+  return baseLayout('Bank connection expiring soon', content);
+}
+
 export function buildWeeklyEmailHtml(data: WeeklyEmailData): string {
   // Reuse daily template structure with added sections
   let extraSections = '';
