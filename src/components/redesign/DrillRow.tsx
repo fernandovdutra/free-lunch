@@ -86,7 +86,16 @@ export function DrillRow({
         </span>
         {chevron}
       </div>
-      <div className="mt-0.5 flex items-center justify-end gap-3">
+      <div className="mt-1 flex items-baseline gap-3">
+        <div
+          className={cn(
+            'min-w-0 flex-1 truncate font-mono text-[9.5px] tracking-[0.04em]',
+            leadingIndent,
+            isOver ? 'text-warn' : 'text-textLo'
+          )}
+        >
+          {meta}
+        </div>
         <span
           className={cn(
             'nums font-mono text-[9.5px] tracking-[0.04em] uppercase whitespace-nowrap',
@@ -101,17 +110,6 @@ export function DrillRow({
           </span>
         )}
       </div>
-      {meta && (
-        <div
-          className={cn(
-            'mt-1 font-mono text-[9.5px] tracking-[0.04em]',
-            leadingIndent,
-            isOver ? 'text-warn' : 'text-textLo'
-          )}
-        >
-          {meta}
-        </div>
-      )}
     </>
   );
 
