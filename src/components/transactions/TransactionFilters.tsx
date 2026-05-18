@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { format, isSameMonth, startOfMonth, subMonths } from 'date-fns';
+import { MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react';
 import { Pill } from '@/components/redesign';
 import {
   Sheet,
@@ -41,6 +42,51 @@ export function TransactionFilters({
   const { setSelectedMonth } = useMonth();
   const [catSheetOpen, setCatSheetOpen] = useState(false);
   const [monthSheetOpen, setMonthSheetOpen] = useState(false);
+
+  // Search box: the input stays responsive locally while propagation to the
+  // query filters is debounced — every keystroke otherwise mints a fresh
+  // TanStack query key and re-reads Firestore.
+  const [searchInput, setSearchInput] = useState(filters.searchText ?? '');
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Last value this input pushed up — lets the sync effect distinguish a
+  // genuine external change (sessionStorage restore, deep-link) from the
+  // echo of our own debounced update mid-typing.
+  const lastPropagatedRef = useRef(filters.searchText ?? '');
+
+  useEffect(() => {
+    const external = filters.searchText ?? '';
+    if (external !== lastPropagatedRef.current) {
+      lastPropagatedRef.current = external;
+      setSearchInput(external);
+    }
+  }, [filters.searchText]);
+
+  useEffect(
+    () => () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    },
+    []
+  );
+
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const trimmed = value.trim();
+      if (trimmed === lastPropagatedRef.current) return;
+      lastPropagatedRef.current = trimmed;
+      const current = filtersRef.current;
+      if (trimmed) {
+        onChange({ ...current, searchText: trimmed });
+      } else {
+        const { searchText: _drop, ...rest } = current;
+        void _drop;
+        onChange(rest);
+      }
+    }, 250);
+  };
 
   const isUncat = filters.categorizationStatus === 'uncategorized';
   const isReimb = filters.reimbursementStatus === 'pending';
@@ -91,6 +137,38 @@ export function TransactionFilters({
           'top-[calc(44px+env(safe-area-inset-top,0px))]'
         )}
       >
+        <div className="px-4 pt-2.5">
+          <div className="flex h-[30px] items-center gap-2 border border-rule px-2.5">
+            <MagnifyingGlassIcon
+              size={14}
+              weight="regular"
+              className="shrink-0 text-textLo"
+              aria-hidden
+            />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => {
+                handleSearchChange(e.target.value);
+              }}
+              placeholder="SEARCH DESCRIPTION OR PAYEE"
+              aria-label="Search transactions"
+              className="flex-1 bg-transparent font-mono text-[11px] tracking-[0.04em] text-textHi placeholder:text-textLo focus:outline-none"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => {
+                  handleSearchChange('');
+                }}
+                aria-label="Clear search"
+                className="press shrink-0 text-textLo"
+              >
+                <XIcon size={13} weight="bold" aria-hidden />
+              </button>
+            )}
+          </div>
+        </div>
         <div className="scrollbar-hide flex gap-1.5 overflow-x-auto px-4 py-2.5">
           <Pill active={isUncat} variant="warn" onClick={toggleUncat}>
             ! UNCAT
