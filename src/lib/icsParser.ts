@@ -111,8 +111,9 @@ function parseFullDutchDate(dateStr: string): Date {
  * Parse a Dutch amount like "36,00" or "692,52" to a number
  */
 export function parseDutchAmount(amountStr: string): number {
-  // Remove any spaces, replace comma with dot
-  const cleaned = amountStr.trim().replace(/\s/g, '').replace(',', '.');
+  // Dutch format: '.' is the thousands separator, ',' is the decimal separator.
+  // Remove spaces and thousands separators, then convert the decimal comma.
+  const cleaned = amountStr.trim().replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
   const num = parseFloat(cleaned);
   if (isNaN(num)) throw new Error(`Cannot parse amount: "${amountStr}"`);
   return num;
