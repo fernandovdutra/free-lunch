@@ -91,10 +91,6 @@ export function TopBar() {
     }
   };
 
-  const stub = (label: string) => () => {
-    toast({ title: `${label} — coming soon` });
-  };
-
   return (
     <header
       className={cn(
@@ -146,22 +142,6 @@ export function TopBar() {
             />
             <span className="hidden xs:inline">SYNC </span>
             {syncAll.isPending ? 'SYNCING…' : syncLabel}
-          </button>
-          <button
-            type="button"
-            onClick={stub('Search')}
-            aria-label="Search"
-            className="font-mono text-[14px] leading-none text-textLo active:opacity-60 px-1"
-          >
-            ⌕
-          </button>
-          <button
-            type="button"
-            onClick={stub('Add transaction')}
-            aria-label="Add transaction"
-            className="font-mono text-[14px] leading-none text-textLo active:opacity-60 px-1"
-          >
-            ⊕
           </button>
         </div>
       </div>
