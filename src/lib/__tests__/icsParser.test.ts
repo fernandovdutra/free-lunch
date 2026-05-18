@@ -66,6 +66,22 @@ describe('parseDutchAmount', () => {
     expect(parseDutchAmount('148,32')).toBe(148.32);
   });
 
+  it('parses amount with a thousands separator', () => {
+    expect(parseDutchAmount('1.705,36')).toBe(1705.36);
+  });
+
+  it('parses statement-total amount with a thousands separator', () => {
+    expect(parseDutchAmount('2.411,53')).toBe(2411.53);
+  });
+
+  it('parses round amount with a thousands separator', () => {
+    expect(parseDutchAmount('5.000,00')).toBe(5000.0);
+  });
+
+  it('still parses amounts without a thousands separator', () => {
+    expect(parseDutchAmount('66,13')).toBe(66.13);
+  });
+
   it('throws on invalid amount', () => {
     expect(() => parseDutchAmount('abc')).toThrow('Cannot parse amount');
   });
