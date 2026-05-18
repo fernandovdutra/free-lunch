@@ -179,11 +179,12 @@ export async function parseIcsStatement(pdfBuffer: ArrayBuffer): Promise<IcsPars
   // Dynamic import for code-splitting
   const pdfjsLib = await import('pdfjs-dist');
 
-  // Set worker source - use bundled worker
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.mjs',
-    import.meta.url
-  ).href;
+  // Set worker source. The `?url` suffix lets Vite resolve, fingerprint, and
+  // emit the worker as a real asset. A bare `new URL(specifier, import.meta.url)`
+  // is not module-resolved, so it 404s to the SPA's index.html and the worker
+  // load fails with "'text/html' is not a valid JavaScript MIME type".
+  const workerSrc = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
   const pdf = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
   const warnings: string[] = [];
