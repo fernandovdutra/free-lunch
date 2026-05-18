@@ -54,7 +54,12 @@ export interface TransactionResponse {
 }
 
 export interface EnableBankingTransaction {
-  entry_reference: string;
+  /**
+   * Bank-assigned entry reference. PSD2 leaves this optional, and some banks
+   * (e.g. ABN AMRO for reference-less SEPA transfers) omit it or return a
+   * placeholder like "NOTPROVIDED" — so it cannot be trusted as a unique key.
+   */
+  entry_reference?: string;
   transaction_amount: {
     amount: string;
     currency: string;
@@ -73,7 +78,7 @@ export interface EnableBankingTransaction {
   debtor_account?: {
     iban?: string;
   };
-  booking_date: string;
+  booking_date?: string;
   value_date?: string;
   transaction_date?: string;
   remittance_information_unstructured?: string;
