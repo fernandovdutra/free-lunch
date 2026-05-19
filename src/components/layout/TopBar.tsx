@@ -91,10 +91,6 @@ export function TopBar() {
     }
   };
 
-  const stub = (label: string) => () => {
-    toast({ title: `${label} — coming soon` });
-  };
-
   return (
     <header
       className={cn(
@@ -126,44 +122,26 @@ export function TopBar() {
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void handleSync()}
-            disabled={syncAll.isPending}
-            aria-label={syncAll.isPending ? 'Syncing' : 'Sync now'}
-            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-textLo active:opacity-60 disabled:opacity-60"
-          >
-            <span
-              aria-hidden
-              className={cn('block bg-accent', syncAll.isPending && 'animate-pulse')}
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: 3,
-                boxShadow: '0 0 5px var(--accent)',
-              }}
-            />
-            <span className="hidden xs:inline">SYNC </span>
-            {syncAll.isPending ? 'SYNCING…' : syncLabel}
-          </button>
-          <button
-            type="button"
-            onClick={stub('Search')}
-            aria-label="Search"
-            className="font-mono text-[14px] leading-none text-textLo active:opacity-60 px-1"
-          >
-            ⌕
-          </button>
-          <button
-            type="button"
-            onClick={stub('Add transaction')}
-            aria-label="Add transaction"
-            className="font-mono text-[14px] leading-none text-textLo active:opacity-60 px-1"
-          >
-            ⊕
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => void handleSync()}
+          disabled={syncAll.isPending}
+          aria-label={syncAll.isPending ? 'Syncing' : 'Sync now'}
+          className="inline-flex items-center gap-1.5 px-1 font-mono text-[10px] uppercase tracking-[0.08em] text-textLo active:opacity-60 disabled:opacity-60"
+        >
+          <span
+            aria-hidden
+            className={cn('block bg-accent', syncAll.isPending && 'animate-pulse')}
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: 3,
+              boxShadow: '0 0 5px var(--accent)',
+            }}
+          />
+          <span className="hidden xs:inline">SYNC </span>
+          {syncAll.isPending ? 'SYNCING…' : syncLabel}
+        </button>
       </div>
     </header>
   );
