@@ -578,7 +578,8 @@ interface Transaction {
   id: string;
   externalId: string; // Bank's transaction ID
   date: Timestamp;
-  description: string; // Original bank description
+  description: string; // Parsed short label (merchant name)
+  bankDescription?: string | null; // Full unparsed remittance text from the bank
   amount: number; // Negative for expenses
   currency: 'EUR';
   counterparty: string | null; // Merchant/person name

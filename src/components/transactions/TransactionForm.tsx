@@ -241,6 +241,16 @@ export function TransactionForm({
               </div>
             </div>
 
+            {/* BANK DESCRIPTION — read-only full remittance text from the bank */}
+            {transaction.bankDescription && (
+              <>
+                <SectionHeader>BANK DESCRIPTION</SectionHeader>
+                <div className="hairline-b whitespace-pre-line px-4 py-3 font-mono text-[12px] leading-relaxed text-textMid">
+                  {transaction.bankDescription}
+                </div>
+              </>
+            )}
+
             {/* CATEGORY */}
             <SectionHeader>CATEGORY</SectionHeader>
             <RowButton

@@ -87,6 +87,8 @@ export interface Transaction {
   /** Actual transaction date/time extracted from remittance info */
   transactionDate?: Date | null;
   description: string;
+  /** Full unparsed remittance text from the bank (all lines joined). */
+  bankDescription?: string | null;
   amount: number;
   currency: 'EUR';
   counterparty: string | null;
