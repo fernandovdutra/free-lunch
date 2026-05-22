@@ -48,6 +48,7 @@ export function useCreateTransaction() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
     },
   });
 }
@@ -82,6 +83,7 @@ export function useUpdateTransaction() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
     },
   });
 }
@@ -127,6 +129,7 @@ export function useUpdateTransactionCategory() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
     },
   });
 }
@@ -144,6 +147,7 @@ export function useDeleteTransaction() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
     },
   });
 }
@@ -206,6 +210,7 @@ export function useBulkUpdateCategory() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
     },
   });
 }
@@ -224,6 +229,7 @@ export function useAICategorizeTransaction() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
     },
   });
 }

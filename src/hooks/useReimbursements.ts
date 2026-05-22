@@ -208,6 +208,7 @@ export function useMarkAsReimbursable() {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
       void queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
     },
   });
 }
@@ -261,6 +262,7 @@ export function useClearReimbursement() {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
       void queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
     },
   });
 }
@@ -288,6 +290,7 @@ export function useUnmarkReimbursement() {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
       void queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
     },
   });
 }
