@@ -29,6 +29,7 @@ interface TransactionDocument {
   bookingDate?: Timestamp | string | null;
   transactionDate?: Timestamp | string | null;
   description: string;
+  bankDescription?: string | null;
   amount: number;
   currency?: 'EUR';
   counterparty?: string | null;
@@ -88,6 +89,7 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
     bookingDate: toDate(data.bookingDate),
     transactionDate: toDate(data.transactionDate),
     description: typeof data.description === 'string' ? data.description : 'Bank transaction',
+    bankDescription: data.bankDescription ?? null,
     amount: data.amount,
     currency: data.currency ?? 'EUR',
     counterparty: data.counterparty ?? null,
@@ -167,7 +169,8 @@ export function useTransactions(filters: TransactionFilters = {}) {
         transactions = transactions.filter(
           (t) =>
             t.description.toLowerCase().includes(search) ||
-            t.counterparty?.toLowerCase().includes(search)
+            t.counterparty?.toLowerCase().includes(search) ||
+            t.bankDescription?.toLowerCase().includes(search)
         );
       }
 

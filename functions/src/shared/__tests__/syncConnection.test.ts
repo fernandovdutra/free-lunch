@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import type { EnableBankingTransaction } from '../../enableBanking/types';
-import { getStableExternalId, transformTransaction } from '../syncConnection';
+import {
+  extractBankDescription,
+  getStableExternalId,
+  transformTransaction,
+} from '../syncConnection';
 
 // A reference-less SEPA "Overboeking" as ABN AMRO surfaces it: the payer
 // supplied no reference, so entry_reference is the "NOTPROVIDED" placeholder.
@@ -94,5 +98,53 @@ describe('transformTransaction', () => {
     expect(result.amount).toBe(-240);
     expect(result.description).toBe('Dierenpension Happy Valley');
     expect(result.counterparty).toBe('Dierenpension Happy Valley');
+  });
+
+  it('keeps the full remittance text in bankDescription while description stays the short label', () => {
+    const incasso = sepaTransfer({
+      creditor: { name: 'BELASTINGDIENST' },
+      remittance_information: [
+        'SEPA Incasso algemeen doorlopend',
+        'Incassant: NL35ZZZ273653230000',
+        'Naam: BELASTINGDIENST',
+        'Machtiging: 18861317',
+        'Omschrijving: N-177-HD 15-04-2026 t/m 14-05-2026',
+        'IBAN: NL86INGB0002445588',
+        'Kenmerk: IOAXXfb8e419b52734a1cbe',
+      ],
+    });
+    const result = transformTransaction(incasso, 'NL16ABNA0837885787', 'conn-1', 'gen_abc123');
+
+    expect(result.description).toBe('BELASTINGDIENST');
+    expect(result.bankDescription).toContain('Omschrijving: N-177-HD 15-04-2026 t/m 14-05-2026');
+    expect(result.bankDescription).toContain('Machtiging: 18861317');
+    expect(result.bankDescription?.split('\n')).toHaveLength(7);
+  });
+});
+
+describe('extractBankDescription', () => {
+  it('joins a multi-line remittance_information array with newlines', () => {
+    expect(extractBankDescription(sepaTransfer())).toBe(
+      [
+        'SEPA Overboeking',
+        'IBAN: NL07RABO0358406781',
+        'BIC: RABONL2U',
+        'Naam: Dierenpension Happy Valley',
+        'Kenmerk: NOTPROVIDED',
+      ].join('\n')
+    );
+  });
+
+  it('falls back to the unstructured string when no array is present', () => {
+    const tx = sepaTransfer({
+      remittance_information: undefined,
+      remittance_information_unstructured: 'Albert Heijn 1657',
+    });
+    expect(extractBankDescription(tx)).toBe('Albert Heijn 1657');
+  });
+
+  it('returns null when the bank provides no remittance text', () => {
+    const tx = sepaTransfer({ remittance_information: undefined });
+    expect(extractBankDescription(tx)).toBeNull();
   });
 });
