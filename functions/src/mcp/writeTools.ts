@@ -130,31 +130,83 @@ async function assertCategoryExists(db: Firestore, userId: string, categoryId: s
   }
 }
 
+/** Apply document updates in batches, respecting Firestore's 500-write limit. */
+async function commitUpdates(
+  db: Firestore,
+  updates: { ref: FirebaseFirestore.DocumentReference; data: Record<string, unknown> }[]
+) {
+  for (let i = 0; i < updates.length; i += 500) {
+    const batch = db.batch();
+    for (const update of updates.slice(i, i + 500)) {
+      batch.update(update.ref, update.data);
+    }
+    await batch.commit();
+  }
+}
+
+/**
+ * Resolve the target transaction ids from `transactionId` (one) and/or
+ * `transactionIds` (many), trimmed and deduped. Throws if neither is supplied.
+ */
+function requireTransactionIds(args: Record<string, unknown>): string[] {
+  const ids = [...(optionalStringArray(args, 'transactionIds') ?? [])];
+  const single = optionalString(args, 'transactionId');
+  if (single) ids.push(single);
+  const deduped = Array.from(
+    new Set(ids.map((id) => id.trim()).filter((id) => id.length > 0))
+  );
+  if (deduped.length === 0) {
+    throw new Error('Provide transactionId or transactionIds');
+  }
+  return deduped;
+}
+
 // ---------------------------------------------------------------------------
 // Transaction writes
 // ---------------------------------------------------------------------------
 
-async function recategorizeTransaction(
+/** Read the given transaction docs, throwing if any id does not exist. */
+async function getTransactionSnaps(
   db: Firestore,
   userId: string,
-  transactionId: string,
+  transactionIds: string[]
+) {
+  const col = userCollection(db, userId, 'transactions');
+  const refs = transactionIds.map((id) => col.doc(id));
+  const snaps = await db.getAll(...refs);
+  const missing = transactionIds.filter((_, i) => !snaps[i].exists);
+  if (missing.length > 0) {
+    throw new Error(`Transaction not found: ${missing.join(', ')}`);
+  }
+  return { refs, snaps };
+}
+
+async function recategorizeTransactions(
+  db: Firestore,
+  userId: string,
+  transactionIds: string[],
   categoryId: string
 ) {
-  const ref = userCollection(db, userId, 'transactions').doc(transactionId);
-  const snap = await ref.get();
-  if (!snap.exists) {
-    throw new Error(`Transaction not found: ${transactionId}`);
-  }
   await assertCategoryExists(db, userId, categoryId);
+  const { refs } = await getTransactionSnaps(db, userId, transactionIds);
 
-  await ref.update({
-    categoryId,
-    categorySource: 'manual',
-    categoryConfidence: 1,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  await commitUpdates(
+    db,
+    refs.map((ref) => ({
+      ref,
+      data: {
+        categoryId,
+        categorySource: 'manual',
+        categoryConfidence: 1,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    }))
+  );
 
-  return { id: transactionId, categoryId, categorySource: 'manual' };
+  return {
+    updated: transactionIds.map((id) => ({ id, categoryId, categorySource: 'manual' })),
+    count: transactionIds.length,
+  };
 }
 
 async function updateTransactionNote(
@@ -216,7 +268,7 @@ async function createTransaction(
 async function addTransactionTags(
   db: Firestore,
   userId: string,
-  transactionId: string,
+  transactionIds: string[],
   rawTags: string[]
 ) {
   const incoming = normalizeTags(rawTags);
@@ -224,25 +276,30 @@ async function addTransactionTags(
     throw new Error('Provide at least one non-empty tag');
   }
 
-  const ref = userCollection(db, userId, 'transactions').doc(transactionId);
-  const snap = await ref.get();
-  if (!snap.exists) {
-    throw new Error(`Transaction not found: ${transactionId}`);
-  }
+  const { refs, snaps } = await getTransactionSnaps(db, userId, transactionIds);
 
-  const existing = snap.data()?.tags;
-  const current = Array.isArray(existing) ? (existing as string[]) : [];
-  const merged = Array.from(new Set([...current, ...incoming]));
+  const updates: { ref: FirebaseFirestore.DocumentReference; data: Record<string, unknown> }[] =
+    [];
+  const updated = transactionIds.map((id, i) => {
+    const existing = snaps[i].data()?.tags;
+    const current = Array.isArray(existing) ? (existing as string[]) : [];
+    const merged = Array.from(new Set([...current, ...incoming]));
+    updates.push({
+      ref: refs[i],
+      data: { tags: merged, updatedAt: FieldValue.serverTimestamp() },
+    });
+    return { id, tags: merged };
+  });
 
-  await ref.update({ tags: merged, updatedAt: FieldValue.serverTimestamp() });
+  await commitUpdates(db, updates);
 
-  return { id: transactionId, tags: merged };
+  return { updated, count: updated.length };
 }
 
 async function removeTransactionTags(
   db: Firestore,
   userId: string,
-  transactionId: string,
+  transactionIds: string[],
   rawTags: string[]
 ) {
   const toRemove = new Set(normalizeTags(rawTags));
@@ -250,19 +307,24 @@ async function removeTransactionTags(
     throw new Error('Provide at least one non-empty tag');
   }
 
-  const ref = userCollection(db, userId, 'transactions').doc(transactionId);
-  const snap = await ref.get();
-  if (!snap.exists) {
-    throw new Error(`Transaction not found: ${transactionId}`);
-  }
+  const { refs, snaps } = await getTransactionSnaps(db, userId, transactionIds);
 
-  const existing = snap.data()?.tags;
-  const current = Array.isArray(existing) ? (existing as string[]) : [];
-  const remaining = current.filter((tag) => !toRemove.has(tag));
+  const updates: { ref: FirebaseFirestore.DocumentReference; data: Record<string, unknown> }[] =
+    [];
+  const updated = transactionIds.map((id, i) => {
+    const existing = snaps[i].data()?.tags;
+    const current = Array.isArray(existing) ? (existing as string[]) : [];
+    const remaining = current.filter((tag) => !toRemove.has(tag));
+    updates.push({
+      ref: refs[i],
+      data: { tags: remaining, updatedAt: FieldValue.serverTimestamp() },
+    });
+    return { id, tags: remaining };
+  });
 
-  await ref.update({ tags: remaining, updatedAt: FieldValue.serverTimestamp() });
+  await commitUpdates(db, updates);
 
-  return { id: transactionId, tags: remaining };
+  return { updated, count: updated.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -416,14 +478,20 @@ const WRITE_ANNOTATIONS = { readOnlyHint: false, destructiveHint: false } as con
 export const WRITE_TOOL_DEFINITIONS = [
   {
     name: 'recategorize_transaction',
-    description: "Change a transaction's category. Marks the change as manual.",
+    description:
+      "Change the category of one or more transactions. Pass transactionId for a single transaction or transactionIds for a bulk change. Marks the change as manual.",
     inputSchema: {
       type: 'object' as const,
       properties: {
-        transactionId: { type: 'string', description: 'Transaction ID' },
+        transactionId: { type: 'string', description: 'A single transaction ID' },
+        transactionIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Multiple transaction IDs for a bulk change',
+        },
         categoryId: { type: 'string', description: 'New category ID' },
       },
-      required: ['transactionId', 'categoryId'],
+      required: ['categoryId'],
     },
     annotations: WRITE_ANNOTATIONS,
   },
@@ -461,35 +529,47 @@ export const WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'add_transaction_tags',
-    description: 'Add one or more free-form tags to a transaction (existing tags are kept)',
+    description:
+      'Add one or more free-form tags to one or more transactions (existing tags are kept). Pass transactionId for a single transaction or transactionIds for a bulk change.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        transactionId: { type: 'string', description: 'Transaction ID' },
+        transactionId: { type: 'string', description: 'A single transaction ID' },
+        transactionIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Multiple transaction IDs for a bulk change',
+        },
         tags: {
           type: 'array',
           items: { type: 'string' },
           description: 'Tags to add',
         },
       },
-      required: ['transactionId', 'tags'],
+      required: ['tags'],
     },
     annotations: WRITE_ANNOTATIONS,
   },
   {
     name: 'remove_transaction_tags',
-    description: 'Remove one or more tags from a transaction',
+    description:
+      'Remove one or more tags from one or more transactions. Pass transactionId for a single transaction or transactionIds for a bulk change.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        transactionId: { type: 'string', description: 'Transaction ID' },
+        transactionId: { type: 'string', description: 'A single transaction ID' },
+        transactionIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Multiple transaction IDs for a bulk change',
+        },
         tags: {
           type: 'array',
           items: { type: 'string' },
           description: 'Tags to remove',
         },
       },
-      required: ['transactionId', 'tags'],
+      required: ['tags'],
     },
     annotations: WRITE_ANNOTATIONS,
   },
@@ -606,10 +686,10 @@ export async function callWriteTool(
 ): Promise<unknown> {
   switch (name) {
     case 'recategorize_transaction':
-      return recategorizeTransaction(
+      return recategorizeTransactions(
         db,
         userId,
-        requireString(args, 'transactionId'),
+        requireTransactionIds(args),
         requireString(args, 'categoryId')
       );
     case 'update_transaction_note':
@@ -625,14 +705,14 @@ export async function callWriteTool(
       return addTransactionTags(
         db,
         userId,
-        requireString(args, 'transactionId'),
+        requireTransactionIds(args),
         requireStringArray(args, 'tags')
       );
     case 'remove_transaction_tags':
       return removeTransactionTags(
         db,
         userId,
-        requireString(args, 'transactionId'),
+        requireTransactionIds(args),
         requireStringArray(args, 'tags')
       );
     case 'create_budget':

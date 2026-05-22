@@ -23,13 +23,16 @@ function createFakeDb(seed: Record<string, Record<string, unknown>> = {}) {
   const writes: WriteRecord[] = [];
   let idCounter = 0;
 
+  type FakeDoc = ReturnType<typeof makeDoc>;
+
   function makeDoc(path: string) {
-    return {
+    const doc = {
       id: path.split('/').pop()!,
+      path,
       collection: (name: string) => makeCollection(`${path}/${name}`),
       get: async () => {
         const data = store.get(path);
-        return { exists: data !== undefined, data: () => data };
+        return { exists: data !== undefined, id: path.split('/').pop()!, data: () => data };
       },
       set: async (data: Record<string, unknown>) => {
         store.set(path, data);
@@ -40,6 +43,7 @@ function createFakeDb(seed: Record<string, Record<string, unknown>> = {}) {
         writes.push({ path, op: 'update', data });
       },
     };
+    return doc;
   }
 
   function makeCollection(path: string) {
@@ -48,11 +52,29 @@ function createFakeDb(seed: Record<string, Record<string, unknown>> = {}) {
     };
   }
 
-  return {
-    db: { collection: (name: string) => makeCollection(name) } as unknown as Firestore,
-    store,
-    writes,
+  function makeBatch() {
+    const ops: { ref: FakeDoc; data: Record<string, unknown> }[] = [];
+    return {
+      update: (ref: FakeDoc, data: Record<string, unknown>) => {
+        ops.push({ ref, data });
+      },
+      commit: async () => {
+        for (const op of ops) await op.ref.update(op.data);
+      },
+    };
+  }
+
+  const db = {
+    collection: (name: string) => makeCollection(name),
+    getAll: async (...refs: FakeDoc[]) =>
+      refs.map((ref) => {
+        const data = store.get(ref.path);
+        return { exists: data !== undefined, id: ref.id, data: () => data };
+      }),
+    batch: () => makeBatch(),
   };
+
+  return { db: db as unknown as Firestore, store, writes };
 }
 
 const UID = 'u1';
@@ -88,7 +110,10 @@ describe('recategorize_transaction', () => {
       transactionId: 't1',
       categoryId: 'c1',
     });
-    expect(result).toEqual({ id: 't1', categoryId: 'c1', categorySource: 'manual' });
+    expect(result).toEqual({
+      updated: [{ id: 't1', categoryId: 'c1', categorySource: 'manual' }],
+      count: 1,
+    });
     expect(writes[0]).toMatchObject({
       path: 'users/u1/transactions/t1',
       op: 'update',
@@ -201,7 +226,7 @@ describe('add_transaction_tags', () => {
       transactionId: 't1',
       tags: ['work', 'lunch'],
     });
-    expect(result).toEqual({ id: 't1', tags: ['work', 'lunch'] });
+    expect(result).toEqual({ updated: [{ id: 't1', tags: ['work', 'lunch'] }], count: 1 });
     expect(writes[0].data).toMatchObject({ tags: ['work', 'lunch'] });
   });
 
@@ -212,8 +237,8 @@ describe('add_transaction_tags', () => {
     const result = (await callWriteTool(db, UID, 'add_transaction_tags', {
       transactionId: 't1',
       tags: ['  work  ', '', 'travel', 'travel'],
-    })) as { tags: string[] };
-    expect(result.tags).toEqual(['work', 'travel']);
+    })) as { updated: { tags: string[] }[] };
+    expect(result.updated[0].tags).toEqual(['work', 'travel']);
   });
 
   it('throws when only empty tags are supplied', async () => {
@@ -245,8 +270,8 @@ describe('remove_transaction_tags', () => {
     const result = (await callWriteTool(db, UID, 'remove_transaction_tags', {
       transactionId: 't1',
       tags: ['lunch'],
-    })) as { tags: string[] };
-    expect(result.tags).toEqual(['work', 'travel']);
+    })) as { updated: { tags: string[] }[] };
+    expect(result.updated[0].tags).toEqual(['work', 'travel']);
   });
 
   it('is a no-op list when the transaction has no tags', async () => {
@@ -254,8 +279,80 @@ describe('remove_transaction_tags', () => {
     const result = (await callWriteTool(db, UID, 'remove_transaction_tags', {
       transactionId: 't1',
       tags: ['work'],
-    })) as { tags: string[] };
-    expect(result.tags).toEqual([]);
+    })) as { updated: { tags: string[] }[] };
+    expect(result.updated[0].tags).toEqual([]);
+  });
+});
+
+describe('bulk transaction operations', () => {
+  function withTwoTxns() {
+    return createFakeDb({
+      'users/u1/transactions/t1': { description: 'Albert Heijn', amount: -25, tags: ['work'] },
+      'users/u1/transactions/t2': { description: 'Jumbo', amount: -30 },
+      'users/u1/categories/c1': { name: 'Groceries' },
+    });
+  }
+
+  it('recategorizes multiple transactions in one call', async () => {
+    const { db, writes } = withTwoTxns();
+    const result = (await callWriteTool(db, UID, 'recategorize_transaction', {
+      transactionIds: ['t1', 't2'],
+      categoryId: 'c1',
+    })) as { count: number; updated: { id: string }[] };
+    expect(result.count).toBe(2);
+    expect(result.updated.map((u) => u.id)).toEqual(['t1', 't2']);
+    expect(writes).toHaveLength(2);
+    expect(writes.every((w) => w.data.categoryId === 'c1')).toBe(true);
+  });
+
+  it('adds tags to multiple transactions, merging per transaction', async () => {
+    const { db } = withTwoTxns();
+    const result = (await callWriteTool(db, UID, 'add_transaction_tags', {
+      transactionIds: ['t1', 't2'],
+      tags: ['trip'],
+    })) as { updated: { id: string; tags: string[] }[] };
+    expect(result.updated).toEqual([
+      { id: 't1', tags: ['work', 'trip'] },
+      { id: 't2', tags: ['trip'] },
+    ]);
+  });
+
+  it('removes tags from multiple transactions', async () => {
+    const { db } = withTwoTxns();
+    const result = (await callWriteTool(db, UID, 'remove_transaction_tags', {
+      transactionIds: ['t1', 't2'],
+      tags: ['work'],
+    })) as { updated: { tags: string[] }[] };
+    expect(result.updated[0].tags).toEqual([]);
+    expect(result.updated[1].tags).toEqual([]);
+  });
+
+  it('rejects the whole batch when any id is missing', async () => {
+    const { db, writes } = withTwoTxns();
+    await expect(
+      callWriteTool(db, UID, 'recategorize_transaction', {
+        transactionIds: ['t1', 'ghost'],
+        categoryId: 'c1',
+      })
+    ).rejects.toThrow('Transaction not found: ghost');
+    expect(writes).toHaveLength(0);
+  });
+
+  it('throws when neither transactionId nor transactionIds is given', async () => {
+    const { db } = withTwoTxns();
+    await expect(
+      callWriteTool(db, UID, 'recategorize_transaction', { categoryId: 'c1' })
+    ).rejects.toThrow('Provide transactionId or transactionIds');
+  });
+
+  it('dedupes repeated ids so each transaction is written once', async () => {
+    const { db, writes } = withTwoTxns();
+    const result = (await callWriteTool(db, UID, 'add_transaction_tags', {
+      transactionIds: ['t1', 't1'],
+      tags: ['trip'],
+    })) as { count: number };
+    expect(result.count).toBe(1);
+    expect(writes).toHaveLength(1);
   });
 });
 

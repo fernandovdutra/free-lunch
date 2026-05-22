@@ -1,6 +1,7 @@
 import { Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { subMonths } from 'date-fns';
 import { WRITE_TOOL_DEFINITIONS, callWriteTool } from './writeTools.js';
+import { matchMerchant } from '../categorization/merchantDatabase.js';
 
 /**
  * Finance query tools exposed over MCP.
@@ -15,14 +16,52 @@ interface TransactionFilter {
   endDate?: string;
   categoryId?: string;
   counterparty?: string;
-  tag?: string;
+  tags?: string[];
+  tagMatch?: 'all' | 'any';
   minAmount?: number;
   maxAmount?: number;
   direction?: 'income' | 'expense' | 'all';
   limit?: number;
 }
 
-async function getTransactions(db: Firestore, userId: string, filter: TransactionFilter) {
+/** Firestore's hard cap on the number of values in an `array-contains-any`. */
+const MAX_TAGS_ANY = 10;
+/**
+ * Upper bound on docs fetched when a tag filter is active. Tag filters run
+ * server-side against the whole history, so this only guards pathological
+ * cases — it sits far above any realistic tagged-transaction count.
+ */
+const TAG_QUERY_CAP = 500;
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Turn an UPPERCASE merchant pattern into a display name ("AH XL" -> "Ah Xl"). */
+function toTitleCase(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+interface RawTxn {
+  id: string;
+  data: FirebaseFirestore.DocumentData;
+}
+
+/**
+ * Shared transaction query + filter pipeline.
+ *
+ * Tag filtering is pushed into Firestore (`array-contains` / `array-contains-any`)
+ * so the whole history is searched before any limit applies — transactions
+ * tagged long ago are no longer missed. `fetchCap` bounds the Firestore read;
+ * pass `null` for an unbounded scan (aggregation).
+ */
+async function queryTransactions(
+  db: Firestore,
+  userId: string,
+  filter: TransactionFilter,
+  fetchCap: number | null
+): Promise<RawTxn[]> {
   let ref = db
     .collection('users')
     .doc(userId)
@@ -35,79 +74,229 @@ async function getTransactions(db: Firestore, userId: string, filter: Transactio
   if (filter.endDate) {
     ref = ref.where('date', '<=', Timestamp.fromDate(new Date(filter.endDate)));
   }
-  if (filter.categoryId) {
+
+  const tags = filter.tags ?? [];
+  const tagMatch = filter.tagMatch ?? 'all';
+  let categoryIdServerSide = false;
+
+  if (tags.length > 0) {
+    // A tag filter and a categoryId filter cannot both run server-side without
+    // a three-field composite index, so categoryId falls back to a local pass.
+    if (tagMatch === 'any') {
+      if (tags.length > MAX_TAGS_ANY) {
+        throw new Error(`tagMatch 'any' supports at most ${MAX_TAGS_ANY} tags`);
+      }
+      ref = ref.where('tags', 'array-contains-any', tags);
+    } else {
+      ref = ref.where('tags', 'array-contains', tags[0]);
+    }
+  } else if (filter.categoryId) {
     ref = ref.where('categoryId', '==', filter.categoryId);
+    categoryIdServerSide = true;
   }
 
-  const snapshot = await ref.limit(filter.limit ?? 50).get();
+  if (fetchCap != null) {
+    ref = ref.limit(fetchCap);
+  }
 
-  let results = snapshot.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      date: data.date?.toDate?.()?.toISOString() ?? '',
-      description: data.description,
-      amount: data.amount,
-      counterparty: data.counterparty ?? null,
-      categoryId: data.categoryId ?? null,
-      categorySource: data.categorySource ?? 'none',
-      isSplit: data.isSplit ?? false,
-      tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
-    };
-  });
+  const snapshot = await ref.get();
+  let rows: RawTxn[] = snapshot.docs.map((doc) => ({ id: doc.id, data: doc.data() }));
 
+  if (!categoryIdServerSide && filter.categoryId) {
+    rows = rows.filter((r) => (r.data.categoryId ?? null) === filter.categoryId);
+  }
+  // `array-contains` only matched the first tag — enforce the rest for AND.
+  if (tagMatch === 'all' && tags.length > 1) {
+    rows = rows.filter((r) => {
+      const txnTags = Array.isArray(r.data.tags) ? (r.data.tags as string[]) : [];
+      return tags.every((t) => txnTags.includes(t));
+    });
+  }
   if (filter.counterparty) {
     const search = filter.counterparty.toLowerCase();
-    results = results.filter((t) => t.counterparty?.toLowerCase().includes(search));
-  }
-  if (filter.tag) {
-    results = results.filter((t) => t.tags.includes(filter.tag!));
+    rows = rows.filter((r) =>
+      (r.data.counterparty as string | null)?.toLowerCase().includes(search)
+    );
   }
   if (filter.direction === 'income') {
-    results = results.filter((t) => t.amount > 0);
+    rows = rows.filter((r) => r.data.amount > 0);
   } else if (filter.direction === 'expense') {
-    results = results.filter((t) => t.amount < 0);
+    rows = rows.filter((r) => r.data.amount < 0);
   }
   if (filter.minAmount != null) {
-    results = results.filter((t) => Math.abs(t.amount) >= filter.minAmount!);
+    rows = rows.filter((r) => Math.abs(r.data.amount) >= filter.minAmount!);
   }
   if (filter.maxAmount != null) {
-    results = results.filter((t) => Math.abs(t.amount) <= filter.maxAmount!);
+    rows = rows.filter((r) => Math.abs(r.data.amount) <= filter.maxAmount!);
   }
 
-  return results;
+  return rows;
+}
+
+/** Load a category-id -> name map for the user. */
+async function loadCategoryNames(db: Firestore, userId: string): Promise<Map<string, string>> {
+  const snap = await db.collection('users').doc(userId).collection('categories').get();
+  const names = new Map<string, string>();
+  snap.docs.forEach((doc) => {
+    const name = doc.data().name;
+    if (typeof name === 'string') names.set(doc.id, name);
+  });
+  return names;
+}
+
+/** Best-effort cleaner merchant name from the categorization merchant database. */
+function resolveMerchantName(data: FirebaseFirestore.DocumentData): string | null {
+  const description = typeof data.description === 'string' ? data.description : '';
+  const counterparty = typeof data.counterparty === 'string' ? data.counterparty : '';
+  const match =
+    (description ? matchMerchant(description) : null) ??
+    (counterparty ? matchMerchant(counterparty) : null);
+  return match ? toTitleCase(match.pattern) : null;
+}
+
+/** Shape a raw transaction doc into the enriched MCP response record. */
+function enrichTransaction(row: RawTxn, categoryNames: Map<string, string>) {
+  const categoryId = (row.data.categoryId as string | null) ?? null;
+  return {
+    id: row.id,
+    date: row.data.date?.toDate?.()?.toISOString() ?? '',
+    description: row.data.description,
+    amount: row.data.amount,
+    counterparty: row.data.counterparty ?? null,
+    merchantName: resolveMerchantName(row.data),
+    categoryId,
+    categoryName: categoryId ? (categoryNames.get(categoryId) ?? null) : null,
+    categorySource: row.data.categorySource ?? 'none',
+    isSplit: row.data.isSplit ?? false,
+    tags: Array.isArray(row.data.tags) ? (row.data.tags as string[]) : [],
+  };
+}
+
+/** Wrap a transaction list with its record count and summed amount. */
+function withTotals<T extends { amount: number }>(transactions: T[]) {
+  return {
+    transactions,
+    totalCount: transactions.length,
+    totalAmount: round2(transactions.reduce((sum, t) => sum + t.amount, 0)),
+  };
+}
+
+async function getTransactions(db: Firestore, userId: string, filter: TransactionFilter) {
+  const limit = filter.limit ?? 50;
+  const hasTagFilter = (filter.tags ?? []).length > 0;
+  // With a tag filter, scan deep history then slice; otherwise keep the
+  // original behaviour of capping the Firestore read at the caller's limit.
+  const fetchCap = hasTagFilter ? TAG_QUERY_CAP : limit;
+
+  const [rows, categoryNames] = await Promise.all([
+    queryTransactions(db, userId, filter, fetchCap),
+    loadCategoryNames(db, userId),
+  ]);
+
+  const transactions = rows.slice(0, limit).map((r) => enrichTransaction(r, categoryNames));
+  return withTotals(transactions);
 }
 
 async function searchTransactions(db: Firestore, userId: string, searchText: string, limit = 50) {
   // Firestore has no full-text search — fetch recent transactions and filter locally.
-  const snapshot = await db
-    .collection('users')
-    .doc(userId)
-    .collection('transactions')
-    .orderBy('date', 'desc')
-    .limit(500)
-    .get();
+  const [snapshot, categoryNames] = await Promise.all([
+    db
+      .collection('users')
+      .doc(userId)
+      .collection('transactions')
+      .orderBy('date', 'desc')
+      .limit(500)
+      .get(),
+    loadCategoryNames(db, userId),
+  ]);
 
   const search = searchText.toLowerCase();
-  return snapshot.docs
-    .map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        date: data.date?.toDate?.()?.toISOString() ?? '',
-        description: data.description,
-        amount: data.amount,
-        counterparty: data.counterparty ?? null,
-        categoryId: data.categoryId ?? null,
-        tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
-      };
-    })
+  const transactions = snapshot.docs
+    .map((doc) => ({ id: doc.id, data: doc.data() }))
     .filter(
-      (t) =>
-        t.description?.toLowerCase().includes(search) ||
-        t.counterparty?.toLowerCase().includes(search)
+      (r) =>
+        (r.data.description as string | null)?.toLowerCase().includes(search) ||
+        (r.data.counterparty as string | null)?.toLowerCase().includes(search)
     )
-    .slice(0, limit);
+    .slice(0, limit)
+    .map((r) => enrichTransaction(r, categoryNames));
+
+  return withTotals(transactions);
+}
+
+type GroupBy = 'category' | 'tag' | 'counterparty' | 'month';
+
+/**
+ * Spending totals and counts over a filtered transaction set, without returning
+ * the individual records. Optionally grouped by category, tag, counterparty, or
+ * month. Note: a transaction may carry several tags, so grouping by tag can sum
+ * above the overall total.
+ */
+async function aggregateTransactions(
+  db: Firestore,
+  userId: string,
+  filter: TransactionFilter,
+  groupBy?: GroupBy
+) {
+  const hasTagFilter = (filter.tags ?? []).length > 0;
+  const rows = await queryTransactions(db, userId, filter, hasTagFilter ? TAG_QUERY_CAP : null);
+
+  let totalAmount = 0;
+  let totalIncome = 0;
+  let totalExpenses = 0;
+  for (const row of rows) {
+    const amount = row.data.amount as number;
+    totalAmount += amount;
+    if (amount > 0) totalIncome += amount;
+    else totalExpenses += Math.abs(amount);
+  }
+
+  const summary = {
+    totalAmount: round2(totalAmount),
+    totalIncome: round2(totalIncome),
+    totalExpenses: round2(totalExpenses),
+    transactionCount: rows.length,
+  };
+
+  if (!groupBy) return summary;
+
+  const categoryNames = groupBy === 'category' ? await loadCategoryNames(db, userId) : null;
+  const groups = new Map<string, { label: string; amount: number; count: number }>();
+
+  for (const row of rows) {
+    const amount = row.data.amount as number;
+    let keys: { key: string; label: string }[];
+    if (groupBy === 'category') {
+      const id = (row.data.categoryId as string | null) ?? 'uncategorized';
+      const label =
+        id === 'uncategorized' ? 'Uncategorized' : (categoryNames!.get(id) ?? 'Unknown');
+      keys = [{ key: id, label }];
+    } else if (groupBy === 'counterparty') {
+      const cp = (row.data.counterparty as string | null) ?? 'Unknown';
+      keys = [{ key: cp, label: cp }];
+    } else if (groupBy === 'month') {
+      const month = row.data.date?.toDate?.()?.toISOString().slice(0, 7) ?? 'unknown';
+      keys = [{ key: month, label: month }];
+    } else {
+      const txnTags = Array.isArray(row.data.tags) ? (row.data.tags as string[]) : [];
+      keys =
+        txnTags.length > 0
+          ? txnTags.map((t) => ({ key: t, label: t }))
+          : [{ key: 'untagged', label: 'Untagged' }];
+    }
+    for (const { key, label } of keys) {
+      const group = groups.get(key) ?? { label, amount: 0, count: 0 };
+      group.amount += amount;
+      group.count += 1;
+      groups.set(key, group);
+    }
+  }
+
+  const groupList = Array.from(groups.entries())
+    .map(([key, g]) => ({ key, label: g.label, amount: round2(g.amount), count: g.count }))
+    .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+
+  return { ...summary, groupBy, groups: groupList };
 }
 
 async function getSpendingSummary(
@@ -492,7 +681,7 @@ const READ_TOOL_DEFINITIONS = [
   {
     name: 'get_transactions',
     description:
-      'Query bank transactions with filters (date range, category, counterparty, tag, amount, direction)',
+      'Query bank transactions with filters (date range, category, counterparty, tags, amount, direction). Returns { transactions, totalCount, totalAmount }; each transaction includes categoryName and a cleaner merchantName. Tag filters search the full transaction history.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -503,7 +692,17 @@ const READ_TOOL_DEFINITIONS = [
           type: 'string',
           description: 'Filter by counterparty name (partial match)',
         },
-        tag: { type: 'string', description: 'Filter by an exact tag' },
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Filter by one or more exact tags',
+        },
+        tagMatch: {
+          type: 'string',
+          enum: ['all', 'any'],
+          description: "Match all tags (AND) or any tag (OR). Default 'all'.",
+        },
+        tag: { type: 'string', description: 'Deprecated — single-tag alias for `tags`' },
         minAmount: { type: 'number', description: 'Minimum absolute amount' },
         maxAmount: { type: 'number', description: 'Maximum absolute amount' },
         direction: {
@@ -512,6 +711,46 @@ const READ_TOOL_DEFINITIONS = [
           description: 'Filter by direction',
         },
         limit: { type: 'number', description: 'Max results (default 50)' },
+      },
+    },
+  },
+  {
+    name: 'aggregate_transactions',
+    description:
+      'Get spending totals and counts for a filtered set of transactions without returning the individual records. Optionally group the totals by category, tag, counterparty, or month. Accepts the same filters as get_transactions.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        startDate: { type: 'string', description: 'Start date (ISO format)' },
+        endDate: { type: 'string', description: 'End date (ISO format)' },
+        categoryId: { type: 'string', description: 'Filter by category ID' },
+        counterparty: {
+          type: 'string',
+          description: 'Filter by counterparty name (partial match)',
+        },
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Filter by one or more exact tags',
+        },
+        tagMatch: {
+          type: 'string',
+          enum: ['all', 'any'],
+          description: "Match all tags (AND) or any tag (OR). Default 'all'.",
+        },
+        tag: { type: 'string', description: 'Deprecated — single-tag alias for `tags`' },
+        minAmount: { type: 'number', description: 'Minimum absolute amount' },
+        maxAmount: { type: 'number', description: 'Maximum absolute amount' },
+        direction: {
+          type: 'string',
+          enum: ['income', 'expense', 'all'],
+          description: 'Filter by direction',
+        },
+        groupBy: {
+          type: 'string',
+          enum: ['category', 'tag', 'counterparty', 'month'],
+          description: 'Optional grouping dimension for the breakdown',
+        },
       },
     },
   },
@@ -614,6 +853,34 @@ function optionalString(args: Record<string, unknown>, key: string): string | un
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
+function optionalStringArray(args: Record<string, unknown>, key: string): string[] | undefined {
+  const value = args[key];
+  if (!Array.isArray(value)) return undefined;
+  const strings = value.filter((v): v is string => typeof v === 'string' && v.length > 0);
+  return strings.length > 0 ? strings : undefined;
+}
+
+/** Parse the shared transaction filter args, folding the legacy `tag` alias. */
+function parseTransactionFilter(args: Record<string, unknown>): TransactionFilter {
+  const tagList = optionalStringArray(args, 'tags');
+  const singleTag = optionalString(args, 'tag');
+  const tags = tagList ?? (singleTag ? [singleTag] : undefined);
+  const tagMatch = optionalString(args, 'tagMatch');
+
+  return {
+    startDate: optionalString(args, 'startDate'),
+    endDate: optionalString(args, 'endDate'),
+    categoryId: optionalString(args, 'categoryId'),
+    counterparty: optionalString(args, 'counterparty'),
+    tags,
+    tagMatch: tagMatch === 'any' ? 'any' : tagMatch === 'all' ? 'all' : undefined,
+    minAmount: optionalNumber(args, 'minAmount'),
+    maxAmount: optionalNumber(args, 'maxAmount'),
+    direction: optionalString(args, 'direction') as 'income' | 'expense' | 'all' | undefined,
+    limit: optionalNumber(args, 'limit'),
+  };
+}
+
 export async function callTool(
   db: Firestore,
   userId: string,
@@ -622,21 +889,14 @@ export async function callTool(
 ): Promise<unknown> {
   switch (name) {
     case 'get_transactions':
-      return getTransactions(db, userId, {
-        startDate: optionalString(args, 'startDate'),
-        endDate: optionalString(args, 'endDate'),
-        categoryId: optionalString(args, 'categoryId'),
-        counterparty: optionalString(args, 'counterparty'),
-        tag: optionalString(args, 'tag'),
-        minAmount: optionalNumber(args, 'minAmount'),
-        maxAmount: optionalNumber(args, 'maxAmount'),
-        direction: optionalString(args, 'direction') as
-          | 'income'
-          | 'expense'
-          | 'all'
-          | undefined,
-        limit: optionalNumber(args, 'limit'),
-      });
+      return getTransactions(db, userId, parseTransactionFilter(args));
+    case 'aggregate_transactions':
+      return aggregateTransactions(
+        db,
+        userId,
+        parseTransactionFilter(args),
+        optionalString(args, 'groupBy') as GroupBy | undefined
+      );
     case 'search_transactions':
       return searchTransactions(
         db,
