@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { format, getDate, getDaysInMonth, isAfter } from 'date-fns';
+import { endOfDay, format, getDate, getDaysInMonth, isAfter } from 'date-fns';
 import { useBankConnections } from '@/hooks/useBankConnection';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useCategories } from '@/hooks/useCategories';
@@ -30,9 +30,24 @@ export function Home() {
   const navigate = useNavigate();
   const { selectedMonth, isCurrentMonth, dateRange } = useMonth();
 
-  const { data: current, error } = useDashboardData(dateRange);
+  // "Spent so far" counts only transactions dated up to today, so the
+  // headline, the burn-up dot, and the projection agree. For the current
+  // month the range ends at end-of-today (real bank data can carry
+  // future value-dated debits that haven't happened yet); past months
+  // use the full month. endOfDay is stable within a day, so the
+  // react-query key stays stable across renders. Scoped to the home view
+  // only — other pages still show the whole month.
+  const homeRange = useMemo(
+    () => ({
+      startDate: dateRange.startDate,
+      endDate: isCurrentMonth ? endOfDay(new Date()) : dateRange.endDate,
+    }),
+    [dateRange.startDate, dateRange.endDate, isCurrentMonth]
+  );
+
+  const { data: current, error } = useDashboardData(homeRange);
   const { data: budgets = [] } = useBudgets();
-  const { data: budgetProgress } = useBudgetProgress(dateRange);
+  const { data: budgetProgress } = useBudgetProgress(homeRange);
   const { data: categories = [] } = useCategories();
   const { data: pendingReimbursements = [] } = usePendingReimbursements();
   const { data: connections = [] } = useBankConnections();
@@ -40,8 +55,8 @@ export function Home() {
   // Month transactions, used to match scheduled fixed costs against
   // what's actually posted so the projection doesn't double-count.
   const { data: monthTxns = [] } = useTransactions({
-    startDate: dateRange.startDate,
-    endDate: dateRange.endDate,
+    startDate: homeRange.startDate,
+    endDate: homeRange.endDate,
   });
 
   // Match scheduled fixed costs against actual transactions so already-

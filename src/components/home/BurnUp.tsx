@@ -106,6 +106,19 @@ export function BurnUp({
   const labelToday = today > 0 ? `TODAY · D${today}` : null;
   const labelY = VB.h - PAD.b + 10;
 
+  // Drop an endpoint label when the centered TODAY label would overlap it
+  // (e.g. "TODAY · D28" colliding with "D31" late in the month). Monospace
+  // at fontSize 9 ≈ 0.6em per char.
+  const CHAR_W = 5.4;
+  const LABEL_GAP = 4;
+  const todayCenter = xOf(today);
+  const todayHalf = labelToday ? (labelToday.length * CHAR_W) / 2 : 0;
+  const showLeft =
+    !labelToday || todayCenter - todayHalf - LABEL_GAP > PAD.l + labelLeft.length * CHAR_W;
+  const showRight =
+    !labelToday ||
+    todayCenter + todayHalf + LABEL_GAP < VB.w - PAD.r - labelRight.length * CHAR_W;
+
   return (
     <svg
       viewBox={`0 0 ${VB.w} ${VB.h}`}
@@ -216,16 +229,18 @@ export function BurnUp({
       )}
 
       {/* Axis labels */}
-      <text
-        x={PAD.l}
-        y={labelY}
-        textAnchor="start"
-        fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-        fontSize="9"
-        fill="var(--text-lo)"
-      >
-        {labelLeft}
-      </text>
+      {showLeft && (
+        <text
+          x={PAD.l}
+          y={labelY}
+          textAnchor="start"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+          fontSize="9"
+          fill="var(--text-lo)"
+        >
+          {labelLeft}
+        </text>
+      )}
       {labelToday && (
         <text
           x={xOf(today)}
@@ -238,16 +253,18 @@ export function BurnUp({
           {labelToday}
         </text>
       )}
-      <text
-        x={VB.w - PAD.r}
-        y={labelY}
-        textAnchor="end"
-        fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-        fontSize="9"
-        fill="var(--text-lo)"
-      >
-        {labelRight}
-      </text>
+      {showRight && (
+        <text
+          x={VB.w - PAD.r}
+          y={labelY}
+          textAnchor="end"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+          fontSize="9"
+          fill="var(--text-lo)"
+        >
+          {labelRight}
+        </text>
+      )}
     </svg>
   );
 }
