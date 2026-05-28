@@ -89,11 +89,9 @@ export function Home() {
     transactionCount: 0,
   };
 
-  const spent = summary.totalExpenses;
   const budget = budgets
     .filter((b) => b.isActive)
     .reduce((sum, b) => sum + b.monthlyLimit, 0);
-  const isOver = budget > 0 && spent > budget;
 
   const today = new Date();
   const daysInMonth = getDaysInMonth(selectedMonth);
@@ -103,6 +101,14 @@ export function Home() {
   // Cumulative spend per day, anchored to whichever day "today" is in
   // the visible month. For past months, today === daysInMonth.
   const dailyActual = buildDailyActual(current?.timeline ?? [], dayOfMonth);
+
+  // "Spent so far" is the burn-up's own through-today cumulative, so the
+  // headline number, the chart dot, and the projection share one source of
+  // truth and can never contradict each other. (Equals summary.totalExpenses
+  // once the range is clipped to today; deriving it from dailyActual keeps the
+  // card consistent even if the summary still carries later-dated transactions.)
+  const spent = dailyActual[dailyActual.length - 1] ?? 0;
+  const isOver = budget > 0 && spent > budget;
 
   // Burn-up projection. Both the chart's dashed projection line and the
   // bottom-summary "AT THIS PACE €X" use this number, so the line and

@@ -244,3 +244,33 @@ describe('fixedRemaining', () => {
     expect(fixedRemaining([])).toBe(0);
   });
 });
+
+describe('spent / dot / projection consistency (regression)', () => {
+  // The card's "spent" is dailyActual[today] — the same value the dot is
+  // drawn at and the projection extrapolates from. Even when the month's
+  // timeline carries expenses dated AFTER today (real future-dated debits),
+  // these three must agree and the pace can never come out below spent.
+  const daysInMonth = 31;
+  const today = 28;
+
+  // €250/day every day of the month, including days 29–31 (future-dated).
+  const timeline = Array.from({ length: daysInMonth }, (_, i) => ({
+    dateKey: `2026-05-${String(i + 1).padStart(2, '0')}`,
+    expenses: 250,
+  }));
+
+  it('spent (dailyActual[today]) reflects only through-today, not later-dated rows', () => {
+    const daily = buildDailyActual(timeline, today);
+    const spent = daily[daily.length - 1] ?? 0;
+    expect(daily).toHaveLength(today + 1);
+    expect(spent).toBe(250 * today); // days 1..28, excludes 29–31
+    expect(spent).toBeLessThan(250 * daysInMonth); // full-month total would be higher
+  });
+
+  it('projected month-end is never below spent so far', () => {
+    const daily = buildDailyActual(timeline, today);
+    const spent = daily[daily.length - 1] ?? 0;
+    const { projectedEnd } = computeProjection(daily, [], [], today, daysInMonth);
+    expect(projectedEnd).toBeGreaterThanOrEqual(spent);
+  });
+});
