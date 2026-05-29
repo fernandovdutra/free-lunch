@@ -5,27 +5,45 @@ export type { TimelineRow, FixedCost };
 /**
  * Build the cumulative-spend array for the burn-up chart.
  *
- * Index 0 = €0 at month start. Final index = today's day-of-month.
- * Length = today + 1.
+ * Index 0 = €0 at month start. Index d = cumulative spend through
+ * day-of-month d. Length = today + 1.
+ *
+ * Each day's expenses are bucketed by the day-of-month parsed from its
+ * `dateKey`, NOT by the row's position in the array. The dashboard
+ * `timeline` can carry a spurious leading (or trailing) day when the
+ * month's local boundaries cross a UTC date — e.g. a "2026-04-30" row
+ * for a CEST May, because the local-midnight start serializes to the
+ * previous day in UTC. A position-based cumulative would let that extra
+ * row shift everything back by a day, so `daily[today]` would land on
+ * yesterday and miss today's spend. `monthKey` ("YYYY-MM") scopes the
+ * rows to the visible month so adjacent-month days never interfere.
  *
  * Re-uses the dashboard `timeline` rows (already excludes transfers,
  * pending reimbursements, and excludeFromTotals — same exclusions as
  * the displayed `spent` total) so `daily[today]` matches the header
  * spent number.
  */
-export function buildDailyActual(timeline: TimelineRow[], today: number): number[] {
+export function buildDailyActual(
+  timeline: TimelineRow[],
+  today: number,
+  monthKey?: string
+): number[] {
   if (today < 0) return [0];
 
-  const sorted = [...timeline].sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+  const byDay: number[] = Array.from({ length: today + 1 }, () => 0);
+  for (const row of timeline) {
+    if (monthKey && !row.dateKey.startsWith(monthKey)) continue;
+    const dom = Number(row.dateKey.slice(8, 10));
+    if (dom >= 1 && dom <= today) byDay[dom] = (byDay[dom] ?? 0) + row.expenses;
+  }
+
   const out: number[] = [0];
   let running = 0;
-  for (const row of sorted) {
-    if (out.length > today) break;
-    running += row.expenses;
+  for (let d = 1; d <= today; d++) {
+    running += byDay[d] ?? 0;
     out.push(running);
   }
-  while (out.length <= today) out.push(running);
-  return out.slice(0, today + 1);
+  return out;
 }
 
 /**

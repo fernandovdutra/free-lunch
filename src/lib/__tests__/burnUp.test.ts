@@ -46,6 +46,28 @@ describe('buildDailyActual', () => {
   it('returns [0] when today is 0', () => {
     expect(buildDailyActual([], 0)).toEqual([0]);
   });
+
+  it('ignores a spurious leading previous-month day (UTC boundary skew)', () => {
+    // CEST: local "May 1 00:00" serializes to 2026-04-30T22:00Z, so the
+    // backend timeline gets a leading "2026-04-30" bucket. daily[today] must
+    // still be the cumulative through today, not yesterday.
+    const timeline = [
+      { dateKey: '2026-04-30', expenses: 0 },
+      { dateKey: '2026-05-01', expenses: 100 },
+      { dateKey: '2026-05-02', expenses: 50 },
+      { dateKey: '2026-05-03', expenses: 25 },
+    ];
+    expect(buildDailyActual(timeline, 3, '2026-05')).toEqual([0, 100, 150, 175]);
+  });
+
+  it('indexes by day-of-month, not array position (gaps stay aligned)', () => {
+    // Day 2 has no spend; day 3's cumulative must still sit at index 3.
+    const timeline = [
+      { dateKey: '2026-05-01', expenses: 40 },
+      { dateKey: '2026-05-03', expenses: 60 },
+    ];
+    expect(buildDailyActual(timeline, 3, '2026-05')).toEqual([0, 40, 40, 100]);
+  });
 });
 
 describe('computeExpected', () => {
@@ -242,5 +264,35 @@ describe('fixedRemaining', () => {
 
   it('returns 0 for empty', () => {
     expect(fixedRemaining([])).toBe(0);
+  });
+});
+
+describe('spent / dot / projection consistency (regression)', () => {
+  // The card's "spent" is dailyActual[today] — the same value the dot is
+  // drawn at and the projection extrapolates from. Even when the month's
+  // timeline carries expenses dated AFTER today (real future-dated debits),
+  // these three must agree and the pace can never come out below spent.
+  const daysInMonth = 31;
+  const today = 28;
+
+  // €250/day every day of the month, including days 29–31 (future-dated).
+  const timeline = Array.from({ length: daysInMonth }, (_, i) => ({
+    dateKey: `2026-05-${String(i + 1).padStart(2, '0')}`,
+    expenses: 250,
+  }));
+
+  it('spent (dailyActual[today]) reflects only through-today, not later-dated rows', () => {
+    const daily = buildDailyActual(timeline, today);
+    const spent = daily[daily.length - 1] ?? 0;
+    expect(daily).toHaveLength(today + 1);
+    expect(spent).toBe(250 * today); // days 1..28, excludes 29–31
+    expect(spent).toBeLessThan(250 * daysInMonth); // full-month total would be higher
+  });
+
+  it('projected month-end is never below spent so far', () => {
+    const daily = buildDailyActual(timeline, today);
+    const spent = daily[daily.length - 1] ?? 0;
+    const { projectedEnd } = computeProjection(daily, [], [], today, daysInMonth);
+    expect(projectedEnd).toBeGreaterThanOrEqual(spent);
   });
 });
