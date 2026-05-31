@@ -73,7 +73,7 @@ describe('buildIcsCoverage', () => {
 
   it('does not clip a statement dated in a future month', () => {
     const coverage = buildIcsCoverage([stmt('2026-01'), stmt('2026-06')], '2026-04');
-    expect(coverage[0].monthKey).toBe('2026-06');
+    expect(coverage[0]?.monthKey).toBe('2026-06');
     expect(coverage.at(-1)?.monthKey).toBe('2026-01');
   });
 });

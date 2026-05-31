@@ -4,4 +4,3 @@
 export { BankConnectionCard } from './BankConnectionCard';
 export { BuiltInRulesCard } from './BuiltInRulesCard';
 export { CategorizationRulesCard } from './CategorizationRulesCard';
-export { IcsImportCard } from './IcsImportCard';

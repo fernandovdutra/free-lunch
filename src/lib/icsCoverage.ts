@@ -34,8 +34,8 @@ export interface IcsMonthCoverage {
 }
 
 function keyToNum(key: string): number {
-  const [y, m] = key.split('-').map(Number);
-  return y * 12 + (m - 1);
+  const parts = key.split('-');
+  return Number(parts[0]) * 12 + (Number(parts[1]) - 1);
 }
 
 function numToKey(n: number): string {
@@ -46,7 +46,9 @@ function numToKey(n: number): string {
 
 /** 'yyyy-MM' → 'MMMM yyyy' (e.g. '2026-05' → 'May 2026'). TZ-safe. */
 export function monthKeyLabel(key: string): string {
-  const [y, m] = key.split('-').map(Number);
+  const parts = key.split('-');
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
   return format(new Date(y, m - 1, 1), 'MMMM yyyy');
 }
 
