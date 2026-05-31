@@ -24,11 +24,9 @@ import { CounterpartyDetail } from '@/pages/CounterpartyDetail';
 import { SpendingExplorer } from '@/pages/SpendingExplorer';
 import { SpendingCategory } from '@/pages/SpendingCategory';
 import { SpendingSubcategory } from '@/pages/SpendingSubcategory';
-import { SpendingCounterparty } from '@/pages/SpendingCounterparty';
 import { IcsOverview } from '@/pages/IcsOverview';
 import { IcsBreakdown } from '@/pages/IcsBreakdown';
 import { IcsBreakdownCategory } from '@/pages/IcsBreakdownCategory';
-import { IcsBreakdownCounterparty } from '@/pages/IcsBreakdownCounterparty';
 import { Goals } from '@/pages/Goals';
 import { FixedCosts } from '@/pages/FixedCosts';
 import { Investments } from '@/pages/Investments';
@@ -89,16 +87,13 @@ export function App() {
                 <Route path="expenses" element={<SpendingExplorer />} />
                 <Route path="expenses/:categoryId" element={<SpendingCategory />} />
                 <Route path="expenses/:categoryId/:subcategoryId" element={<SpendingSubcategory />} />
-                <Route path="expenses/:categoryId/:subcategoryId/counterparty/:counterparty" element={<SpendingCounterparty />} />
                 <Route path="income" element={<SpendingExplorer />} />
                 <Route path="income/:categoryId" element={<SpendingCategory />} />
                 <Route path="income/:categoryId/:subcategoryId" element={<SpendingSubcategory />} />
-                <Route path="income/:categoryId/:subcategoryId/counterparty/:counterparty" element={<SpendingCounterparty />} />
                 <Route path="counterparty/:counterparty" element={<CounterpartyDetail />} />
                 <Route path="ics" element={<IcsOverview />} />
                 <Route path="ics/:statementId" element={<IcsBreakdown />} />
                 <Route path="ics/:statementId/:categoryId" element={<IcsBreakdownCategory />} />
-                <Route path="ics/:statementId/:categoryId/counterparty/:counterparty" element={<IcsBreakdownCounterparty />} />
                 <Route path="goals" element={<Goals />} />
                 <Route path="fixed-costs" element={<FixedCosts />} />
                 <Route path="investments" element={<Investments />} />
