@@ -10,12 +10,13 @@ const TABS = [
   { href: '/', label: 'HOME', glyph: '▤', exact: true },
   { href: '/transactions', label: 'TXNS', glyph: '▣', exact: false },
   { href: '/budgets', label: 'BUDGET', glyph: '◐', exact: false },
+  { href: '/wealth', label: 'WEALTH', glyph: '◆', exact: false },
 ] as const;
 
 export function SideRail({ onMoreClick, moreOpen }: SideRailProps) {
   const location = useLocation();
 
-  const moreRoutePrefixes = ['/reimbursements', '/fixed-costs', '/settings', '/insights', '/goals', '/investments'];
+  const moreRoutePrefixes = ['/reimbursements', '/fixed-costs', '/settings', '/insights', '/goals'];
   const moreRouteActive = moreRoutePrefixes.some((p) => location.pathname.startsWith(p));
   const moreActive = moreOpen || moreRouteActive;
 
