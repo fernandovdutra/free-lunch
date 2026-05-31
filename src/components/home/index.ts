@@ -3,3 +3,4 @@ export { BalanceRow } from './BalanceRow';
 export { SpentCard } from './SpentCard';
 export { BurnUp } from './BurnUp';
 export { HomeCategoryList, type HomeCategoryEntry } from './HomeCategoryList';
+export { IcsReminderBanner } from './IcsReminderBanner';

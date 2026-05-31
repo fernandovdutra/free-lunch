@@ -23,6 +23,7 @@ interface MoreRow {
 const PRIMARY: MoreRow[] = [
   { href: '/reimbursements', label: 'REIMBURSEMENTS' },
   { href: '/fixed-costs', label: 'FIXED COSTS' },
+  { href: '/ics', label: 'CREDIT CARD' },
   { href: '/settings', label: 'SETTINGS' },
 ];
 
