@@ -61,7 +61,6 @@ npm run firebase:deploy     # Deploy all Firebase services
 - Auth state managed via `AuthContext` with `useAuth()` hook
 - Protected routes wrap content in `ProtectedRoute` component
 - Date range selection via `MonthContext` with `useMonth()` hook - components read selected month for filtering
-- Month bar-chart highlighting via `useMonthHighlight()` hook - shared across spending/ICS drill-down pages
 - Transaction mutations are in `src/hooks/useTransactionMutations.ts`, queries in `src/hooks/useTransactions.ts`
 - Merchant data lives in `src/data/merchantGroups.ts`, shared utility functions in `src/lib/`
 - Build uses manual chunks: vendor, firebase, charts, ui
