@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { BankConnectionCard } from '@/components/settings/BankConnectionCard';
-import { IcsImportCard } from '@/components/settings/IcsImportCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { SectionHeader } from '@/components/redesign';
 import { SettingsScreen } from './_shared/SettingsScreen';
+import { SettingsRoomRow } from './_shared/SettingsRoomRow';
 import { ToggleRow } from './_shared/ToggleRow';
 
 /**
@@ -35,9 +35,12 @@ export function SettingsAccountsSync() {
       </div>
 
       <SectionHeader>CREDIT CARD IMPORT</SectionHeader>
-      <div className="px-4 pb-4">
-        <IcsImportCard />
-      </div>
+      <SettingsRoomRow
+        glyph="▭"
+        label="ICS statement import"
+        meta="Import PDF statements & review monthly coverage"
+        to="/ics"
+      />
 
       <SectionHeader>SYNC SETTINGS</SectionHeader>
       <ToggleRow

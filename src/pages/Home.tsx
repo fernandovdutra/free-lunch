@@ -21,6 +21,7 @@ import { TransactionRow } from '@/components/redesign';
 import {
   BalanceRow,
   HomeCategoryList,
+  IcsReminderBanner,
   PendingBanner,
   SpentCard,
   type HomeCategoryEntry,
@@ -193,6 +194,7 @@ export function Home() {
   return (
     <div className="-mx-4 pb-8">
       <PendingBanner amount={pendingTotal} count={pendingCount} />
+      <IcsReminderBanner />
       <BalanceRow label={balance.label} amount={balance.amount} />
 
       <section className="mt-5 border-b border-rule px-5 pb-4">
