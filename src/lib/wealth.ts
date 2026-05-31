@@ -18,11 +18,15 @@ import type {
 
 // ── Derived totals ─────────────────────────────────────────────────────────
 
+/** A position is "closed" once its current value rounds to zero. Its history is
+ *  retained (it still feeds the charts), but it's hidden from the active list
+ *  and skipped in the check-in flow. */
+export function isClosed(h: Holding): boolean {
+  return Math.abs(h.value) < 0.005;
+}
+
 export function netWorth(holdings: Holding[]): number {
-  return holdings.reduce(
-    (sum, h) => sum + (h.kind === 'asset' ? h.value : -h.value),
-    0
-  );
+  return holdings.reduce((sum, h) => sum + (h.kind === 'asset' ? h.value : -h.value), 0);
 }
 
 export function liquidTotal(holdings: Holding[]): number {
@@ -74,9 +78,9 @@ function holdingsForSubject(holdings: Holding[], subject: ChartSubject): Holding
  */
 export function buildSeries(holdings: Holding[], subject: ChartSubject): HistoryPoint[] {
   const relevant = holdingsForSubject(holdings, subject);
-  const dates = Array.from(
-    new Set(relevant.flatMap((h) => h.history.map((p) => p.date)))
-  ).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  const dates = Array.from(new Set(relevant.flatMap((h) => h.history.map((p) => p.date)))).sort(
+    (a, b) => new Date(a).getTime() - new Date(b).getTime()
+  );
 
   return dates.map((date) => {
     const ts = new Date(date).getTime();
