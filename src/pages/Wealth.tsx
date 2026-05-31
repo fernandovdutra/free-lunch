@@ -223,21 +223,27 @@ export function Wealth() {
           onDelete={handleDelete}
         />
 
-        <UpdateValueDialog
-          holding={updateTarget}
-          onClose={() => {
-            setUpdateTarget(null);
-          }}
-          onSubmit={applyValuePoint}
-        />
+        {/* Mounted only while open so each form initializes fresh from the
+            target holding (useState seeds run once per mount). */}
+        {updateTarget && (
+          <UpdateValueDialog
+            holding={updateTarget}
+            onClose={() => {
+              setUpdateTarget(null);
+            }}
+            onSubmit={applyValuePoint}
+          />
+        )}
 
-        <EditDetailsDialog
-          holding={editTarget}
-          onClose={() => {
-            setEditTarget(null);
-          }}
-          onSubmit={handleEdit}
-        />
+        {editTarget && (
+          <EditDetailsDialog
+            holding={editTarget}
+            onClose={() => {
+              setEditTarget(null);
+            }}
+            onSubmit={handleEdit}
+          />
+        )}
       </div>
 
       {/* Full-screen overlay — rendered outside the spacing flow so its fixed
