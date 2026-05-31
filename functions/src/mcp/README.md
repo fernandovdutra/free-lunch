@@ -10,7 +10,8 @@ Function — it ships with the rest of the backend, no separate service.
 
 | Tool | Description |
 |------|-------------|
-| `get_transactions` | Query transactions with date/category/counterparty/tag/amount filters |
+| `get_transactions` | Query transactions with date/category/counterparty/tag/amount filters. Tag filters (single `tag` or multi `tags` with `tagMatch` AND/OR) search the full history. Returns `{ transactions, totalCount, totalAmount }`; each record carries `categoryName` and a cleaner `merchantName`. |
+| `aggregate_transactions` | Spending totals and counts for a filtered set without the individual records — optionally grouped by category, tag, counterparty, or month |
 | `search_transactions` | Full-text search across descriptions and counterparties |
 | `get_spending_summary` | Category-level spending totals for a date range |
 | `get_category_trends` | Month-over-month trends for a specific category |
@@ -25,11 +26,11 @@ Function — it ships with the rest of the backend, no separate service.
 
 | Tool | Description |
 |------|-------------|
-| `recategorize_transaction` | Change a transaction's category |
+| `recategorize_transaction` | Change the category of one or more transactions (`transactionId` or `transactionIds`) |
 | `update_transaction_note` | Set or clear a transaction's note |
 | `create_transaction` | Create a manual transaction |
-| `add_transaction_tags` | Add free-form tags to a transaction |
-| `remove_transaction_tags` | Remove tags from a transaction |
+| `add_transaction_tags` | Add free-form tags to one or more transactions (`transactionId` or `transactionIds`) |
+| `remove_transaction_tags` | Remove tags from one or more transactions (`transactionId` or `transactionIds`) |
 | `create_budget` | Create a monthly category budget |
 | `update_budget` | Update an existing budget |
 | `create_goal` | Create a financial goal |
@@ -63,10 +64,12 @@ access and rotate the token if it is ever exposed.
 2. Deploy the function:
 
    ```bash
-   firebase deploy --only functions:mcp
+   firebase deploy --only functions:mcp,firestore:indexes
    ```
 
    Note the function URL printed in the deploy output (region `europe-west1`).
+   The `firestore:indexes` target builds the composite index that tag filtering
+   in `get_transactions` / `aggregate_transactions` relies on.
 
 ## Add the connector in the Claude app
 
