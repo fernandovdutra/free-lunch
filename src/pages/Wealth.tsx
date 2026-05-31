@@ -11,7 +11,14 @@ import {
   rangeDelta,
 } from '@/lib/wealth';
 import { cn } from '@/lib/utils';
-import { MOCK_BENCHMARKS, MOCK_HOLDINGS } from '@/data/wealthMock';
+import { MOCK_BENCHMARKS } from '@/data/wealthMock';
+import { useHoldings } from '@/hooks/useHoldings';
+import {
+  useCreateHolding,
+  useDeleteHolding,
+  useUpdateHoldingDetails,
+  useUpdateHoldingValue,
+} from '@/hooks/useHoldingMutations';
 import type { Benchmark, ChartSubject, Holding, RangeKey } from '@/types/wealth';
 import { WealthHero } from '@/components/wealth/WealthHero';
 import { RangePicker } from '@/components/wealth/RangePicker';
@@ -44,7 +51,12 @@ function subjectValue(holdings: Holding[], subject: ChartSubject): number {
 }
 
 export function Wealth() {
-  const [holdings, setHoldings] = useState<Holding[]>(MOCK_HOLDINGS);
+  const { data: holdings = [] } = useHoldings();
+  const updateValue = useUpdateHoldingValue();
+  const updateDetails = useUpdateHoldingDetails();
+  const createHolding = useCreateHolding();
+  const deleteHolding = useDeleteHolding();
+
   const [range, setRange] = useState<RangeKey>('1Y');
   const [subject, setSubject] = useState<ChartSubject>('NET_WORTH');
   const [benchmark, setBenchmark] = useState<Benchmark>('NONE');
@@ -102,44 +114,24 @@ export function Wealth() {
   };
 
   const applyValuePoint = (id: string, point: { date: string; value: number }) => {
-    setHoldings((prev) =>
-      prev.map((h) => {
-        if (h.id !== id) return h;
-        const history = [...h.history, point].sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
-        return { ...h, history, value: history[history.length - 1]!.value, updatedDaysAgo: 0 };
-      })
-    );
+    updateValue.mutate({ id, point });
   };
 
   const handleEdit = (id: string, patch: Partial<Holding>) => {
-    setHoldings((prev) => prev.map((h) => (h.id === id ? { ...h, ...patch } : h)));
+    updateDetails.mutate({ id, patch });
   };
 
   const handleDelete = (holding: Holding) => {
-    setHoldings((prev) => prev.filter((h) => h.id !== holding.id));
+    deleteHolding.mutate(holding.id);
     setDetailHolding(null);
   };
 
   const handleAdd = () => {
-    const newHolding: Holding = {
-      id: `new-${Date.now()}`,
-      name: 'New Holding',
-      platform: 'Manual',
-      type: 'Cash',
-      kind: 'asset',
-      value: 0,
-      cost: 0,
-      units: null,
-      liquidity: 'liquid',
-      updateSource: 'manual',
-      updatedDaysAgo: 0,
-      notes: null,
-      history: [{ date: new Date().toISOString().slice(0, 10), value: 0 }],
-    };
-    setHoldings((prev) => [...prev, newHolding]);
-    setEditTarget(newHolding);
+    createHolding.mutate(undefined, {
+      onSuccess: (created) => {
+        setEditTarget(created);
+      },
+    });
   };
 
   const liquidNow = liquidTotal(holdings);

@@ -84,6 +84,13 @@ service cloud.firestore {
         allow write: if canWrite(userId);
       }
 
+      match /holdings/{holdingId} {
+        allow read: if canRead(userId);
+        // Bank-synced cash holdings are written server-side (Admin SDK), but
+        // members with editor rights may create/update manual holdings.
+        allow write: if canWrite(userId);
+      }
+
       match /investmentTransactions/{txnId} {
         allow read: if canRead(userId);
         allow write: if canWrite(userId);
@@ -105,6 +112,13 @@ service cloud.firestore {
         allow read: if canRead(userId);
         allow write: if canWrite(userId);
       }
+    }
+
+    // Shared market data (index series, cached quotes). Written server-side via
+    // the Admin SDK (which bypasses rules); readable by any signed-in user.
+    match /marketData/{doc=**} {
+      allow read: if isAuthenticated();
+      allow write: if false;
     }
 
     // Reverse index of accounts a user has access to. Server-written only.
