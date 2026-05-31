@@ -10,6 +10,7 @@ export type HoldingKind = 'asset' | 'liability';
 
 export type AssetType =
   | 'Real Estate'
+  | 'Vehicle'
   | 'Equities'
   | 'Crypto'
   | 'Cash'
@@ -41,6 +42,8 @@ export interface Holding {
   updateSource: UpdateSource;
   updatedDaysAgo: number; // derived from last history entry
   notes?: string | null;
+  /** Ticker / coin id for auto-priced holdings (drives the pricing job). */
+  symbol?: string | null;
   /** Auto-priced holdings expose a live unit price for the check-in flow. */
   livePrice?: number;
   /** Previous live price, to surface the ↑/↓ delta during check-in. */

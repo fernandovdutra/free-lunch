@@ -500,52 +500,66 @@ async function getGoals(db: Firestore, userId: string) {
   });
 }
 
-async function getInvestments(db: Firestore, userId: string) {
+async function getHoldings(db: Firestore, userId: string) {
   const snapshot = await db
     .collection('users')
     .doc(userId)
-    .collection('investments')
+    .collection('holdings')
     .orderBy('name')
     .get();
 
-  let totalValue = 0;
-  let totalCost = 0;
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  let assets = 0;
+  let liabilities = 0;
+  let liquidAssets = 0;
 
-  const investments = snapshot.docs.map((doc) => {
+  const holdings = snapshot.docs.map((doc) => {
     const data = doc.data();
-    const entries = data.entries ?? [];
-    const latest = entries.length > 0 ? entries[entries.length - 1] : null;
-    const marketValue = latest?.marketValue ?? 0;
-    const costBasis = latest?.costBasis ?? 0;
-    totalValue += marketValue;
-    totalCost += costBasis;
+    const value = data.value ?? 0;
+    const cost = data.cost ?? 0;
+    const kind = data.kind ?? 'asset';
+    if (kind === 'liability') {
+      liabilities += value;
+    } else {
+      assets += value;
+      if (data.liquidity === 'liquid') liquidAssets += value;
+    }
+
+    const history = data.history ?? [];
+    const lastHistory = history.length > 0 ? history[history.length - 1] : null;
+    const lastValueAt =
+      data.lastValueAt?.toDate?.()?.toISOString() ??
+      (typeof lastHistory?.date === 'string' ? lastHistory.date : null);
 
     return {
       id: doc.id,
       name: data.name,
-      platform: data.platform,
+      platform: data.platform ?? null,
       type: data.type,
-      currency: data.currency ?? 'EUR',
-      currentValue: marketValue,
-      costBasis,
-      gain: Math.round((marketValue - costBasis) * 100) / 100,
-      returnPct:
-        costBasis > 0 ? Math.round(((marketValue - costBasis) / costBasis) * 1000) / 10 : 0,
-      lastUpdated: latest?.date?.toDate?.()?.toISOString() ?? null,
-      entryCount: entries.length,
+      kind,
+      currency: 'EUR',
+      currentValue: value,
+      costBasis: cost,
+      units: data.units ?? null,
+      liquidity: data.liquidity ?? null,
+      updateSource: data.updateSource ?? 'manual',
+      symbol: data.symbol ?? null,
+      gain: cost > 0 ? round2(value - cost) : 0,
+      returnPct: cost > 0 ? Math.round(((value - cost) / cost) * 1000) / 10 : 0,
+      lastUpdated: lastValueAt,
+      historyPoints: history.length,
       notes: data.notes ?? null,
     };
   });
 
   return {
-    portfolio: {
-      totalValue: Math.round(totalValue * 100) / 100,
-      totalCostBasis: Math.round(totalCost * 100) / 100,
-      totalGain: Math.round((totalValue - totalCost) * 100) / 100,
-      totalReturnPct:
-        totalCost > 0 ? Math.round(((totalValue - totalCost) / totalCost) * 1000) / 10 : 0,
+    netWorth: {
+      total: round2(assets - liabilities),
+      assets: round2(assets),
+      liabilities: round2(liabilities),
+      liquidAssets: round2(liquidAssets),
     },
-    investments,
+    holdings,
   };
 }
 
@@ -801,8 +815,9 @@ const READ_TOOL_DEFINITIONS = [
     inputSchema: { type: 'object' as const, properties: {} },
   },
   {
-    name: 'get_investments',
-    description: 'Get investment portfolio overview with current values, gains, and returns',
+    name: 'get_holdings',
+    description:
+      'Get the wealth/net-worth overview: all holdings (assets and liabilities) with current values, plus net worth, total assets, liabilities, and liquid assets',
     inputSchema: { type: 'object' as const, properties: {} },
   },
   {
@@ -922,8 +937,8 @@ export async function callTool(
       return getBudgetProgress(db, userId);
     case 'get_goals':
       return getGoals(db, userId);
-    case 'get_investments':
-      return getInvestments(db, userId);
+    case 'get_holdings':
+      return getHoldings(db, userId);
     case 'get_insights':
       return getInsights(db, userId, optionalString(args, 'type'), optionalNumber(args, 'limit'));
     case 'get_advisor_memory':

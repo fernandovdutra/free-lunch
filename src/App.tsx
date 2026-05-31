@@ -29,7 +29,6 @@ import { IcsBreakdown } from '@/pages/IcsBreakdown';
 import { IcsBreakdownCategory } from '@/pages/IcsBreakdownCategory';
 import { Goals } from '@/pages/Goals';
 import { FixedCosts } from '@/pages/FixedCosts';
-import { Investments } from '@/pages/Investments';
 import { Wealth } from '@/pages/Wealth';
 import { Insights } from '@/pages/Insights';
 import { InsightDetail } from '@/pages/InsightDetail';
@@ -96,8 +95,7 @@ export function App() {
                 <Route path="ics/:statementId/:categoryId" element={<IcsBreakdownCategory />} />
                 <Route path="goals" element={<Goals />} />
                 <Route path="fixed-costs" element={<FixedCosts />} />
-                <Route path="investments" element={<Investments />} />
-          <Route path="wealth" element={<Wealth />} />
+                <Route path="wealth" element={<Wealth />} />
                 <Route path="insights" element={<Insights />} />
                 <Route path="insights/:insightId" element={<InsightDetail />} />
               </Route>

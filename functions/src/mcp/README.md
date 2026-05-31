@@ -17,7 +17,7 @@ Function — it ships with the rest of the backend, no separate service.
 | `get_category_trends` | Month-over-month trends for a specific category |
 | `get_budget_progress` | Current month budget vs actuals |
 | `get_goals` | Financial goals with progress |
-| `get_investments` | Portfolio overview with values and returns |
+| `get_holdings` | Wealth/net-worth overview: holdings (assets + liabilities) with values, plus net worth and liquid assets |
 | `get_insights` | Past AI-generated insights |
 | `get_advisor_memory` | Advisor's persistent memory (profile, recurring expenses) |
 | `get_recurring_expenses` | Detected recurring/subscription expenses |

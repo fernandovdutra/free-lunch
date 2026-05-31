@@ -20,6 +20,7 @@ import type { AssetType, Holding, Liquidity, UpdateSource } from '@/types/wealth
 
 const ASSET_TYPES: AssetType[] = [
   'Real Estate',
+  'Vehicle',
   'Equities',
   'Crypto',
   'Cash',
@@ -42,6 +43,7 @@ export function EditDetailsDialog({ holding, onClose, onSubmit }: EditDetailsDia
   const [cost, setCost] = useState(String(holding?.cost ?? ''));
   const [liquidity, setLiquidity] = useState<Liquidity>(holding?.liquidity ?? 'liquid');
   const [source, setSource] = useState<UpdateSource>(holding?.updateSource ?? 'manual');
+  const [symbol, setSymbol] = useState(holding?.symbol ?? '');
 
   if (!holding) return null;
 
@@ -54,6 +56,7 @@ export function EditDetailsDialog({ holding, onClose, onSubmit }: EditDetailsDia
       cost: parseFloat(cost) || 0,
       liquidity,
       updateSource: source,
+      symbol: source === 'auto' ? symbol.trim() || null : null,
     });
     onClose();
   };
@@ -132,6 +135,17 @@ export function EditDetailsDialog({ holding, onClose, onSubmit }: EditDetailsDia
               </Select>
             </div>
           </div>
+          {source === 'auto' && (
+            <div className="space-y-2">
+              <Label htmlFor="ed-symbol">Ticker / symbol</Label>
+              <Input
+                id="ed-symbol"
+                value={symbol}
+                onChange={(e) => { setSymbol(e.target.value); }}
+                placeholder="e.g. IWDA, BTC/USD"
+              />
+            </div>
+          )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
