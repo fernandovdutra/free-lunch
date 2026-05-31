@@ -12,6 +12,7 @@
 import type { Debt, Investment } from '@/types';
 import type {
   AssetType,
+  CurrencyCode,
   HistoryPoint,
   HoldingKind,
   Liquidity,
@@ -52,6 +53,10 @@ export interface HoldingSeed {
   updateSource: UpdateSource;
   notes: string | null;
   symbol: string | null;
+  /** Native currency; `value`/`history` are always in EUR. */
+  currency: CurrencyCode;
+  /** Current value in `currency` (display only); null when EUR. */
+  nativeValue: number | null;
   history: HistoryPoint[];
 }
 
@@ -111,6 +116,8 @@ export function balanceToCashHolding(
     updateSource: 'bank',
     notes: null,
     symbol: null,
+    currency: 'EUR',
+    nativeValue: null,
     history: [{ date, value: amount }],
   };
 }
@@ -162,6 +169,8 @@ export function investmentToHolding(inv: Investment): HoldingSeed {
     updateSource: isCrypto ? 'auto' : 'manual',
     notes: inv.notes ?? null,
     symbol: null,
+    currency: 'EUR',
+    nativeValue: null,
     history: sorted.map((e) => ({ date: todayIso(e.date), value: e.marketValue })),
   };
 }
@@ -181,6 +190,8 @@ export function debtToHolding(debt: Debt, asOf: string = todayIso()): HoldingSee
     updateSource: 'manual',
     notes: debt.notes ?? null,
     symbol: null,
+    currency: 'EUR',
+    nativeValue: null,
     history: [{ date: asOf, value: debt.balance }],
   };
 }

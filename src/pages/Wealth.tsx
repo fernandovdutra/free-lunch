@@ -13,7 +13,6 @@ import {
 import { cn } from '@/lib/utils';
 import { useHoldings } from '@/hooks/useHoldings';
 import { useBenchmarks } from '@/hooks/useBenchmarks';
-import { useRefreshPrices } from '@/hooks/useRefreshPrices';
 import {
   useCreateHolding,
   useDeleteHolding,
@@ -58,7 +57,6 @@ export function Wealth() {
   const updateDetails = useUpdateHoldingDetails();
   const createHolding = useCreateHolding();
   const deleteHolding = useDeleteHolding();
-  const refreshPrices = useRefreshPrices();
 
   const [range, setRange] = useState<RangeKey>('1Y');
   const [subject, setSubject] = useState<ChartSubject>('NET_WORTH');
@@ -105,9 +103,7 @@ export function Wealth() {
   // ── Freshness ──────────────────────────────────────────────────────────
   const manualHoldings = holdings.filter((h) => h.updateSource === 'manual');
   const lastManualDays =
-    manualHoldings.length > 0
-      ? Math.min(...manualHoldings.map((h) => h.updatedDaysAgo))
-      : 0;
+    manualHoldings.length > 0 ? Math.min(...manualHoldings.map((h) => h.updatedDaysAgo)) : 0;
   const overdue = lastManualDays > STALE_DAYS;
 
   // ── Handlers ────────────────────────────────────────────────────────────
@@ -116,8 +112,12 @@ export function Wealth() {
     if (!benchmarkOptions(next).includes(benchmark)) setBenchmark('NONE');
   };
 
-  const applyValuePoint = (id: string, point: { date: string; value: number }) => {
-    updateValue.mutate({ id, point });
+  const applyValuePoint = (
+    id: string,
+    point: { date: string; value: number },
+    nativeValue?: number | null
+  ) => {
+    updateValue.mutate({ id, point, ...(nativeValue !== undefined ? { nativeValue } : {}) });
   };
 
   const handleEdit = (id: string, patch: Partial<Holding>) => {
@@ -138,127 +138,119 @@ export function Wealth() {
   };
 
   const liquidNow = liquidTotal(holdings);
-  const hasAutoHoldings = holdings.some((h) => h.updateSource === 'auto' && h.symbol);
 
   return (
     <>
-    <div className="space-y-6 py-2">
-      {/* Page header row: freshness + add */}
-      <div className="flex items-center justify-end gap-3">
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em]',
-            overdue ? 'text-alert' : 'text-textLo'
-          )}
-        >
+      <div className="space-y-6 py-2">
+        {/* Page header row: freshness. Adding holdings lives on the bottom list
+          button; auto prices refresh on their own (snapshot paradigm). */}
+        <div className="flex items-center justify-end gap-3">
           <span
-            aria-hidden
-            className={cn('h-1.5 w-1.5 rounded-full', overdue ? 'bg-alert' : 'bg-accent')}
-          />
-          Updated {lastManualDays}d ago
-        </span>
-        {hasAutoHoldings && (
-          <button
-            type="button"
-            onClick={() => { refreshPrices.mutate(undefined); }}
-            disabled={refreshPrices.isPending}
-            aria-label="Refresh prices"
             className={cn(
-              'font-mono text-[10px] uppercase tracking-[0.1em] text-textLo active:opacity-60',
-              refreshPrices.isPending && 'animate-pulse'
+              'inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em]',
+              overdue ? 'text-alert' : 'text-textLo'
             )}
           >
-            {refreshPrices.isPending ? 'Refreshing…' : '↻ Prices'}
-          </button>
-        )}
+            <span
+              aria-hidden
+              className={cn('h-1.5 w-1.5 rounded-full', overdue ? 'bg-alert' : 'bg-accent')}
+            />
+            Updated {lastManualDays}d ago
+          </span>
+        </div>
+
+        {/* Hero */}
+        <WealthHero
+          label={SUBJECT_LABELS[subject]}
+          value={subjectValue(holdings, subject)}
+          delta={delta}
+          periodLabel={periodLabel(range)}
+          benchmark={heroBenchmark}
+          liquid={subject === 'LIQUID' ? null : { value: liquidNow, pct: liquidDelta.pct }}
+        />
+
+        {/* Chart block: range → chart → compare */}
+        <div className="space-y-3">
+          <RangePicker value={range} onChange={setRange} />
+          <WealthChart
+            series={series}
+            benchmark={chartBenchmark}
+            height={200}
+            ariaLabel={`${SUBJECT_LABELS[subject]} over time`}
+          />
+          <CompareControl
+            subject={subject}
+            benchmark={benchmark}
+            onSubjectChange={handleSubjectChange}
+            onBenchmarkChange={setBenchmark}
+          />
+        </div>
+
+        {/* Update entry */}
         <button
           type="button"
-          onClick={handleAdd}
-          aria-label="Add holding"
-          className="font-mono text-[16px] leading-none text-textLo active:opacity-60"
+          onClick={() => {
+            setCheckInOpen(true);
+          }}
+          className={cn(
+            'w-full rounded-pill py-3 font-mono text-[12px] font-medium uppercase tracking-[0.12em] active:opacity-80',
+            overdue ? 'bg-alert-dim text-alert' : 'bg-accent-dim text-accent'
+          )}
         >
-          ⊕
+          {overdue ? `Wealth check-in · ${lastManualDays}d overdue` : 'Update values'}
         </button>
-      </div>
 
-      {/* Hero */}
-      <WealthHero
-        label={SUBJECT_LABELS[subject]}
-        value={subjectValue(holdings, subject)}
-        delta={delta}
-        periodLabel={periodLabel(range)}
-        benchmark={heroBenchmark}
-        liquid={subject === 'LIQUID' ? null : { value: liquidNow, pct: liquidDelta.pct }}
-      />
+        {/* Composition */}
+        <CompositionBars holdings={holdings} />
 
-      {/* Chart block: range → chart → compare */}
-      <div className="space-y-3">
-        <RangePicker value={range} onChange={setRange} />
-        <WealthChart series={series} benchmark={chartBenchmark} height={200} ariaLabel={`${SUBJECT_LABELS[subject]} over time`} />
-        <CompareControl
-          subject={subject}
-          benchmark={benchmark}
-          onSubjectChange={handleSubjectChange}
-          onBenchmarkChange={setBenchmark}
+        {/* Holdings */}
+        <HoldingsList holdings={holdings} onSelect={setDetailHolding} onAdd={handleAdd} />
+
+        {/* ── Overlays ── */}
+        <HoldingDetailSheet
+          holding={detailHolding}
+          onClose={() => {
+            setDetailHolding(null);
+          }}
+          onUpdateValue={(h) => {
+            setDetailHolding(null);
+            setUpdateTarget(h);
+          }}
+          onEditDetails={(h) => {
+            setDetailHolding(null);
+            setEditTarget(h);
+          }}
+          onDelete={handleDelete}
+        />
+
+        <UpdateValueDialog
+          holding={updateTarget}
+          onClose={() => {
+            setUpdateTarget(null);
+          }}
+          onSubmit={applyValuePoint}
+        />
+
+        <EditDetailsDialog
+          holding={editTarget}
+          onClose={() => {
+            setEditTarget(null);
+          }}
+          onSubmit={handleEdit}
         />
       </div>
-
-      {/* Update entry */}
-      <button
-        type="button"
-        onClick={() => { setCheckInOpen(true); }}
-        className={cn(
-          'w-full rounded-pill py-3 font-mono text-[12px] font-medium uppercase tracking-[0.12em] active:opacity-80',
-          overdue ? 'bg-alert-dim text-alert' : 'bg-accent-dim text-accent'
-        )}
-      >
-        {overdue ? `Wealth check-in · ${lastManualDays}d overdue` : 'Update values'}
-      </button>
-
-      {/* Composition */}
-      <CompositionBars holdings={holdings} />
-
-      {/* Holdings */}
-      <HoldingsList holdings={holdings} onSelect={setDetailHolding} onAdd={handleAdd} />
-
-      {/* ── Overlays ── */}
-      <HoldingDetailSheet
-        holding={detailHolding}
-        onClose={() => { setDetailHolding(null); }}
-        onUpdateValue={(h) => {
-          setDetailHolding(null);
-          setUpdateTarget(h);
-        }}
-        onEditDetails={(h) => {
-          setDetailHolding(null);
-          setEditTarget(h);
-        }}
-        onDelete={handleDelete}
-      />
-
-      <UpdateValueDialog
-        holding={updateTarget}
-        onClose={() => { setUpdateTarget(null); }}
-        onSubmit={applyValuePoint}
-      />
-
-      <EditDetailsDialog
-        holding={editTarget}
-        onClose={() => { setEditTarget(null); }}
-        onSubmit={handleEdit}
-      />
-
-    </div>
 
       {/* Full-screen overlay — rendered outside the spacing flow so its fixed
           positioning isn't offset by the parent's space-y top margin. */}
       {checkInOpen && (
         <CheckInFlow
           holdings={holdings}
-          onConfirm={(id, value) =>
-            { applyValuePoint(id, { date: new Date().toISOString().slice(0, 10), value }); }
-          }
-          onClose={() => { setCheckInOpen(false); }}
+          onConfirm={(id, value) => {
+            applyValuePoint(id, { date: new Date().toISOString().slice(0, 10), value });
+          }}
+          onClose={() => {
+            setCheckInOpen(false);
+          }}
         />
       )}
     </>

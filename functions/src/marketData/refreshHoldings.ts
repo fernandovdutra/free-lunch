@@ -10,12 +10,10 @@
 
 import {
   FieldValue,
-  Timestamp,
   type DocumentData,
   type DocumentReference,
   type Firestore,
 } from 'firebase-admin/firestore';
-import { quoteToHoldingUpdate } from '../shared/holdings.js';
 import { TwelveDataClient, type TwelveDataQuote } from './twelveData.js';
 
 // Firestore batch limit is 500 ops; one update per holding stays well under it.
@@ -64,17 +62,21 @@ export function extractPricedHoldings(docs: HoldingSnapshot[]): PricedHolding[] 
 }
 
 /**
- * Write fresh quotes onto the matching holdings in batches. Each write mirrors
- * `useUpdateHoldingValue`: appends `{ date, value }` to `history`, updates
- * `value`, and refreshes the denormalized `livePrice`/`prevPrice` slots.
+ * Refresh the live-price *suggestion* on matching holdings in batches.
+ *
+ * Wealth uses a snapshot paradigm: a holding's recorded `value`/`history` only
+ * changes when the user deliberately confirms a check-in. So this routine
+ * (driven by both the nightly job and the on-demand callable) updates ONLY the
+ * denormalized price cache — `livePrice`/`prevPrice`/`priceUpdatedAt` — which
+ * the check-in flow reads to suggest a fresh value. It never writes `value`,
+ * `history`, or `lastValueAt`.
  */
 export async function applyQuotesToHoldings(
   db: Firestore,
   holdings: PricedHolding[],
   quotes: Map<string, TwelveDataQuote>,
-  now: Date = new Date()
+  _now: Date = new Date()
 ): Promise<number> {
-  const date = Timestamp.fromDate(now);
   let updated = 0;
 
   for (let i = 0; i < holdings.length; i += BATCH_SIZE) {
@@ -85,14 +87,10 @@ export async function applyQuotesToHoldings(
     for (const holding of slice) {
       const quote = quotes.get(holding.symbol);
       if (!quote) continue;
-      const update = quoteToHoldingUpdate(holding.units, quote.price, holding.livePrice);
       batch.update(holding.ref, {
-        history: FieldValue.arrayUnion({ date, value: update.value }),
-        value: update.value,
-        livePrice: update.livePrice,
-        prevPrice: update.prevPrice,
+        livePrice: quote.price,
+        prevPrice: holding.livePrice ?? null,
         priceUpdatedAt: FieldValue.serverTimestamp(),
-        lastValueAt: date,
         updatedAt: FieldValue.serverTimestamp(),
       });
       inBatch++;
