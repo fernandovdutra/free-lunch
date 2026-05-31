@@ -6,25 +6,14 @@ on:
       - main
 
 jobs:
-  # Deploy Firestore rules + indexes first so the database is ready before
-  # functions and the frontend rely on the new schema.
-  deploy-firestore:
+  # Build the Cloud Functions in parallel with the frontend. Only the compiled
+  # output (functions/lib) is needed at deploy time — Cloud Build installs deps
+  # server-side — so we hand it off as an artifact.
+  build-functions:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy Firestore rules and indexes
-        uses: w9jds/firebase-action@v13.27.0
-        with:
-          args: deploy --only firestore --project free-lunch-85447 --non-interactive --force
-        env:
-          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-
-  # Deploy Cloud Functions next so the backend is ready before the frontend
-  # that depends on it goes live.
-  deploy-functions:
-    runs-on: ubuntu-latest
-    needs: deploy-firestore
+    concurrency:
+      group: build-functions-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
@@ -36,22 +25,26 @@ jobs:
 
       - name: Install function deps
         working-directory: functions
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Build functions
         working-directory: functions
         run: npm run build
 
-      - name: Deploy functions
-        uses: w9jds/firebase-action@v13.27.0
+      - name: Upload functions build
+        uses: actions/upload-artifact@v4
         with:
-          args: deploy --only functions --project free-lunch-85447 --non-interactive --force
-        env:
-          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          name: functions-lib
+          path: functions/lib
+          retention-days: 1
 
-  deploy-hosting:
+  # Build the frontend in parallel with the functions. The VITE_* values are
+  # inlined at build time, so they must stay on this build step.
+  build-frontend:
     runs-on: ubuntu-latest
-    needs: deploy-functions
+    concurrency:
+      group: build-frontend-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
@@ -60,7 +53,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Build
         run: npm run build
@@ -74,9 +67,61 @@ jobs:
           VITE_APP_ENV: production
           VITE_USE_EMULATORS: "false"
 
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
         with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          channelId: live
-          projectId: free-lunch-85447
+          name: frontend-dist
+          path: dist
+          retention-days: 1
+
+  # Deploy everything in the required order: Firestore schema first, then the
+  # backend, then the frontend. Running all three deploys in one job means the
+  # Firebase Docker image is pulled once and reused across the steps.
+  #
+  # An in-progress deploy is never cancelled (cancel-in-progress: false); a newer
+  # run queues behind it.
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-functions, build-frontend]
+    concurrency:
+      group: deploy-live
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download functions build
+        uses: actions/download-artifact@v4
+        with:
+          name: functions-lib
+          path: functions/lib
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+
+      # Deploy Firestore rules + indexes first so the database is ready before
+      # functions and the frontend rely on the new schema.
+      - name: Deploy Firestore rules and indexes
+        uses: w9jds/firebase-action@v13.27.0
+        with:
+          args: deploy --only firestore --project free-lunch-85447 --non-interactive --force
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # Deploy Cloud Functions next so the backend is ready before the frontend
+      # that depends on it goes live.
+      - name: Deploy functions
+        uses: w9jds/firebase-action@v13.27.0
+        with:
+          args: deploy --only functions --project free-lunch-85447 --non-interactive --force
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Deploy hosting
+        uses: w9jds/firebase-action@v13.27.0
+        with:
+          args: deploy --only hosting --project free-lunch-85447 --non-interactive --force
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
