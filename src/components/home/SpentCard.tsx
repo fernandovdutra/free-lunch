@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { cn, formatAmount } from '@/lib/utils';
 import type { FixedCost } from '@/lib/burnUp';
 import { BurnUp } from './BurnUp';
+import { FixedCostsMonthSheet } from './FixedCostsMonthSheet';
 
 interface SpentCardProps {
   /** Total expenses in the visible month. */
@@ -27,6 +29,10 @@ interface SpentCardProps {
   projection: { amount: number; delta: number; isOver: boolean } | null;
   /** Sum of unposted fixed costs (upcoming + overdue). */
   fixedRemainingAmount: number;
+  /** "YYYY-MM" of the visible month — scope for manual "mark posted" overrides. */
+  monthKey: string;
+  /** Keys the user manually marked posted this month (distinguishes them in the sheet). */
+  manualPostedKeys: ReadonlySet<string>;
 }
 
 function splitCents(formatted: string): { whole: string; cents: string | null } {
@@ -50,11 +56,19 @@ export function SpentCard({
   daysInMonth,
   projection,
   fixedRemainingAmount,
+  monthKey,
+  manualPostedKeys,
 }: SpentCardProps) {
   const today = Math.max(0, daily.length - 1);
   const { whole, cents } = splitCents(formatAmount(spent, { showSign: false, noCents: true }));
   const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
   const projOver = projection?.isOver ?? false;
+  const [statusOpen, setStatusOpen] = useState(false);
+
+  // Footnote/entry point shows when there's something to act on: outstanding
+  // fixed costs, or at least one item the user manually marked posted (so the
+  // mark stays reachable to undo even once nothing is outstanding).
+  const showFixedFootnote = fixedRemainingAmount > 0 || manualPostedKeys.size > 0;
 
   return (
     <div>
@@ -140,12 +154,36 @@ export function SpentCard({
         </div>
       )}
 
-      {/* Footnote: only when there are upcoming fixed costs to post. */}
-      {fixedRemainingAmount > 0 && (
-        <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.04em] text-textDim nums">
-          {formatAmount(fixedRemainingAmount, { showSign: false, noCents: true })} FIXED COSTS STILL TO POST
-        </div>
+      {/* Footnote: tap to review which fixed costs are matched vs still to
+          post, and to manually mark a missed charge as already posted. */}
+      {showFixedFootnote && (
+        <button
+          type="button"
+          onClick={() => {
+            setStatusOpen(true);
+          }}
+          className="press mt-1 flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.04em] text-textDim nums"
+        >
+          <span>
+            {fixedRemainingAmount > 0
+              ? `${formatAmount(fixedRemainingAmount, { showSign: false, noCents: true })} FIXED COSTS STILL TO POST`
+              : 'ALL FIXED COSTS POSTED'}
+          </span>
+          <span aria-hidden className="text-textLo">
+            ›
+          </span>
+        </button>
       )}
+
+      <FixedCostsMonthSheet
+        open={statusOpen}
+        onOpenChange={setStatusOpen}
+        monthKey={monthKey}
+        monthLabel={monthLabel}
+        posted={posted}
+        unposted={unposted}
+        manualPostedKeys={manualPostedKeys}
+      />
     </div>
   );
 }
