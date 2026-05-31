@@ -169,6 +169,35 @@ export function normalizeBenchmark(
   });
 }
 
+/** First-of-month ISO date `monthsAgo` before `now`. */
+function isoMonthFromNow(now: Date, monthsAgo: number): string {
+  const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}-01`;
+}
+
+/**
+ * Synthetic CASH benchmark: a fixed-APY savings balance compounded monthly,
+ * spanning `months` of first-of-month points back from `now`. Unlike the equity
+ * indices there is no market series to source, so the chart builds it locally;
+ * `normalizeBenchmark` re-bases it to the subject's starting value at render.
+ */
+export function buildCashBenchmark(
+  now: Date = new Date(),
+  months = 120,
+  apy = 0.035
+): HistoryPoint[] {
+  const monthly = apy / 12;
+  const points: HistoryPoint[] = [];
+  for (let monthsAgo = months - 1; monthsAgo >= 0; monthsAgo--) {
+    const elapsed = months - 1 - monthsAgo; // months since the oldest point
+    const value = Math.round(100 * Math.pow(1 + monthly, elapsed) * 1000) / 1000;
+    points.push({ date: isoMonthFromNow(now, monthsAgo), value });
+  }
+  return points;
+}
+
 // ── Composition ──────────────────────────────────────────────────────────────
 
 export interface CompositionSlice {
