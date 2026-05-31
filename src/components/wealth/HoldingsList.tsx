@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import { formatAmount } from '@/lib/utils';
-import { groupHoldings } from '@/lib/wealth';
+import { groupHoldings, isClosed } from '@/lib/wealth';
 import type { Holding } from '@/types/wealth';
 import { HoldingRow } from './HoldingRow';
 
@@ -8,12 +8,6 @@ interface HoldingsListProps {
   holdings: Holding[];
   onSelect: (holding: Holding) => void;
   onAdd: () => void;
-}
-
-/** A position is "closed" once its value rounds to zero — no longer held, but
- *  its history still feeds the charts. */
-function isClosed(h: Holding): boolean {
-  return Math.abs(h.value) < 0.005;
 }
 
 export function HoldingsList({ holdings, onSelect, onAdd }: HoldingsListProps) {

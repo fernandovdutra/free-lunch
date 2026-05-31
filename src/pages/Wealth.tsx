@@ -245,8 +245,12 @@ export function Wealth() {
       {checkInOpen && (
         <CheckInFlow
           holdings={holdings}
-          onConfirm={(id, value) => {
-            applyValuePoint(id, { date: new Date().toISOString().slice(0, 10), value });
+          onConfirm={(id, value, nativeValue) => {
+            applyValuePoint(
+              id,
+              { date: new Date().toISOString().slice(0, 10), value },
+              nativeValue
+            );
           }}
           onClose={() => {
             setCheckInOpen(false);
