@@ -23,10 +23,12 @@ function compactEuro(v: number): string {
   return `${sign}€${Math.round(abs)}`;
 }
 
-function xLabel(iso: string): string {
-  const d = new Date(iso);
+function xLabel(ts: number): string {
+  const d = new Date(ts);
   return `${MONTHS[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`;
 }
+
+const tsOf = (iso: string) => new Date(iso).getTime();
 
 /** Measure the container's pixel width so the SVG renders crisp (no scaling). */
 function useWidth() {
@@ -41,21 +43,17 @@ function useWidth() {
     });
     ro.observe(el);
     setW(el.clientWidth);
-    return () => { ro.disconnect(); };
+    return () => {
+      ro.disconnect();
+    };
   }, []);
   return [ref, w] as const;
 }
 
-/** Indices to label on the x-axis: adaptive count, always pinning first + last. */
-function tickIndices(n: number): number[] {
-  if (n <= 1) return [0];
-  const desired = n >= 24 ? 6 : n >= 12 ? 5 : 3;
-  const count = Math.min(desired, n);
-  const out = new Set<number>([0, n - 1]);
-  for (let k = 1; k < count - 1; k++) {
-    out.add(Math.round((k / (count - 1)) * (n - 1)));
-  }
-  return Array.from(out).sort((a, b) => a - b);
+/** Adaptive number of x-axis labels for a series of length `n`. */
+function tickCount(n: number): number {
+  if (n <= 1) return 1;
+  return Math.min(n >= 24 ? 6 : n >= 12 ? 5 : 3, n);
 }
 
 const PAD = { l: 8, r: 46, t: 12, b: 18 };
@@ -79,24 +77,39 @@ export function WealthChart({ series, benchmark, height = 180, ariaLabel }: Weal
   const yMin = rawMin - span * 0.06;
   const yMax = rawMax + span * 0.06;
 
-  const xOf = (i: number) => (n <= 1 ? PAD.l + innerW / 2 : PAD.l + (i / (n - 1)) * innerW);
+  // Horizontal axis is real time: the subject series defines the date domain,
+  // and every point (subject or benchmark) is placed by its own date — so
+  // uneven gaps between updates render at their true proportional width.
+  const minTs = n > 0 ? tsOf(series[0]!.date) : 0;
+  const maxTs = n > 0 ? tsOf(series[n - 1]!.date) : 1;
+  const spanTs = maxTs - minTs || 1;
+
+  const xOf = (ts: number) =>
+    n <= 1 ? PAD.l + innerW / 2 : PAD.l + ((ts - minTs) / spanTs) * innerW;
   const yOf = (v: number) => PAD.t + innerH - ((v - yMin) / (yMax - yMin)) * innerH;
 
   const toPath = (pts: HistoryPoint[]) =>
     pts
-      .map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(i).toFixed(2)},${yOf(p.value).toFixed(2)}`)
+      .map(
+        (p, i) => `${i === 0 ? 'M' : 'L'}${xOf(tsOf(p.date)).toFixed(2)},${yOf(p.value).toFixed(2)}`
+      )
       .join(' ');
 
   const linePath = toPath(series);
   const baselineY = PAD.t + innerH;
   const areaPath =
     n > 1
-      ? `${linePath} L${xOf(n - 1).toFixed(2)},${baselineY.toFixed(2)} L${xOf(0).toFixed(2)},${baselineY.toFixed(2)} Z`
+      ? `${linePath} L${xOf(maxTs).toFixed(2)},${baselineY.toFixed(2)} L${xOf(minTs).toFixed(2)},${baselineY.toFixed(2)} Z`
       : '';
   const benchPath = benchmark && benchmark.series.length > 1 ? toPath(benchmark.series) : '';
 
   const yLevels = [yMax, (yMax + yMin) / 2, yMin];
-  const ticks = tickIndices(n);
+  // Evenly spaced in time (not by point index), so labels track the real scale.
+  const nTicks = tickCount(n);
+  const tickTimes =
+    nTicks <= 1
+      ? [minTs]
+      : Array.from({ length: nTicks }, (_, k) => minTs + (k / (nTicks - 1)) * spanTs);
   const ready = w > 0 && n > 0;
 
   return (
@@ -180,18 +193,18 @@ export function WealthChart({ series, benchmark, height = 180, ariaLabel }: Weal
             </text>
           ))}
 
-          {/* X-axis labels */}
-          {ticks.map((i) => (
+          {/* X-axis labels — positioned by date, evenly spaced in time */}
+          {tickTimes.map((ts, i) => (
             <text
               key={`xl-${i}`}
-              x={xOf(i)}
+              x={xOf(ts)}
               y={height - 4}
-              textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}
+              textAnchor={i === 0 ? 'start' : i === tickTimes.length - 1 ? 'end' : 'middle'}
               fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
               fontSize="9"
               fill="var(--text-lo)"
             >
-              {xLabel(series[i]!.date)}
+              {xLabel(ts)}
             </text>
           ))}
         </svg>
