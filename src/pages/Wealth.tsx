@@ -145,6 +145,7 @@ export function Wealth() {
   const liquidNow = liquidTotal(holdings);
 
   return (
+    <>
     <div className="space-y-6 py-2">
       {/* Page header row: freshness + add */}
       <div className="flex items-center justify-end gap-3">
@@ -237,6 +238,10 @@ export function Wealth() {
         onSubmit={handleEdit}
       />
 
+    </div>
+
+      {/* Full-screen overlay — rendered outside the spacing flow so its fixed
+          positioning isn't offset by the parent's space-y top margin. */}
       {checkInOpen && (
         <CheckInFlow
           holdings={holdings}
@@ -246,6 +251,6 @@ export function Wealth() {
           onClose={() => { setCheckInOpen(false); }}
         />
       )}
-    </div>
+    </>
   );
 }
