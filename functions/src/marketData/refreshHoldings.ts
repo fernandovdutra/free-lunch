@@ -34,6 +34,15 @@ export interface PricedHolding {
   livePrice: number | null;
 }
 
+export interface QuoteResult {
+  holdingId: string;
+  symbol: string;
+  /** Fresh unit price. */
+  price: number;
+  /** Prior session close, for the ↑/↓ move. */
+  previousClose: number | null;
+}
+
 export interface RefreshSummary {
   /** Holdings considered (had an auto source + symbol). */
   considered: number;
@@ -41,6 +50,9 @@ export interface RefreshSummary {
   updated: number;
   /** Symbols that were requested but returned no quote. */
   missingSymbols: string[];
+  /** The fresh quotes, per holding — returned so on-demand callers can use the
+   *  price immediately without waiting for a cache refetch. */
+  quotes: QuoteResult[];
 }
 
 /** Pull the auto-priced holdings (source + non-empty symbol) from raw docs. */
@@ -116,7 +128,7 @@ export async function refreshHoldings(
 ): Promise<RefreshSummary> {
   const holdings = extractPricedHoldings(docs);
   if (holdings.length === 0) {
-    return { considered: 0, updated: 0, missingSymbols: [] };
+    return { considered: 0, updated: 0, missingSymbols: [], quotes: [] };
   }
 
   const symbols = Array.from(new Set(holdings.map((h) => h.symbol)));
@@ -124,5 +136,18 @@ export async function refreshHoldings(
   const updated = await applyQuotesToHoldings(db, holdings, quotes, now);
   const missingSymbols = symbols.filter((s) => !quotes.has(s));
 
-  return { considered: holdings.length, updated, missingSymbols };
+  const quoteResults: QuoteResult[] = [];
+  for (const h of holdings) {
+    const q = quotes.get(h.symbol);
+    if (q) {
+      quoteResults.push({
+        holdingId: h.ref.id,
+        symbol: h.symbol,
+        price: q.price,
+        previousClose: q.previousClose,
+      });
+    }
+  }
+
+  return { considered: holdings.length, updated, missingSymbols, quotes: quoteResults };
 }

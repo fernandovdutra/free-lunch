@@ -4,6 +4,7 @@ import { formatAmount } from '@/lib/utils';
 import { formatNative, isForeign, toCents } from '@/lib/currency';
 import { formatUnits } from '@/lib/wealth';
 import { useFxRate } from '@/hooks/useFxRate';
+import { useLivePrice } from '@/hooks/useRefreshPrices';
 import type { Holding } from '@/types/wealth';
 
 interface UpdateValueDialogProps {
@@ -30,7 +31,30 @@ export function UpdateValueDialog({ holding, onClose, onSubmit }: UpdateValueDia
   const [rate, setRate] = useState<number | null>(null);
   const fx = useFxRate();
 
+  // Live price for auto holdings — fetched fresh on open so the suggestion
+  // doesn't wait for the nightly refresh. Falls back to the cached price.
+  const liveQuote = useLivePrice();
+  const [livePrice, setLivePrice] = useState<number | null>(null);
+
   const foreign = holding != null && isForeign(holding.currency);
+
+  useEffect(() => {
+    setLivePrice(holding?.livePrice ?? null);
+    if (!holding || holding.updateSource !== 'auto' || !holding.symbol) return;
+    let active = true;
+    liveQuote
+      .mutateAsync(holding.id)
+      .then((q) => {
+        if (active && q) setLivePrice(q.price);
+      })
+      .catch(() => {
+        /* keep cached price */
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holding?.id]);
 
   // Fetch the spot rate once when opening a foreign holding so we can preview
   // and freeze the EUR conversion. EUR holdings need no rate (1:1).
@@ -55,10 +79,12 @@ export function UpdateValueDialog({ holding, onClose, onSubmit }: UpdateValueDia
 
   if (!holding) return null;
 
-  // Auto holdings suggest livePrice × units (in the holding's native currency).
+  // Auto holdings suggest livePrice × units (in the holding's native currency),
+  // preferring the freshly fetched price over the cached one.
+  const effectiveLive = livePrice ?? holding.livePrice ?? null;
   const nativeEstimate =
-    holding.updateSource === 'auto' && holding.livePrice != null && holding.units != null
-      ? holding.livePrice * holding.units
+    holding.updateSource === 'auto' && effectiveLive != null && holding.units != null
+      ? effectiveLive * holding.units
       : null;
 
   const nativeInput = parseFloat(value);
@@ -96,9 +122,9 @@ export function UpdateValueDialog({ holding, onClose, onSubmit }: UpdateValueDia
           {holding.updateSource === 'auto' && nativeEstimate != null && (
             <div className="rounded-card border border-rule bg-surfaceHi p-3 font-mono text-[11px]">
               <div className="flex justify-between text-textLo">
-                <span>LIVE PRICE</span>
+                <span>LIVE PRICE{liveQuote.isPending ? ' · refreshing…' : ''}</span>
                 <span className="tabular-nums text-textHi">
-                  {formatNative(holding.livePrice!, holding.currency)}
+                  {formatNative(effectiveLive ?? 0, holding.currency)}
                 </span>
               </div>
               <div className="flex justify-between text-textLo">

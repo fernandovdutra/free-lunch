@@ -3,6 +3,7 @@ import { cn, formatAmount } from '@/lib/utils';
 import { formatNative, isForeign, toCents } from '@/lib/currency';
 import { formatUnits, isClosed, netWorth } from '@/lib/wealth';
 import { useFxRate } from '@/hooks/useFxRate';
+import { useLivePrice } from '@/hooks/useRefreshPrices';
 import type { Holding } from '@/types/wealth';
 
 const SOURCE_ORDER: Record<Holding['updateSource'], number> = { auto: 0, bank: 1, manual: 2 };
@@ -39,6 +40,11 @@ export function CheckInFlow({ holdings, onConfirm, onClose }: CheckInFlowProps) 
   const fx = useFxRate();
   const [rate, setRate] = useState<number | null>(null);
 
+  // Live price for the current auto card — fetched fresh so the suggestion
+  // doesn't wait for the nightly refresh. Falls back to the cached price.
+  const liveQuote = useLivePrice();
+  const [livePrice, setLivePrice] = useState<number | null>(null);
+
   const n = ordered.length;
   const current = ordered[step];
   const foreign = current != null && isForeign(current.currency);
@@ -57,6 +63,24 @@ export function CheckInFlow({ holdings, onConfirm, onClose }: CheckInFlowProps) 
       })
       .catch(() => {
         if (active) setRate(null);
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.id]);
+
+  useEffect(() => {
+    setLivePrice(current?.livePrice ?? null);
+    if (!current || current.updateSource !== 'auto' || !current.symbol) return;
+    let active = true;
+    liveQuote
+      .mutateAsync(current.id)
+      .then((q) => {
+        if (active && q) setLivePrice(q.price);
+      })
+      .catch(() => {
+        /* keep cached price */
       });
     return () => {
       active = false;
@@ -111,14 +135,13 @@ export function CheckInFlow({ holdings, onConfirm, onClose }: CheckInFlowProps) 
   // Native estimate: auto holdings suggest livePrice × units in their own
   // currency (e.g. a BTC/USD holding's price is USD); otherwise fall back to the
   // last recorded native value.
+  const effectiveLive = livePrice ?? current.livePrice ?? null;
   const nativeEstimate =
-    current.updateSource === 'auto' && current.livePrice != null
-      ? current.livePrice * cardUnits
+    current.updateSource === 'auto' && effectiveLive != null
+      ? effectiveLive * cardUnits
       : (current.nativeValue ?? current.value);
   const priceUp =
-    current.livePrice != null && current.prevPrice != null
-      ? current.livePrice >= current.prevPrice
-      : true;
+    effectiveLive != null && current.prevPrice != null ? effectiveLive >= current.prevPrice : true;
 
   const toEur = (native: number): number => toCents(native * (rate ?? 1));
 
@@ -198,8 +221,8 @@ export function CheckInFlow({ holdings, onConfirm, onClose }: CheckInFlowProps) 
           <div className="mt-6 space-y-3">
             <Row label="Last value" value={lastValueLabel} />
             <Row
-              label="Live price"
-              value={formatNative(current.livePrice ?? 0, current.currency)}
+              label={liveQuote.isPending ? 'Live price · refreshing…' : 'Live price'}
+              value={formatNative(effectiveLive ?? 0, current.currency)}
               hint={priceUp ? '↑' : '↓'}
               hintClass={priceUp ? 'text-accent' : 'text-warn'}
             />
