@@ -196,7 +196,7 @@ export function composition(holdings: Holding[], kind: HoldingKind): Composition
 
 // ── Holdings grouping ────────────────────────────────────────────────────────
 
-const ASSET_ORDER: AssetType[] = ['Real Estate', 'Equities', 'Crypto', 'Cash'];
+const ASSET_ORDER: AssetType[] = ['Real Estate', 'Vehicle', 'Equities', 'Crypto', 'Cash'];
 const LIABILITY_ORDER: AssetType[] = ['Mortgage', 'Credit', 'Loan'];
 
 export interface HoldingGroup {

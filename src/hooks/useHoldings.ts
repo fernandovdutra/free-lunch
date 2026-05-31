@@ -69,7 +69,7 @@ export function transformHolding(docSnap: QueryDocumentSnapshot): Holding {
         ? new Date(history[history.length - 1]!.date).getTime()
         : Date.now();
 
-  return {
+  const holding: Holding = {
     id: docSnap.id,
     name: data.name,
     platform: data.platform,
@@ -83,10 +83,12 @@ export function transformHolding(docSnap: QueryDocumentSnapshot): Holding {
     updatedDaysAgo: deriveUpdatedDaysAgo(lastValueMs, Date.now()),
     notes: data.notes ?? null,
     symbol: data.symbol ?? null,
-    livePrice: data.livePrice ?? undefined,
-    prevPrice: data.prevPrice ?? undefined,
     history,
   };
+  // Only set the optional live-price fields when present (exactOptionalPropertyTypes).
+  if (data.livePrice != null) holding.livePrice = data.livePrice;
+  if (data.prevPrice != null) holding.prevPrice = data.prevPrice;
+  return holding;
 }
 
 export function useHoldings() {

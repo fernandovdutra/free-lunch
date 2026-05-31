@@ -10,6 +10,7 @@ export type HoldingKind = 'asset' | 'liability';
 
 export type AssetType =
   | 'Real Estate'
+  | 'Vehicle'
   | 'Equities'
   | 'Crypto'
   | 'Cash'

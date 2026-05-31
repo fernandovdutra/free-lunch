@@ -20,6 +20,7 @@ import type { AssetType, Holding, Liquidity, UpdateSource } from '@/types/wealth
 
 const ASSET_TYPES: AssetType[] = [
   'Real Estate',
+  'Vehicle',
   'Equities',
   'Crypto',
   'Cash',

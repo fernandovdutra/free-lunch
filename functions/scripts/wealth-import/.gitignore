@@ -1,0 +1,5 @@
+# Never commit real personal balances — raw data + any generated JSON stay local.
+networth.raw.tsv
+*.raw.tsv
+generated/
+*.generated.json
