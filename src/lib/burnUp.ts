@@ -109,6 +109,15 @@ function normalizeLabel(label: string): string {
 }
 
 /**
+ * Stable identity for a schedule item, used to persist a manual "mark as
+ * posted" override (`users/{uid}/settings/fixedMatches`) and as the React key
+ * for the chart's hollow markers. FixedCost has no id, so the {day, label,
+ * amount} triple is the key. Editing any of those three re-keys the item and
+ * drops a stale override — acceptable for a per-month, low-stakes override.
+ */
+export const fixedCostKey = (f: FixedCost): string => `${f.d}|${f.l}|${f.a}`;
+
+/**
  * Greedy match between scheduled fixed costs and real transactions.
  *
  * For each scheduled item, pick the unclaimed expense with the closest
@@ -122,11 +131,18 @@ function normalizeLabel(label: string): string {
  * Items without a match are returned in `unposted` and the projection
  * still expects them to land — even when their scheduled date has
  * already passed (overdue → `today + 1`).
+ *
+ * `manualPostedKeys` holds `fixedCostKey`s the user has explicitly marked as
+ * already posted (the heuristic missed the real charge — different merchant
+ * name, amount drift > tolerance). Those items skip the heuristic and go
+ * straight to `posted` without claiming a transaction, so they drop out of the
+ * "still to post" footnote, the hollow markers, and the projection step-ups.
  */
 export function matchFixedToActuals(
   fixed: FixedCost[],
   txns: MatchableTxn[],
-  amountTolerance = 0.2
+  amountTolerance = 0.2,
+  manualPostedKeys: ReadonlySet<string> = new Set()
 ): MatchedSchedule {
   const expenses = txns.filter((t) => t.amount < 0);
   const claimed = new Set<number>();
@@ -134,6 +150,10 @@ export function matchFixedToActuals(
   const unposted: FixedCost[] = [];
 
   for (const f of fixed) {
+    if (manualPostedKeys.has(fixedCostKey(f))) {
+      posted.push(f);
+      continue;
+    }
     const needle = normalizeLabel(f.l);
     if (!needle) {
       unposted.push(f);

@@ -7,6 +7,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useBudgetProgress } from '@/hooks/useBudgetProgress';
 import { useFixedSchedule } from '@/hooks/useFixedSchedule';
+import { useFixedMatches } from '@/hooks/useFixedMatches';
 import { usePendingReimbursements } from '@/hooks/useReimbursements';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useMonth } from '@/contexts/MonthContext';
@@ -18,6 +19,10 @@ import {
   matchFixedToActuals,
 } from '@/lib/burnUp';
 import { TransactionRow } from '@/components/redesign';
+
+// Stable empty default so the `matched` memo doesn't re-run every render while
+// the fixedMatches query is loading (a fresh `new Set()` would break ===).
+const EMPTY_KEYS: ReadonlySet<string> = new Set();
 import {
   BalanceRow,
   HomeCategoryList,
@@ -52,6 +57,10 @@ export function Home() {
   const { data: pendingReimbursements = [] } = usePendingReimbursements();
   const { data: connections = [] } = useBankConnections();
   const { data: fixedSchedule = [] } = useFixedSchedule();
+  const monthKey = format(selectedMonth, 'yyyy-MM');
+  // Fixed costs the user manually marked "already posted" this month (the
+  // heuristic missed the real charge). Treated as posted by the matcher.
+  const { data: manualPostedKeys = EMPTY_KEYS } = useFixedMatches(monthKey);
   // Month transactions, used to match scheduled fixed costs against
   // what's actually posted so the projection doesn't double-count.
   const { data: monthTxns = [] } = useTransactions({
@@ -68,8 +77,8 @@ export function Home() {
     const eligible = monthTxns.filter(
       (t) => !t.excludeFromTotals && t.reimbursement?.status !== 'pending'
     );
-    return matchFixedToActuals(fixedSchedule, eligible);
-  }, [fixedSchedule, monthTxns]);
+    return matchFixedToActuals(fixedSchedule, eligible, undefined, manualPostedKeys);
+  }, [fixedSchedule, monthTxns, manualPostedKeys]);
 
   if (error) {
     return (
@@ -209,6 +218,8 @@ export function Home() {
           daysInMonth={daysInMonth}
           projection={projection}
           fixedRemainingAmount={fixedRemainingAmount}
+          monthKey={monthKey}
+          manualPostedKeys={manualPostedKeys}
         />
       </section>
 

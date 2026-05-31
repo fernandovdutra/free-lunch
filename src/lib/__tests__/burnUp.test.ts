@@ -3,6 +3,7 @@ import {
   buildDailyActual,
   computeExpected,
   computeProjection,
+  fixedCostKey,
   fixedRemaining,
   matchFixedToActuals,
 } from '../burnUp';
@@ -180,6 +181,28 @@ describe('matchFixedToActuals', () => {
     const { posted } = matchFixedToActuals(fixed, txns);
     expect(posted).toHaveLength(0);
   });
+
+  it('forces a manually-marked key to posted even when no transaction matches', () => {
+    // The real charge posted under a different name, so the heuristic misses it.
+    const lease = { d: 22, a: 356.06, l: 'CA AUTO FIN NED' };
+    const txns = [{ counterparty: 'STELLANTIS FINANCIAL', amount: -356.06 }];
+    const keys = new Set([fixedCostKey(lease)]);
+    const { posted, unposted } = matchFixedToActuals([lease], txns, undefined, keys);
+    expect(posted).toHaveLength(1);
+    expect(unposted).toHaveLength(0);
+  });
+
+  it('does not consume a transaction for a manually-marked item', () => {
+    // A real Albert Heijn expense must stay available for other matching and
+    // must not be claimed by the manually-marked (different) item.
+    const lease = { d: 22, a: 356.06, l: 'CA AUTO FIN NED' };
+    const groceries = { d: 3, a: 42, l: 'Albert Heijn' };
+    const txns = [{ counterparty: 'Albert Heijn', amount: -42 }];
+    const keys = new Set([fixedCostKey(lease)]);
+    const { posted, unposted } = matchFixedToActuals([lease, groceries], txns, undefined, keys);
+    expect(posted).toHaveLength(2); // marked item + AH heuristic match
+    expect(unposted).toHaveLength(0);
+  });
 });
 
 describe('computeProjection', () => {
@@ -264,6 +287,43 @@ describe('fixedRemaining', () => {
 
   it('returns 0 for empty', () => {
     expect(fixedRemaining([])).toBe(0);
+  });
+});
+
+describe('manual mark-as-posted integration', () => {
+  // A €300 charge IS in the spend total (daily) but posted under a name the
+  // heuristic can't match to the scheduled "rent". Left unmarked, the matcher
+  // calls it unposted and the projection adds it a second time as a future
+  // step — double-counting. Marking it posted fixes both the footnote and the
+  // projection.
+  const rent = { d: 2, a: 300, l: 'rent' };
+  const fixed = [rent];
+  const daily = [0, 100, 400, 500]; // €300 landed on day 2; €100/day variable
+  const today = 3;
+  const txns = [
+    { counterparty: 'WONINGCORPORATIE XYZ', amount: -300 },
+    { counterparty: 'Albert Heijn', amount: -200 },
+  ];
+
+  it('without a mark: rent is unposted, footnote shows it, projection double-counts', () => {
+    const { posted, unposted } = matchFixedToActuals(fixed, txns);
+    expect(posted).toHaveLength(0);
+    expect(unposted).toHaveLength(1);
+    expect(fixedRemaining(unposted)).toBe(300);
+    const { projectedEnd } = computeProjection(daily, posted, unposted, today, 30);
+    // variableProj = 500/3 = 166.67; +300 future step that's already in daily.
+    expect(projectedEnd).toBeCloseTo(500 + (500 / 3) * 27 + 300, 4);
+  });
+
+  it('with a mark: rent is posted, footnote clears, projection stops double-counting', () => {
+    const keys = new Set([fixedCostKey(rent)]);
+    const { posted, unposted } = matchFixedToActuals(fixed, txns, undefined, keys);
+    expect(posted).toHaveLength(1);
+    expect(unposted).toHaveLength(0);
+    expect(fixedRemaining(unposted)).toBe(0);
+    const { projectedEnd } = computeProjection(daily, posted, unposted, today, 30);
+    // postedSoFar = 300, variableProj = (500 - 300)/3 = 66.67, no future step.
+    expect(projectedEnd).toBeCloseTo(500 + ((500 - 300) / 3) * 27, 4);
   });
 });
 
