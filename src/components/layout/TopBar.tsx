@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import { useMonth } from '@/contexts/MonthContext';
 import { useBankConnections, useSyncAllConnections } from '@/hooks/useBankConnection';
 import { useToast } from '@/components/ui/toaster';
@@ -41,6 +42,9 @@ function formatRelativeMinutes(when: Date | string | null | undefined): string |
  */
 export function TopBar() {
   const { selectedMonth, goToPreviousMonth, goToNextMonth, isCurrentMonth } = useMonth();
+  const location = useLocation();
+  // Wealth is a "now" value with its own history — no month scoping there.
+  const hideMonthNav = location.pathname.startsWith('/wealth');
   const { data: connections } = useBankConnections();
   const syncAll = useSyncAllConnections();
   const { toast } = useToast();
@@ -99,28 +103,34 @@ export function TopBar() {
       )}
     >
       <div className="flex h-[44px] items-center justify-between px-3">
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={goToPreviousMonth}
-            aria-label="Previous month"
-            className="font-mono text-[14px] leading-none text-textLo active:opacity-60 px-1"
-          >
-            ‹
-          </button>
-          <span className="nums font-mono text-[11px] uppercase tracking-[0.12em] text-textHi">
-            {monthLabel} {yearLabel}
+        {hideMonthNav ? (
+          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-textHi">
+            WEALTH
           </span>
-          <button
-            type="button"
-            onClick={goToNextMonth}
-            disabled={isCurrentMonth}
-            aria-label="Next month"
-            className="font-mono text-[14px] leading-none text-textLo active:opacity-60 px-1 disabled:opacity-30"
-          >
-            ›
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={goToPreviousMonth}
+              aria-label="Previous month"
+              className="font-mono text-[14px] leading-none text-textLo active:opacity-60 px-1"
+            >
+              ‹
+            </button>
+            <span className="nums font-mono text-[11px] uppercase tracking-[0.12em] text-textHi">
+              {monthLabel} {yearLabel}
+            </span>
+            <button
+              type="button"
+              onClick={goToNextMonth}
+              disabled={isCurrentMonth}
+              aria-label="Next month"
+              className="font-mono text-[14px] leading-none text-textLo active:opacity-60 px-1 disabled:opacity-30"
+            >
+              ›
+            </button>
+          </div>
+        )}
 
         <button
           type="button"

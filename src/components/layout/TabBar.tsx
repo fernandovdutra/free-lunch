@@ -10,6 +10,7 @@ const TABS = [
   { href: '/', label: 'HOME', glyph: '▤', exact: true },
   { href: '/transactions', label: 'TXNS', glyph: '≡', exact: false },
   { href: '/budgets', label: 'BUDGET', glyph: '◧', exact: false },
+  { href: '/wealth', label: 'WEALTH', glyph: '◆', exact: false },
 ] as const;
 
 export function TabBar({ onMoreClick, moreOpen }: TabBarProps) {
@@ -17,7 +18,7 @@ export function TabBar({ onMoreClick, moreOpen }: TabBarProps) {
 
   // MORE is "active" when the sheet is open OR the current route is one of the
   // routes the MORE sheet links to (so users see where they are in archive).
-  const moreRoutePrefixes = ['/reimbursements', '/fixed-costs', '/settings', '/insights', '/goals', '/investments'];
+  const moreRoutePrefixes = ['/reimbursements', '/fixed-costs', '/settings', '/insights', '/goals'];
   const moreRouteActive = moreRoutePrefixes.some((p) => location.pathname.startsWith(p));
   const moreActive = moreOpen || moreRouteActive;
 
