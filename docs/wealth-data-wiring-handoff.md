@@ -32,7 +32,7 @@ components stay intact.
 | **0 — Foundations** | `holdings` doc model; `firestore.rules` (`holdings` + read-only `marketData`); collection-group index `holdings(updateSource, symbol)`; pure `src/lib/holdingsMapping.ts` mappers + tests | ✅ done (commit `ee02bdc`) |
 | **1 — Read path** | `src/hooks/useHoldings.ts` + `transformHolding` (mirrors `useInvestments`) | ✅ done |
 | **2 — Write path** | `src/hooks/useHoldingMutations.ts` (update-value / edit-details / create / delete, optimistic); `Wealth.tsx` rewired off the mock; `EditDetailsDialog` ticker field | ✅ done |
-| **3 — Import + retire old** | import the personal net-worth sheet → `holdings`; retire `Investments.tsx` + `/investments`; swap `get_investments` → `get_holdings` MCP tool | ⛔ not started |
+| **3 — Import + retire old** | import the personal net-worth sheet → `holdings` (`functions/scripts/wealth-import/`, verified against the emulator: 21 holdings, net worth €628,655); retired `Investments.tsx` + `/investments`; swapped `get_investments` → `get_holdings` MCP tool | ✅ done |
 | **4 — Auto-pricing** | Twelve Data client + scheduled `refreshMarketData` fn + on-demand `getLiveQuote` callable | ⛔ not started |
 | **5 — Benchmarks** | EOD index series → `marketData/indices/{key}`; `useBenchmarks.ts` replaces `MOCK_BENCHMARKS` | ⛔ not started |
 | **6 — Bank-synced cash** | upsert a Cash holding per account from `bankConnections.accountBalances` in `syncConnection.ts` | ⛔ not started |
@@ -57,40 +57,31 @@ import data right after merge.
 - `src/components/wealth/EditDetailsDialog.tsx` — ticker/symbol field for `auto`.
 - `firebase/firestore.rules`, `firebase/firestore.indexes.json`.
 
-## Next session — start here (Phase 3)
+## Phase 3 — done
 
-The blocker was parsing the Google Sheet through MCP/base64 in an ephemeral
-container (`/tmp` reaped mid-run, replayed tool calls). **Do not re-parse via
-MCP.** Instead:
+Importer lives in `functions/scripts/wealth-import/` (see its `README.md`):
 
-1. Ask the user to **export the "patrimonio" tab to CSV and place the file in the
-   repo working dir** (e.g. `./networth.csv`), or paste the rows. Parse the local
-   file directly — no base64/Drive round-trip.
-2. Sheet shape (confirmed): **transposed** (rows = accounts, cols = dated
-   snapshots), **multi-currency** (EUR; BRL via per-date `1 EUR in BRL` row;
-   **BTC stored as a unit count** × per-date `1 BTC in EUR` row). Skip subtotal
-   rows (`Total net worth`, `Assets`, `Liquid Assets`, `Deposits`,
-   `Financial instruments`, `Real estate`, `Digital assets`, `Liabilities`). A
-   `Liabilities` marker row disambiguates labels appearing as both asset and
-   liability (e.g. `House, Eindhoven` = property above / mortgage below).
-   Reconstruct ISO dates from the year row + day-month row (month-reset → year).
-   Sheet's current net worth ≈ **€628,655** — use as the reconciliation target.
-3. Account rows actually present (do **not** invent others): `ABN`,
-   `Transferwise` (Wise), `BB (R$)`, `Nubank (R$)`, `XP (R$)`, `NOVIA`,
-   `ASML Stocks`, `Hudl VESTED stock`, `House, Eindhoven`, `Apto, POA (R$)`,
-   `BTC`, `BTC Oranje (Paulo)`, `MiTo`, `Tesla Model 3`; liabilities:
-   `House, Eindhoven` (mortgage), `Apto, POA`, `Tesla Model 3 (ribank...)`,
-   `Nubank (R$)`. The user's earlier feedback: there is **no** N26/Indexa/
-   Coinbase/pension/etc — only what's in the sheet.
-4. Deliverable: an **account → Holding mapping** the user reviews + a
-   firebase-admin importer that writes to `holdings` (deterministic per-name doc
-   ids, idempotent). **Gitignore the CSV and generated JSON** — never commit real
-   balances. Run emulator-first.
-5. Then retire `src/pages/Investments.tsx` + `/investments` route
-   (`src/App.tsx`), and replace `get_investments` in
-   `functions/src/mcp/tools.ts` with `get_holdings`.
+- `parse.mjs` parses the **transposed**, multi-currency sheet (EUR; BRL via
+  per-date `1 EUR in BRL`; **BTC as a unit count** × `1 BTC in EUR`), skips the
+  subtotal rows, and flips kind at the `Liabilities` marker. Dates were already
+  ISO in the header, so no reconstruction was needed.
+- It **reconciles** the sum of leaf values against the sheet's own
+  `Assets` / `Liabilities` / `Total net worth` rows at every date (max diff
+  €0.0005); the importer aborts on mismatch. Net worth ties out to **€628,655**.
+- `mapping.mjs` is the reviewed account → Holding mapping. Added a `Vehicle`
+  AssetType (types + grouping order + edit dialog) for the cars.
+- `import.mjs` is idempotent (deterministic `<kind>-<slug>` doc ids),
+  emulator-first, with prod run steps. **Raw data + generated JSON are
+  gitignored — only scripts are committed.** Verified against the emulator
+  (21 holdings, idempotent on re-run).
+- Retired `src/pages/Investments.tsx`, the `/investments` route, and the now
+  orphaned `useInvestments`/`useDebts` hooks. Swapped the `get_investments` MCP
+  tool for `get_holdings` (reads the `holdings` collection; returns net worth +
+  liquid assets) in `functions/src/mcp/tools.ts`.
+
+Remaining: **Phases 4–6** (auto-pricing, benchmarks, bank-synced cash).
 
 ## PR
 
 Draft PR **#65** → branch `claude/wealth-data-wiring-plan-cj6Dt`. Keep as draft;
-the user will merge (likely together with Phase 3 to avoid the empty-state gap).
+the user will merge.
