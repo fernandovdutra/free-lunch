@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { deriveUpdatedDaysAgo } from '@/lib/holdingsMapping';
 import type {
   AssetType,
+  CurrencyCode,
   HistoryPoint,
   Holding,
   HoldingKind,
@@ -32,6 +33,8 @@ export interface HoldingDocument {
   units?: number | null;
   liquidity: Liquidity;
   updateSource: UpdateSource;
+  currency?: CurrencyCode | null;
+  nativeValue?: number | null;
   notes?: string | null;
   symbol?: string | null;
   bankConnectionId?: string | null;
@@ -80,12 +83,14 @@ export function transformHolding(docSnap: QueryDocumentSnapshot): Holding {
     units: data.units ?? null,
     liquidity: data.liquidity,
     updateSource: data.updateSource,
+    currency: data.currency ?? 'EUR',
     updatedDaysAgo: deriveUpdatedDaysAgo(lastValueMs, Date.now()),
     notes: data.notes ?? null,
     symbol: data.symbol ?? null,
     history,
   };
-  // Only set the optional live-price fields when present (exactOptionalPropertyTypes).
+  // Only set the optional fields when present (exactOptionalPropertyTypes).
+  if (data.nativeValue != null) holding.nativeValue = data.nativeValue;
   if (data.livePrice != null) holding.livePrice = data.livePrice;
   if (data.prevPrice != null) holding.prevPrice = data.prevPrice;
   return holding;

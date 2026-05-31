@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { formatAmount } from '@/lib/utils';
 import { groupHoldings } from '@/lib/wealth';
 import type { Holding } from '@/types/wealth';
@@ -10,13 +10,23 @@ interface HoldingsListProps {
   onAdd: () => void;
 }
 
+/** A position is "closed" once its value rounds to zero — no longer held, but
+ *  its history still feeds the charts. */
+function isClosed(h: Holding): boolean {
+  return Math.abs(h.value) < 0.005;
+}
+
 export function HoldingsList({ holdings, onSelect, onAdd }: HoldingsListProps) {
-  const groups = groupHoldings(holdings);
+  const [showClosed, setShowClosed] = useState(false);
+
+  const active = holdings.filter((h) => !isClosed(h));
+  const closed = holdings.filter(isClosed);
+  const groups = groupHoldings(active);
 
   return (
     <section className="rounded-card border border-rule bg-surface p-4">
       <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.12em] text-textLo">
-        Holdings · {holdings.length} items
+        Holdings · {active.length} items
       </p>
 
       {groups.map((group, idx) => {
@@ -43,11 +53,42 @@ export function HoldingsList({ holdings, onSelect, onAdd }: HoldingsListProps) {
               </span>
             </div>
             {group.holdings.map((h) => (
-              <HoldingRow key={h.id} holding={h} onClick={() => { onSelect(h); }} />
+              <HoldingRow
+                key={h.id}
+                holding={h}
+                onClick={() => {
+                  onSelect(h);
+                }}
+              />
             ))}
           </Fragment>
         );
       })}
+
+      {closed.length > 0 && (
+        <div className="mt-4 border-t border-rule pt-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowClosed((s) => !s);
+            }}
+            className="flex w-full items-center justify-between font-mono text-[10px] uppercase tracking-[0.12em] text-textLo active:opacity-60"
+          >
+            <span>Closed · {closed.length}</span>
+            <span aria-hidden>{showClosed ? '▾' : '▸'}</span>
+          </button>
+          {showClosed &&
+            closed.map((h) => (
+              <HoldingRow
+                key={h.id}
+                holding={h}
+                onClick={() => {
+                  onSelect(h);
+                }}
+              />
+            ))}
+        </div>
+      )}
 
       <button
         type="button"

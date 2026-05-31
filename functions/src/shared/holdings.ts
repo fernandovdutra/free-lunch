@@ -75,6 +75,8 @@ export interface CashHoldingSeed {
   updateSource: UpdateSource;
   notes: string | null;
   symbol: string | null;
+  /** Native currency. Bank-synced ABN AMRO balances are EUR. */
+  currency: 'EUR';
   history: HistoryPoint[];
 }
 
@@ -105,6 +107,7 @@ export function balanceToCashHolding(
     updateSource: 'bank',
     notes: null,
     symbol: null,
+    currency: 'EUR',
     history: [{ date, value: amount }],
   };
 }
@@ -117,10 +120,7 @@ export function balanceToCashHolding(
  * array. Used by the daily auto-sync / pricing jobs that may run several times
  * a day so the stored history stays clean.
  */
-export function upsertHistoryPoint(
-  history: HistoryPoint[],
-  point: HistoryPoint
-): HistoryPoint[] {
+export function upsertHistoryPoint(history: HistoryPoint[], point: HistoryPoint): HistoryPoint[] {
   const next = history.filter((p) => p.date !== point.date);
   next.push(point);
   next.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));

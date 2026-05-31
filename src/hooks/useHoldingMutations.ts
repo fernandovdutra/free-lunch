@@ -23,6 +23,7 @@ const EDITABLE_DETAIL_KEYS = [
   'units',
   'liquidity',
   'updateSource',
+  'currency',
   'notes',
   'symbol',
 ] as const;
@@ -42,9 +43,7 @@ function patchHoldingsCache(
   queryClient: ReturnType<typeof useQueryClient>,
   fn: (holdings: Holding[]) => Holding[]
 ) {
-  queryClient.setQueriesData<Holding[]>({ queryKey: ['holdings'] }, (old) =>
-    old ? fn(old) : old
-  );
+  queryClient.setQueriesData<Holding[]>({ queryKey: ['holdings'] }, (old) => (old ? fn(old) : old));
 }
 
 /**
@@ -57,19 +56,29 @@ export function useUpdateHoldingValue() {
   const { dataOwnerId } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ id, point }: { id: string; point: HistoryPoint }) => {
+    mutationFn: async ({
+      id,
+      point,
+      nativeValue,
+    }: {
+      id: string;
+      point: HistoryPoint;
+      /** Value in the holding's native currency, when not EUR. `point.value` stays EUR. */
+      nativeValue?: number | null;
+    }) => {
       if (!dataOwnerId) throw new Error('Not authenticated');
       const ref = doc(db, 'users', dataOwnerId, 'holdings', id);
       const date = Timestamp.fromDate(new Date(point.date));
       await updateDoc(ref, {
         history: arrayUnion({ date, value: point.value }),
         value: point.value,
+        ...(nativeValue !== undefined ? { nativeValue } : {}),
         lastValueAt: date,
         updatedAt: serverTimestamp(),
       });
       return id;
     },
-    onMutate: async ({ id, point }) => {
+    onMutate: async ({ id, point, nativeValue }) => {
       await queryClient.cancelQueries({ queryKey: ['holdings'] });
       const previous = queryClient.getQueriesData({ queryKey: ['holdings'] });
       patchHoldingsCache(queryClient, (holdings) =>
@@ -82,6 +91,7 @@ export function useUpdateHoldingValue() {
             ...h,
             history,
             value: history[history.length - 1]!.value,
+            ...(nativeValue !== undefined ? { nativeValue } : {}),
             updatedDaysAgo: 0,
           };
         })
@@ -164,6 +174,7 @@ export function useCreateHolding() {
         units: seed?.units ?? null,
         liquidity: seed?.liquidity ?? 'liquid',
         updateSource: seed?.updateSource ?? 'manual',
+        currency: seed?.currency ?? 'EUR',
         updatedDaysAgo: 0,
         notes: seed?.notes ?? null,
         symbol: seed?.symbol ?? null,
@@ -182,6 +193,8 @@ export function useCreateHolding() {
         units: holding.units,
         liquidity: holding.liquidity,
         updateSource: holding.updateSource,
+        currency: holding.currency,
+        nativeValue: null,
         notes: holding.notes,
         symbol: holding.symbol,
         history: [{ date: ts, value }],

@@ -22,6 +22,18 @@ export type Liquidity = 'liquid' | 'illiquid';
 
 export type UpdateSource = 'auto' | 'bank' | 'manual';
 
+/**
+ * Currencies a holding can be denominated in. `value`/`history` are always
+ * stored in the base currency (EUR); foreign holdings additionally carry their
+ * native amount for display. Add codes here as needed.
+ */
+export type CurrencyCode = 'EUR' | 'USD' | 'BRL' | 'GBP';
+
+export const CURRENCIES: CurrencyCode[] = ['EUR', 'USD', 'BRL', 'GBP'];
+
+/** Base currency all totals/charts are denominated in. */
+export const BASE_CURRENCY: CurrencyCode = 'EUR';
+
 /** A dated value observation — the atomic unit charts are built from. */
 export interface HistoryPoint {
   /** ISO date string (YYYY-MM-DD). */
@@ -35,11 +47,15 @@ export interface Holding {
   platform: string; // "Kraken", "DEGIRO", "Self-held"
   type: AssetType;
   kind: HoldingKind;
-  value: number; // current value (always positive; sign comes from `kind`)
-  cost: number; // cost basis (assets); 0 if N/A
+  value: number; // current value in BASE_CURRENCY (always positive; sign comes from `kind`)
+  cost: number; // cost basis in BASE_CURRENCY (assets); 0 if N/A
   units: number | null; // for auto-priced; null otherwise
   liquidity: Liquidity;
   updateSource: UpdateSource;
+  /** Native denomination. Defaults to EUR. `value`/`history` stay in EUR. */
+  currency: CurrencyCode;
+  /** Current value in `currency` (display only). Null/omitted when EUR. */
+  nativeValue?: number | null;
   updatedDaysAgo: number; // derived from last history entry
   notes?: string | null;
   /** Ticker / coin id for auto-priced holdings (drives the pricing job). */
