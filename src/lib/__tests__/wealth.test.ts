@@ -11,6 +11,7 @@ import {
   groupHoldings,
   benchmarkOptions,
   formatUnits,
+  buildCashBenchmark,
 } from '@/lib/wealth';
 import type { Holding } from '@/types/wealth';
 
@@ -178,5 +179,27 @@ describe('formatUnits', () => {
   });
   it('keeps whole numbers intact for other types', () => {
     expect(formatUnits(1500, 'Cash')).toBe('1500');
+  });
+});
+
+describe('buildCashBenchmark', () => {
+  const now = new Date('2026-05-31T12:00:00Z');
+
+  it('produces ascending first-of-month points spanning the window', () => {
+    const series = buildCashBenchmark(now, 6);
+    expect(series).toHaveLength(6);
+    expect(series[0]!.date).toBe('2025-12-01');
+    expect(series[series.length - 1]!.date).toBe('2026-05-01');
+    for (let i = 1; i < series.length; i++) {
+      expect(series[i]!.date > series[i - 1]!.date).toBe(true);
+    }
+  });
+
+  it('starts at 100 and compounds monthly so later points are larger', () => {
+    const series = buildCashBenchmark(now, 13, 0.12); // 1%/month for clean numbers
+    expect(series[0]!.value).toBe(100);
+    // After 12 months at 1%/month: 100 × 1.01^12 ≈ 112.683
+    expect(series[12]!.value).toBeCloseTo(112.683, 2);
+    expect(series[12]!.value).toBeGreaterThan(series[0]!.value);
   });
 });

@@ -11,8 +11,9 @@ import {
   rangeDelta,
 } from '@/lib/wealth';
 import { cn } from '@/lib/utils';
-import { MOCK_BENCHMARKS } from '@/data/wealthMock';
 import { useHoldings } from '@/hooks/useHoldings';
+import { useBenchmarks } from '@/hooks/useBenchmarks';
+import { useRefreshPrices } from '@/hooks/useRefreshPrices';
 import {
   useCreateHolding,
   useDeleteHolding,
@@ -52,10 +53,12 @@ function subjectValue(holdings: Holding[], subject: ChartSubject): number {
 
 export function Wealth() {
   const { data: holdings = [] } = useHoldings();
+  const { data: benchmarks = {} } = useBenchmarks();
   const updateValue = useUpdateHoldingValue();
   const updateDetails = useUpdateHoldingDetails();
   const createHolding = useCreateHolding();
   const deleteHolding = useDeleteHolding();
+  const refreshPrices = useRefreshPrices();
 
   const [range, setRange] = useState<RangeKey>('1Y');
   const [subject, setSubject] = useState<ChartSubject>('NET_WORTH');
@@ -83,7 +86,7 @@ export function Wealth() {
     beating: boolean;
   };
   if (benchmark !== 'NONE' && series.length > 0) {
-    const bench = MOCK_BENCHMARKS[benchmark];
+    const bench = benchmarks[benchmark];
     if (bench) {
       const startDate = series[0]!.date;
       const benchClipped = bench.history.filter((p) => p.date >= startDate);
@@ -135,6 +138,7 @@ export function Wealth() {
   };
 
   const liquidNow = liquidTotal(holdings);
+  const hasAutoHoldings = holdings.some((h) => h.updateSource === 'auto' && h.symbol);
 
   return (
     <>
@@ -153,6 +157,20 @@ export function Wealth() {
           />
           Updated {lastManualDays}d ago
         </span>
+        {hasAutoHoldings && (
+          <button
+            type="button"
+            onClick={() => { refreshPrices.mutate(undefined); }}
+            disabled={refreshPrices.isPending}
+            aria-label="Refresh prices"
+            className={cn(
+              'font-mono text-[10px] uppercase tracking-[0.1em] text-textLo active:opacity-60',
+              refreshPrices.isPending && 'animate-pulse'
+            )}
+          >
+            {refreshPrices.isPending ? 'Refreshing…' : '↻ Prices'}
+          </button>
+        )}
         <button
           type="button"
           onClick={handleAdd}

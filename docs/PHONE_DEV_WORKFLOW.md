@@ -171,10 +171,11 @@ VITE_EMULATOR_FUNCTIONS_URL=http://<your-lan-ip>:5173
 ANTHROPIC_API_KEY=sk-ant-REPLACE-ME
 RESEND_API_KEY=re_REPLACE-ME
 AGENT_API_TOKEN=dev-local-token-change-me
+TWELVEDATA_API_KEY=td-REPLACE-ME
 SINGLE_USER_ID=<emulator UID — printed by seed script on every run>
 ```
 
-Only fill in real keys when you want to exercise the advisor Cloud Functions end-to-end. Goals / investments / categories / transactions work without any secrets.
+Only fill in real keys when you want to exercise the advisor Cloud Functions end-to-end. Goals / investments / categories / transactions work without any secrets. `TWELVEDATA_API_KEY` powers the Wealth module's live pricing (`refreshMarketData` / `getLiveQuote`) and benchmark series (`refreshBenchmarks`); a free Twelve Data key is enough.
 
 ## Customizing the seed
 
