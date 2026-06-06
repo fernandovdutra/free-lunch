@@ -45,6 +45,9 @@ export function BurnUp({
 }: BurnUpProps) {
   const fillId = useId();
   const gradientId = `bu-fill-${fillId.replace(/:/g, '')}`;
+  const overClipId = `bu-over-${fillId.replace(/:/g, '')}`;
+
+  const fixedSum = useMemo(() => fixed.reduce((s, f) => s + f.a, 0), [fixed]);
 
   const expected = useMemo(
     () => computeExpected(daysInMonth, fixed, budget),
@@ -52,8 +55,8 @@ export function BurnUp({
   );
 
   const projection = useMemo(
-    () => computeProjection(daily, posted, unposted, today, daysInMonth),
-    [daily, posted, unposted, today, daysInMonth]
+    () => computeProjection(daily, posted, unposted, today, daysInMonth, budget, fixedSum),
+    [daily, posted, unposted, today, daysInMonth, budget, fixedSum]
   );
 
   const yMax = Math.max(budget, projection.projectedEnd, 1) * 1.06;
@@ -81,16 +84,35 @@ export function BurnUp({
 
   const todayY = yOf(daily[today] ?? 0);
 
-  // Per-day projection path so upcoming fixed-cost steps are visible
-  // instead of being smoothed into a straight diagonal.
-  const projectionPath = (() => {
-    if (today <= 0 || today >= daysInMonth) return '';
+  // Projection is a central (shrinkage-smoothed) dashed line wrapped in an
+  // uncertainty cone (the band between the optimistic and pessimistic variable
+  // burn). Per-day sampling keeps the upcoming fixed-cost steps visible instead
+  // of smoothing them into a straight diagonal.
+  const hasProjection = today > 0 && today < daysInMonth;
+
+  const projectionLine = (fn: (d: number) => number): string => {
     const segs: string[] = [];
     for (let d = today; d <= daysInMonth; d++) {
-      const v = projection.perDay(d);
-      segs.push(`${d === today ? 'M' : 'L'}${xOf(d).toFixed(2)},${yOf(v).toFixed(2)}`);
+      segs.push(`${d === today ? 'M' : 'L'}${xOf(d).toFixed(2)},${yOf(fn(d)).toFixed(2)}`);
     }
     return segs.join(' ');
+  };
+
+  const centralPath = hasProjection ? projectionLine(projection.perDay) : '';
+
+  // Cone = high edge forward, then low edge back, closed. Zero-width at today,
+  // fanning out to month-end.
+  const conePath = (() => {
+    if (!hasProjection) return '';
+    const top: string[] = [];
+    for (let d = today; d <= daysInMonth; d++) {
+      top.push(`${d === today ? 'M' : 'L'}${xOf(d).toFixed(2)},${yOf(projection.highPerDay(d)).toFixed(2)}`);
+    }
+    const bottom: string[] = [];
+    for (let d = daysInMonth; d >= today; d--) {
+      bottom.push(`L${xOf(d).toFixed(2)},${yOf(projection.lowPerDay(d)).toFixed(2)}`);
+    }
+    return `${top.join(' ')} ${bottom.join(' ')} Z`;
   })();
 
   // Markers on the expected line for fixed costs still expected to post.
@@ -126,13 +148,17 @@ export function BurnUp({
       preserveAspectRatio="none"
       className="block"
       role="img"
-      aria-label={`Burn-up chart. Spent ${formatAmount(daily[today] ?? 0, { showSign: false, noCents: true })} of ${formatAmount(budget, { showSign: false, noCents: true })} budget. Projected ${formatAmount(projection.projectedEnd, { showSign: false, noCents: true })} by month-end.`}
+      aria-label={`Burn-up chart. Spent ${formatAmount(daily[today] ?? 0, { showSign: false, noCents: true })} of ${formatAmount(budget, { showSign: false, noCents: true })} budget. Projected ${formatAmount(projection.projectedEnd, { showSign: false, noCents: true })} by month-end${hasProjection ? `, somewhere between ${formatAmount(projection.lowPerDay(daysInMonth), { showSign: false, noCents: true })} and ${formatAmount(projection.highPerDay(daysInMonth), { showSign: false, noCents: true })}` : ''}.`}
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={actualColor} stopOpacity="0.18" />
           <stop offset="100%" stopColor={actualColor} stopOpacity="0" />
         </linearGradient>
+        {/* Everything strictly above the budget rule — the over-budget zone. */}
+        <clipPath id={overClipId}>
+          <rect x="0" y="0" width={VB.w} height={Math.max(0, yOf(budget))} />
+        </clipPath>
       </defs>
 
       {/* Budget rule */}
@@ -208,11 +234,28 @@ export function BurnUp({
         />
       )}
 
-      {/* Projection path — steps up at each upcoming fixed-cost date,
-          slopes by observed variable burn rate in between. */}
-      {projectionPath && (
+      {/* Uncertainty cone — band between optimistic and pessimistic variable
+          burn. Wide early in the month, pinched to a point at today. */}
+      {conePath && (
+        <path d={conePath} fill={projColor} fillOpacity="0.12" stroke="none" />
+      )}
+
+      {/* Over-budget slice of the cone, highlighted amber. */}
+      {conePath && (
         <path
-          d={projectionPath}
+          d={conePath}
+          fill="var(--alert)"
+          fillOpacity="0.16"
+          stroke="none"
+          clipPath={`url(#${overClipId})`}
+        />
+      )}
+
+      {/* Central projection — shrinkage-smoothed, steps up at each upcoming
+          fixed-cost date. Matches the "PROJECTED €X" readout. */}
+      {centralPath && (
+        <path
+          d={centralPath}
           fill="none"
           stroke={projColor}
           strokeWidth="1"
