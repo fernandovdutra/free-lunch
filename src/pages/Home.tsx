@@ -17,6 +17,7 @@ import {
   computeProjection,
   fixedRemaining as fixedRemainingSum,
   matchFixedToActuals,
+  type ProjectionBreakdown,
 } from '@/lib/burnUp';
 import { TransactionRow } from '@/components/redesign';
 
@@ -120,14 +121,28 @@ export function Home() {
     format(selectedMonth, 'yyyy-MM')
   );
 
-  // Burn-up projection. Both the chart's dashed projection line and the
-  // bottom-summary "AT THIS PACE €X" use this number, so the line and
+  // Burn-up projection. Both the chart's central dashed line and the
+  // bottom-summary "PROJECTED €X" use this number, so the line and
   // the readout always agree.
+  const fixedSum = fixedSchedule.reduce((s, f) => s + f.a, 0);
   const burnProjection = !isFutureMonth && dayOfMonth > 0
-    ? computeProjection(dailyActual, matched.posted, matched.unposted, dayOfMonth, daysInMonth)
+    ? computeProjection(
+        dailyActual,
+        matched.posted,
+        matched.unposted,
+        dayOfMonth,
+        daysInMonth,
+        budget,
+        fixedSum
+      )
     : null;
 
-  const projection: { amount: number; delta: number; isOver: boolean } | null =
+  const projection: {
+    amount: number;
+    delta: number;
+    isOver: boolean;
+    breakdown: ProjectionBreakdown;
+  } | null =
     isCurrentMonth && spent > 0 && burnProjection
       ? (() => {
           const projectedAmount = burnProjection.projectedEnd;
@@ -136,6 +151,7 @@ export function Home() {
             amount: projectedAmount,
             delta,
             isOver: budget > 0 && projectedAmount > budget,
+            breakdown: burnProjection.breakdown,
           };
         })()
       : null;

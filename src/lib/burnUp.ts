@@ -185,53 +185,124 @@ export function matchFixedToActuals(
   return { posted, unposted };
 }
 
+export interface ProjectionBreakdown {
+  /** Spend already booked plus fixed costs still certain to post. */
+  committed: number;
+  /** Forecast discretionary (variable) spend from today to month-end. */
+  variable: number;
+  /** projectedEnd − budget. Positive = projected over budget. */
+  over: number;
+}
+
 export interface Projection {
   projectedEnd: number;
+  /** Central (shrinkage-smoothed) projection for each day-of-month. */
   perDay: (d: number) => number;
+  /** Lower edge of the uncertainty cone (optimistic variable burn). */
+  lowPerDay: (d: number) => number;
+  /** Upper edge of the uncertainty cone (pessimistic variable burn). */
+  highPerDay: (d: number) => number;
+  /** Fixed-vs-variable decomposition of the central projection. */
+  breakdown: ProjectionBreakdown;
 }
 
 /**
- * Linear projection from today to month-end, layered with the
- * remaining fixed-cost step-ups.
+ * Strength of the budget-pace prior (in days) used to shrink the observed
+ * variable burn rate. With few observed days the projection sits near budget
+ * pace; it converges to the raw observed rate as the month fills in. This stops
+ * the headline number from swinging wildly on a single big day early on.
+ */
+const PRIOR_DAYS = 7;
+
+/**
+ * Half-width of the uncertainty cone, at month-end, on day 1 — as a fraction of
+ * the projected variable rate. Decays linearly to 0 as the calendar advances,
+ * so later forecasts are tighter (more evidence ⇒ a narrower cone).
+ */
+const BASE_SPREAD = 0.4;
+
+/**
+ * Projection from today to month-end: a shrinkage-smoothed central path plus an
+ * uncertainty cone, with the remaining fixed-cost step-ups layered on.
  *
- * `posted` items are already inside `daily[today]` — don't double-
- * count them. `unposted` items step in at their scheduled day, except:
+ * `posted` items are already inside `daily[today]` — don't double-count them.
+ * `unposted` items step in at their scheduled day, except:
  *   - overdue items (f.d ≤ today) are pushed to `today + 1`
  *   - items past month-end (f.d > daysInMonth) are capped at month-end
  *
- * variableProj = max(0, (todaySpent - postedSoFar) / today)
- * projected[d] = todaySpent + variableProj × (d - today)
- *              + sum of unposted whose effectiveDay ≤ d
+ * Variable burn is shrunk toward the budgeted variable rate (the same slope the
+ * gray expected line uses):
+ *   obsRate     = max(0, (todaySpent − postedSoFar) / today)
+ *   budgetRate  = max(0, budget − fixedSum) / daysInMonth
+ *   blendedRate = (today·obsRate + PRIOR_DAYS·budgetRate) / (today + PRIOR_DAYS)
  *
- * The summary line and the dashed projection in the chart both call
- * `perDay(daysInMonth)` so the on-screen "AT THIS PACE €X" lands
- * exactly where the line ends.
+ * The cone is a point at `today` and fans out to month-end; its opening shrinks
+ * as `today` advances. Fixed step-ups are identical across the central, low,
+ * and high paths (fixed is certain), so the band's thickness is variable-only.
+ *
+ * The summary line and the dashed central projection in the chart both call
+ * `perDay(daysInMonth)`, so the on-screen "PROJECTED €X" lands exactly where
+ * the central line ends.
  */
 export function computeProjection(
   daily: number[],
   posted: FixedCost[],
   unposted: FixedCost[],
   today: number,
-  daysInMonth: number
+  daysInMonth: number,
+  budget: number,
+  fixedSum: number
 ): Projection {
-  if (today <= 0) return { projectedEnd: 0, perDay: () => 0 };
+  if (today <= 0) {
+    const zero = () => 0;
+    return {
+      projectedEnd: 0,
+      perDay: zero,
+      lowPerDay: zero,
+      highPerDay: zero,
+      breakdown: { committed: 0, variable: 0, over: -budget },
+    };
+  }
 
   const todaySpent = daily[today] ?? 0;
   const postedSoFar = posted.reduce((s, f) => s + f.a, 0);
-  const variableProj = Math.max(0, (todaySpent - postedSoFar) / today);
+  const unpostedSum = unposted.reduce((s, f) => s + f.a, 0);
+
+  const obsRate = Math.max(0, (todaySpent - postedSoFar) / today);
+  const budgetRate = daysInMonth > 0 ? Math.max(0, budget - fixedSum) / daysInMonth : 0;
+  const blendedRate = (today * obsRate + PRIOR_DAYS * budgetRate) / (today + PRIOR_DAYS);
+
+  const spread = BASE_SPREAD * (1 - today / daysInMonth);
+  const lowRate = blendedRate * (1 - spread);
+  const highRate = blendedRate * (1 + spread);
 
   const effectiveDay = (f: FixedCost): number =>
     Math.min(daysInMonth, Math.max(today + 1, f.d));
 
-  const perDay = (d: number): number => {
-    if (d <= today) return daily[d] ?? todaySpent;
-    const fixedAfter = unposted
-      .filter((f) => effectiveDay(f) <= d)
-      .reduce((s, f) => s + f.a, 0);
-    return todaySpent + variableProj * (d - today) + fixedAfter;
-  };
+  const fixedAfter = (d: number): number =>
+    unposted.filter((f) => effectiveDay(f) <= d).reduce((s, f) => s + f.a, 0);
 
-  return { projectedEnd: perDay(daysInMonth), perDay };
+  const perDayAt =
+    (rate: number) =>
+    (d: number): number => {
+      if (d <= today) return daily[d] ?? todaySpent;
+      return todaySpent + rate * (d - today) + fixedAfter(d);
+    };
+
+  const perDay = perDayAt(blendedRate);
+  const projectedEnd = perDay(daysInMonth);
+
+  return {
+    projectedEnd,
+    perDay,
+    lowPerDay: perDayAt(lowRate),
+    highPerDay: perDayAt(highRate),
+    breakdown: {
+      committed: todaySpent + unpostedSum,
+      variable: blendedRate * (daysInMonth - today),
+      over: projectedEnd - budget,
+    },
+  };
 }
 
 /**

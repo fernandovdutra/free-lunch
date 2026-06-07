@@ -206,10 +206,15 @@ describe('matchFixedToActuals', () => {
 });
 
 describe('computeProjection', () => {
+  // These layering-math tests choose budget/fixedSum so the budgeted variable
+  // rate equals the observed rate — that makes shrinkage a no-op and isolates
+  // the fixed-cost layering. Shrinkage and cone behavior get dedicated blocks
+  // below.
   it('projects flat when on-pace with no remaining fixed', () => {
     const daily = [0, 100, 200, 300]; // €100/day
     const today = 3;
-    const { projectedEnd } = computeProjection(daily, [], [], today, 30);
+    // budgetRate = 3000/30 = 100/day = observed → blended = observed.
+    const { projectedEnd } = computeProjection(daily, [], [], today, 30, 3000, 0);
     // Variable proj = 100/day, no fixed. End: 300 + 100 * 27 = 3000.
     expect(projectedEnd).toBeCloseTo(3000, 6);
   });
@@ -220,7 +225,9 @@ describe('computeProjection', () => {
     // 50 already in daily (day 2 subscription), 1200 still upcoming.
     const posted = [{ d: 2, a: 50, l: 'subs' }];
     const unposted = [{ d: 20, a: 1200, l: 'rent' }];
-    const { projectedEnd } = computeProjection(daily, posted, unposted, today, 30);
+    // obsRate = (300-50)/3 = 83.33; fixedSum = 1250; budget chosen so
+    // budgetRate = (3750-1250)/30 = 83.33 → blended = observed.
+    const { projectedEnd } = computeProjection(daily, posted, unposted, today, 30, 3750, 1250);
     // postedSoFar = 50, variableProj = (300 - 50) / 3 = 83.333
     // perDay(30) = 300 + 83.333 * 27 + 1200 = 300 + 2250 + 1200 = 3750
     expect(projectedEnd).toBeCloseTo(3750, 4);
@@ -232,7 +239,8 @@ describe('computeProjection', () => {
     const daily = Array.from({ length: 22 }, (_, i) => i * 50);
     const today = 21;
     const unposted = [{ d: 18, a: 1000, l: 'rent' }];
-    const { perDay } = computeProjection(daily, [], unposted, today, 30);
+    // obsRate = 1050/21 = 50; fixedSum = 1000; budgetRate = (2500-1000)/30 = 50.
+    const { perDay } = computeProjection(daily, [], unposted, today, 30, 2500, 1000);
     // At d=21: still daily[21] = 1050.
     // At d=22: rent shows up (overdue → today+1), plus 50 variable.
     //         1050 + 1000 + 50 = 2100.
@@ -244,7 +252,8 @@ describe('computeProjection', () => {
     const daily = Array.from({ length: 11 }, (_, i) => i * 30);
     const today = 10;
     const unposted = [{ d: 31, a: 120, l: 'tax' }]; // 30-day month
-    const { perDay, projectedEnd } = computeProjection(daily, [], unposted, today, 30);
+    // obsRate = 300/10 = 30; fixedSum = 120; budgetRate = (1020-120)/30 = 30.
+    const { perDay, projectedEnd } = computeProjection(daily, [], unposted, today, 30, 1020, 120);
     // At d=29: tax not yet (effectiveDay = min(30, max(11, 31)) = 30).
     // At d=30: tax steps in.
     expect(perDay(29)).toBeLessThan(perDay(30));
@@ -252,7 +261,7 @@ describe('computeProjection', () => {
   });
 
   it('returns 0 when today is 0', () => {
-    const { projectedEnd, perDay } = computeProjection([0], [], [], 0, 30);
+    const { projectedEnd, perDay } = computeProjection([0], [], [], 0, 30, 3000, 0);
     expect(projectedEnd).toBe(0);
     expect(perDay(15)).toBe(0);
   });
@@ -261,7 +270,7 @@ describe('computeProjection', () => {
     const daily = [0, 80, 160, 240, 320];
     const today = 4;
     const unposted = [{ d: 28, a: 500, l: 'rent' }];
-    const { projectedEnd, perDay } = computeProjection(daily, [], unposted, today, 30);
+    const { projectedEnd, perDay } = computeProjection(daily, [], unposted, today, 30, 3000, 500);
     expect(perDay(30)).toBe(projectedEnd);
   });
 
@@ -270,9 +279,66 @@ describe('computeProjection', () => {
     const daily = [0, 50, 100, 150];
     const today = 3;
     const posted = [{ d: 1, a: 200, l: 'mortgage' }];
-    const { projectedEnd } = computeProjection(daily, posted, [], today, 30);
+    // obsRate clamps to 0; budget = fixedSum so budgetRate is 0 too → blended 0.
+    const { projectedEnd } = computeProjection(daily, posted, [], today, 30, 200, 200);
     // variableProj clamps to 0; no unposted; projection just stays at 150.
     expect(projectedEnd).toBeCloseTo(150, 6);
+  });
+});
+
+describe('computeProjection shrinkage', () => {
+  it('pulls the early-month projection toward budget pace', () => {
+    // Day 2 of a 30-day month, spending €200/day — double the €100/day budget
+    // pace. Raw extrapolation would say €6000; shrinkage tempers it.
+    const daily = [0, 200, 400];
+    const { projectedEnd } = computeProjection(daily, [], [], 2, 30, 3000, 0);
+    const rawEnd = 400 + 200 * 28; // 6000
+    expect(projectedEnd).toBeLessThan(rawEnd);
+    expect(projectedEnd).toBeGreaterThan(3000); // still over, just less alarmist
+  });
+
+  it('converges to the raw observed rate late in the month', () => {
+    // Day 28 of 30 at the same €200/day: lots of evidence → projection ≈ raw.
+    const daily = Array.from({ length: 29 }, (_, i) => i * 200);
+    const { projectedEnd } = computeProjection(daily, [], [], 28, 30, 3000, 0);
+    const rawEnd = (daily[28] ?? 0) + 200 * 2; // 6000
+    expect(Math.abs(projectedEnd - rawEnd)).toBeLessThan(0.15 * rawEnd);
+  });
+});
+
+describe('computeProjection cone', () => {
+  it('is a point at today and widens toward month-end', () => {
+    const daily = [0, 200, 400];
+    const { perDay, lowPerDay, highPerDay } = computeProjection(daily, [], [], 2, 30, 3000, 0);
+    expect(lowPerDay(2)).toBeCloseTo(perDay(2), 6);
+    expect(highPerDay(2)).toBeCloseTo(perDay(2), 6);
+    expect(lowPerDay(30)).toBeLessThan(perDay(30));
+    expect(highPerDay(30)).toBeGreaterThan(perDay(30));
+    const w15 = highPerDay(15) - lowPerDay(15);
+    const w30 = highPerDay(30) - lowPerDay(30);
+    expect(w30).toBeGreaterThan(w15);
+  });
+
+  it('narrows as the month progresses (more evidence)', () => {
+    const early = computeProjection([0, 200, 400], [], [], 2, 30, 3000, 0);
+    const lateDaily = Array.from({ length: 21 }, (_, i) => i * 200);
+    const late = computeProjection(lateDaily, [], [], 20, 30, 3000, 0);
+    const earlyWidth = early.highPerDay(30) - early.lowPerDay(30);
+    const lateWidth = late.highPerDay(30) - late.lowPerDay(30);
+    expect(lateWidth).toBeLessThan(earlyWidth);
+  });
+});
+
+describe('computeProjection breakdown', () => {
+  it('splits the projection into committed and discretionary', () => {
+    const daily = [0, 100, 200, 300];
+    const unposted = [{ d: 20, a: 1200, l: 'rent' }];
+    const { projectedEnd, breakdown } = computeProjection(daily, [], unposted, 3, 30, 3000, 1200);
+    // committed = spent so far (300) + bills still due (1200).
+    expect(breakdown.committed).toBeCloseTo(1500, 6);
+    // committed + discretionary === projected end.
+    expect(breakdown.committed + breakdown.variable).toBeCloseTo(projectedEnd, 6);
+    expect(breakdown.over).toBeCloseTo(projectedEnd - 3000, 6);
   });
 });
 
@@ -310,7 +376,9 @@ describe('manual mark-as-posted integration', () => {
     expect(posted).toHaveLength(0);
     expect(unposted).toHaveLength(1);
     expect(fixedRemaining(unposted)).toBe(300);
-    const { projectedEnd } = computeProjection(daily, posted, unposted, today, 30);
+    // obsRate = 500/3 = 166.67; fixedSum = 300; budgetRate = (5300-300)/30 =
+    // 166.67 → blended = observed, isolating the double-count.
+    const { projectedEnd } = computeProjection(daily, posted, unposted, today, 30, 5300, 300);
     // variableProj = 500/3 = 166.67; +300 future step that's already in daily.
     expect(projectedEnd).toBeCloseTo(500 + (500 / 3) * 27 + 300, 4);
   });
@@ -321,7 +389,9 @@ describe('manual mark-as-posted integration', () => {
     expect(posted).toHaveLength(1);
     expect(unposted).toHaveLength(0);
     expect(fixedRemaining(unposted)).toBe(0);
-    const { projectedEnd } = computeProjection(daily, posted, unposted, today, 30);
+    // obsRate = (500-300)/3 = 66.67; fixedSum = 300; budgetRate = (2300-300)/30
+    // = 66.67 → blended = observed.
+    const { projectedEnd } = computeProjection(daily, posted, unposted, today, 30, 2300, 300);
     // postedSoFar = 300, variableProj = (500 - 300)/3 = 66.67, no future step.
     expect(projectedEnd).toBeCloseTo(500 + ((500 - 300) / 3) * 27, 4);
   });
@@ -352,7 +422,7 @@ describe('spent / dot / projection consistency (regression)', () => {
   it('projected month-end is never below spent so far', () => {
     const daily = buildDailyActual(timeline, today);
     const spent = daily[daily.length - 1] ?? 0;
-    const { projectedEnd } = computeProjection(daily, [], [], today, daysInMonth);
+    const { projectedEnd } = computeProjection(daily, [], [], today, daysInMonth, 7750, 0);
     expect(projectedEnd).toBeGreaterThanOrEqual(spent);
   });
 });
