@@ -140,63 +140,19 @@ export function SpentCard({
         </div>
       )}
 
-      {/* Legend — names the three paths so target vs forecast is unambiguous. */}
-      {budget > 0 && (
-        <div className="mt-1.5 flex items-center gap-3 font-mono text-[9px] uppercase tracking-[0.04em] text-textLo">
-          <span className="flex items-center gap-1">
-            <span
-              className="inline-block h-0 w-3 border-t-2"
-              style={{ borderColor: isOver ? 'var(--alert)' : 'var(--accent)' }}
-            />
-            SPENT
-          </span>
-          <span className="flex items-center gap-1">
-            <span
-              className="inline-block h-0 w-3 border-t border-dashed"
-              style={{ borderColor: 'var(--text-lo)' }}
-            />
-            PACE
-          </span>
-          {projection && (
-            <span className="flex items-center gap-1">
-              <span
-                className="inline-block h-0 w-3 border-t border-dashed"
-                style={{ borderColor: projOver ? 'var(--alert)' : 'var(--accent)' }}
-              />
-              PROJECTED
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Bottom summary: projected month-end on the left, delta on the right. */}
+      {/* Projected month-end value + over/under now live on the chart itself
+          (anchored to the projection line). Here we keep only the textual
+          breakdown: how much of the projection is locked in (spent + bills
+          still due) versus forecast discretionary spend — so the over/under
+          reads as a variable-spending lever, not the bills. */}
       {projection && (
-        <>
-          <div className="mt-2 flex items-baseline justify-between font-mono text-[10.5px] uppercase tracking-[0.04em]">
-            <span className="text-textLo">
-              PROJECTED{' '}
-              <span className={cn('nums', projOver ? 'text-alert' : 'text-textHi')}>
-                {formatAmount(projection.amount, { showSign: false, noCents: true })}
-              </span>{' '}
-              BY {monthEndLabel}
-            </span>
-            {projection.delta !== 0 && (
-              <span className={cn('nums', projOver ? 'text-alert' : 'text-accent')}>
-                {projOver ? '▲' : '▼'}{' '}
-                {formatAmount(Math.abs(projection.delta), { showSign: false, noCents: true })}
-              </span>
-            )}
-          </div>
-          {/* Decomposition: how much of the projection is locked in (spent +
-              bills still due) versus forecast discretionary spending — so the
-              over/under is read as a variable-spending lever, not the bills. */}
-          <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.04em] text-textDim nums">
-            {formatAmount(projection.breakdown.committed, { showSign: false, noCents: true })}{' '}
-            COMMITTED ·{' '}
-            {formatAmount(projection.breakdown.variable, { showSign: false, noCents: true })}{' '}
-            DISCRETIONARY
-          </div>
-        </>
+        <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.04em] text-textLo nums">
+          <span className="text-textDim">PROJECTED BY {monthEndLabel} ·</span>{' '}
+          {formatAmount(projection.breakdown.committed, { showSign: false, noCents: true })}{' '}
+          COMMITTED ·{' '}
+          {formatAmount(projection.breakdown.variable, { showSign: false, noCents: true })}{' '}
+          DISCRETIONARY
+        </div>
       )}
 
       {/* Footnote: tap to review which fixed costs are matched vs still to
