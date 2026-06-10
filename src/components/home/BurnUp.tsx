@@ -59,7 +59,10 @@ export function BurnUp({
     [daily, posted, unposted, today, daysInMonth, budget, fixedSum]
   );
 
-  const yMax = Math.max(budget, projection.projectedEnd, 1) * 1.06;
+  // yMax must clear the cone's upper edge (which rises above the central
+  // projection), or the band gets clipped at the top of the plot.
+  const yMax =
+    Math.max(budget, projection.projectedEnd, projection.highPerDay(daysInMonth), 1) * 1.06;
 
   const xOf = (d: number) => PAD.l + (d / daysInMonth) * innerW;
   const yOf = (v: number) => PAD.t + innerH - (v / yMax) * innerH;
@@ -171,10 +174,12 @@ export function BurnUp({
         strokeWidth="1"
         strokeDasharray="3 3"
       />
+      {/* Budget label sits at the left, where the plot is empty early in the
+          month, so it never collides with the projection cone on the right. */}
       <text
-        x={VB.w - PAD.r}
+        x={PAD.l}
         y={yOf(budget) - 3}
-        textAnchor="end"
+        textAnchor="start"
         fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
         fontSize="9"
         fill="var(--text-lo)"
@@ -252,7 +257,7 @@ export function BurnUp({
       )}
 
       {/* Central projection — shrinkage-smoothed, steps up at each upcoming
-          fixed-cost date. Matches the "PROJECTED €X" readout. */}
+          fixed-cost date. */}
       {centralPath && (
         <path
           d={centralPath}
@@ -261,6 +266,36 @@ export function BurnUp({
           strokeWidth="1"
           strokeDasharray="3 3"
         />
+      )}
+
+      {/* Projected month-end value + over/under, anchored to the end of the
+          central line so the readout reads straight off the chart. */}
+      {hasProjection && (
+        <>
+          <text
+            x={VB.w - PAD.r}
+            y={yOf(projection.projectedEnd) - 4}
+            textAnchor="end"
+            fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+            fontSize="10"
+            fontWeight="500"
+            fill={projColor}
+          >
+            {formatAmount(projection.projectedEnd, { showSign: false, noCents: true })}
+          </text>
+          {projection.breakdown.over !== 0 && (
+            <text
+              x={VB.w - PAD.r}
+              y={yOf(projection.projectedEnd) + 8}
+              textAnchor="end"
+              fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+              fontSize="9"
+              fill={projColor}
+            >
+              {`${projOver ? '▲' : '▼'} ${formatAmount(Math.abs(projection.breakdown.over), { showSign: false, noCents: true })}`}
+            </text>
+          )}
+        </>
       )}
 
       {/* Today dot + halo */}
