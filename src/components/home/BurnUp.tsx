@@ -144,6 +144,14 @@ export function BurnUp({
     !labelToday ||
     todayCenter + todayHalf + LABEL_GAP < VB.w - PAD.r - labelRight.length * CHAR_W;
 
+  // The projected readout (value + over/under) stacks on the side of the tip
+  // away from the budget rule, so it clears the gray pace line and its
+  // fixed-cost markers, which converge toward budget near month-end. Over
+  // budget → above the tip; under → below.
+  const projTipY = yOf(projection.projectedEnd);
+  const projAmountY = projOver ? Math.max(8, projTipY - 14) : projTipY + 9;
+  const projDeltaY = projOver ? Math.max(18, projTipY - 4) : projTipY + 19;
+
   return (
     <svg
       viewBox={`0 0 ${VB.w} ${VB.h}`}
@@ -274,7 +282,7 @@ export function BurnUp({
         <>
           <text
             x={VB.w - PAD.r}
-            y={yOf(projection.projectedEnd) - 4}
+            y={projAmountY}
             textAnchor="end"
             fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
             fontSize="10"
@@ -286,7 +294,7 @@ export function BurnUp({
           {projection.breakdown.over !== 0 && (
             <text
               x={VB.w - PAD.r}
-              y={yOf(projection.projectedEnd) + 8}
+              y={projDeltaY}
               textAnchor="end"
               fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
               fontSize="9"
