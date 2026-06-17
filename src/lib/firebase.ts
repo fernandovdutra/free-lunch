@@ -1,6 +1,12 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  getFirestore,
+  connectFirestoreEmulator,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 const firebaseConfig = {
@@ -17,7 +23,28 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 
 // Initialize services
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+/**
+ * Firestore with a persistent (IndexedDB) local cache. Reads are served from
+ * disk instantly on repeat visits / reloads and revalidated against the server
+ * in the background — this is the main lever for the near-instant Transactions
+ * page. `persistentMultipleTabManager` keeps multiple open tabs in sync.
+ *
+ * `initializeFirestore` must run before any other Firestore access (including
+ * `connectFirestoreEmulator` below). Falls back to the default in-memory cache
+ * when IndexedDB is unavailable (e.g. private browsing) or already initialized
+ * during a hot reload.
+ */
+export const db = (() => {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch {
+    return getFirestore(app);
+  }
+})();
+
 export const functions = getFunctions(app, 'europe-west1');
 
 // Connect to emulators in development
