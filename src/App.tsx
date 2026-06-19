@@ -1,7 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { QueryClient } from '@tanstack/react-query';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { InstallBanner } from '@/components/layout/InstallBanner';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
@@ -45,27 +43,28 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
-      // Keep cached entries around long enough to be persisted and rehydrated
-      // across reloads (default 5 min would evict them too eagerly).
-      gcTime: 1000 * 60 * 60 * 24, // 24 hours
       retry: 1,
     },
   },
 });
 
-// Persist the query cache to localStorage so the last-seen data paints
-// immediately after a hard reload, then revalidates in the background.
-const persister = createAsyncStoragePersister({
-  storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-  key: 'free-lunch-query-cache',
-});
+// One-time cleanup: a previous build persisted the React Query cache to
+// localStorage, which JSON-serialized Date fields into strings. On rehydration
+// those strings reached `date-fns` formatters and threw during render, blanking
+// the whole app after a reload. The persistence is gone; instant repeat loads
+// now come from the Firestore IndexedDB cache (which preserves native types).
+// Remove the stale key so already-affected devices recover on next load.
+if (typeof window !== 'undefined') {
+  try {
+    window.localStorage.removeItem('free-lunch-query-cache');
+  } catch {
+    // ignore — storage may be unavailable (private mode)
+  }
+}
 
 export function App() {
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 }}
-    >
+    <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
           <MonthProvider>
@@ -121,6 +120,6 @@ export function App() {
           </MonthProvider>
         </AuthProvider>
       </BrowserRouter>
-    </PersistQueryClientProvider>
+    </QueryClientProvider>
   );
 }
