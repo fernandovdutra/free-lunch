@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import {
   collection,
   query,
   orderBy,
   getDocs,
   limit,
+  startAfter,
   Timestamp,
   where,
   type QueryDocumentSnapshot,
@@ -109,6 +110,11 @@ export const transactionKeys = {
   // cached result instead of refetching.
   filtered: (userId: string, filters: TransactionFilters) =>
     ['transactions', userId, pickServerFilters(filters)] as const,
+  // Paginated (infinite) variant used by the Transactions page. Distinct shape
+  // (InfiniteData) so it needs its own key namespace; still keyed only on the
+  // server filters.
+  infinite: (userId: string, filters: TransactionFilters) =>
+    ['transactions', userId, 'infinite', pickServerFilters(filters)] as const,
 };
 
 /**
@@ -303,6 +309,110 @@ export function useTransactions(filters: TransactionFilters = {}) {
     enabled: !!dataOwnerId,
     staleTime: 1000 * 60 * 5, // 5 min — explicit; matches the global default
   });
+}
+
+// How many transactions to fetch per page. Small enough that the first page
+// paints quickly on a cold open, large enough to fill the viewport.
+export const TRANSACTIONS_PAGE_SIZE = 50;
+
+interface TransactionPage {
+  transactions: Transaction[];
+  /** Cursor for the next page (last doc of this page), or null when empty. */
+  lastDoc: QueryDocumentSnapshot | null;
+  /** True when this page was full, i.e. more may exist. */
+  hasMore: boolean;
+}
+
+/**
+ * Paginated transactions for the Transactions page. Fetches `TRANSACTIONS_PAGE_SIZE`
+ * rows at a time (date desc) via Firestore cursors (`startAfter`), so the first
+ * paint only waits on one small page instead of the whole window. Subsequent
+ * pages load on scroll via `fetchNextPage`.
+ *
+ * Mirrors `useTransactions`' filter split: the query key depends only on the
+ * server filters (date range, category); the client-side filters run in `select`
+ * over the flattened pages, so changing them never refetches. Because those
+ * filters only see already-loaded pages, the caller should keep fetching pages
+ * while a client filter is active (the Transactions page does this).
+ *
+ * Kept separate from `useTransactions` so the non-paginated callers
+ * (Home, Settings export/counts) that need the full set are unaffected.
+ */
+export function useInfiniteTransactions(filters: TransactionFilters = {}) {
+  const { dataOwnerId } = useAuth();
+  const { startDate, endDate, categoryId } = filters;
+
+  const select = useMemo(() => {
+    const clientFilters: ClientFilters = {
+      searchText: filters.searchText,
+      minAmount: filters.minAmount,
+      maxAmount: filters.maxAmount,
+      direction: filters.direction,
+      reimbursementStatus: filters.reimbursementStatus,
+      categorizationStatus: filters.categorizationStatus,
+    };
+    return (data: InfiniteData<TransactionPage>) =>
+      applyClientFilters(
+        data.pages.flatMap((page) => page.transactions),
+        clientFilters
+      );
+  }, [
+    filters.searchText,
+    filters.minAmount,
+    filters.maxAmount,
+    filters.direction,
+    filters.reimbursementStatus,
+    filters.categorizationStatus,
+  ]);
+
+  const result = useInfiniteQuery({
+    queryKey: transactionKeys.infinite(dataOwnerId ?? '', filters),
+    queryFn: async ({ pageParam }): Promise<TransactionPage> => {
+      if (!dataOwnerId) return { transactions: [], lastDoc: null, hasMore: false };
+
+      const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
+      const constraints = [];
+
+      if (categoryId) {
+        constraints.push(
+          where('categoryId', '==', categoryId === UNCATEGORIZED_FILTER ? null : categoryId)
+        );
+      }
+      if (startDate) {
+        constraints.push(where('date', '>=', Timestamp.fromDate(startDate)));
+      }
+      if (endDate) {
+        constraints.push(where('date', '<=', Timestamp.fromDate(endDate)));
+      }
+      constraints.push(orderBy('date', 'desc'));
+      if (pageParam) {
+        constraints.push(startAfter(pageParam));
+      }
+      constraints.push(limit(TRANSACTIONS_PAGE_SIZE));
+
+      const snapshot = await getDocs(query(transactionsRef, ...constraints));
+      return {
+        transactions: snapshot.docs.map(transformTransaction),
+        lastDoc: snapshot.docs[snapshot.docs.length - 1] ?? null,
+        hasMore: snapshot.size === TRANSACTIONS_PAGE_SIZE,
+      };
+    },
+    initialPageParam: null as QueryDocumentSnapshot | null,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.lastDoc ? lastPage.lastDoc : undefined,
+    select,
+    enabled: !!dataOwnerId,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  return {
+    transactions: result.data ?? [],
+    isLoading: result.isLoading,
+    error: result.error,
+    fetchNextPage: result.fetchNextPage,
+    hasNextPage: result.hasNextPage,
+    isFetchingNextPage: result.isFetchingNextPage,
+  };
 }
 
 /**

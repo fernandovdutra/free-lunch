@@ -7,7 +7,7 @@ import { groupByMonthThenDay } from '@/components/transactions/groupTransactions
 import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { useCategories } from '@/hooks/useCategories';
 import {
-  useTransactions,
+  useInfiniteTransactions,
   useCreateTransaction,
   useUpdateTransaction,
   type TransactionFilters as Filters,
@@ -165,7 +165,33 @@ export function Transactions() {
   }, [setSearchParams]);
 
   const { data: categories = [] } = useCategories();
-  const { data: transactions = [], isLoading, error } = useTransactions(filters);
+  const { transactions, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteTransactions(filters);
+
+  // Load the next page when the list nears its end (infinite scroll). Guarded so
+  // it's a no-op while a fetch is in flight or when no more pages remain.
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Client-side filters (search, amount, direction, status) only see already-
+  // loaded pages, so while one is active keep pulling pages until the window is
+  // exhausted — otherwise a match in an unloaded page would be missed.
+  const hasActiveClientFilters = Boolean(
+    filters.searchText ||
+      filters.minAmount != null ||
+      filters.maxAmount != null ||
+      (filters.direction && filters.direction !== 'all') ||
+      (filters.reimbursementStatus && filters.reimbursementStatus !== 'all') ||
+      (filters.categorizationStatus && filters.categorizationStatus !== 'all')
+  );
+  useEffect(() => {
+    if (hasActiveClientFilters && hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [hasActiveClientFilters, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const createMutation = useCreateTransaction();
   const updateMutation = useUpdateTransaction();
@@ -207,7 +233,13 @@ export function Transactions() {
           Loading transactions…
         </div>
       ) : (
-        <TransactionList months={months} categories={categories} onRowTap={openEdit} />
+        <TransactionList
+          months={months}
+          categories={categories}
+          onRowTap={openEdit}
+          onEndReached={handleEndReached}
+          isFetchingMore={isFetchingNextPage}
+        />
       )}
 
       <TransactionForm

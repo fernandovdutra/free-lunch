@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import {
   defaultRangeExtractor,
@@ -14,6 +14,10 @@ interface TransactionListProps {
   months: MonthBucket[];
   categories: Category[];
   onRowTap: (transactionId: string) => void;
+  /** Called when the list is scrolled near its end, to load the next page. */
+  onEndReached?: () => void;
+  /** Whether a subsequent page is currently loading (shows a footer). */
+  isFetchingMore?: boolean;
 }
 
 // Flattened row model — months → days → txns become one linear list so the
@@ -76,7 +80,13 @@ function flattenMonths(months: MonthBucket[]): ListRow[] {
  * that row is given `position: sticky` while the rest are absolutely
  * positioned. Same visual behaviour as iOS Contacts / Photos.
  */
-export function TransactionList({ months, categories, onRowTap }: TransactionListProps) {
+export function TransactionList({
+  months,
+  categories,
+  onRowTap,
+  onEndReached,
+  isFetchingMore,
+}: TransactionListProps) {
   const rows = useMemo(() => flattenMonths(months), [months]);
 
   const categoriesById = useMemo(
@@ -116,6 +126,16 @@ export function TransactionList({ months, categories, onRowTap }: TransactionLis
     rangeExtractor,
   });
 
+  // Infinite scroll: when the last few rows enter the window, ask for more.
+  const virtualItems = virtualizer.getVirtualItems();
+  const lastItemIndex =
+    virtualItems.length > 0 ? virtualItems[virtualItems.length - 1]!.index : -1;
+  useEffect(() => {
+    if (onEndReached && rows.length > 0 && lastItemIndex >= rows.length - 8) {
+      onEndReached();
+    }
+  }, [onEndReached, lastItemIndex, rows.length]);
+
   if (rows.length === 0) {
     return (
       <div className="px-4 py-12 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-textLo">
@@ -129,7 +149,7 @@ export function TransactionList({ months, categories, onRowTap }: TransactionLis
       <div
         style={{ height: virtualizer.getTotalSize(), width: '100%', position: 'relative' }}
       >
-        {virtualizer.getVirtualItems().map((vItem) => {
+        {virtualItems.map((vItem) => {
           const row = rows[vItem.index]!;
           const sticky = row.kind === 'month' && activeStickyIndexRef.current === vItem.index;
           return (
@@ -161,6 +181,11 @@ export function TransactionList({ months, categories, onRowTap }: TransactionLis
           );
         })}
       </div>
+      {isFetchingMore && (
+        <div className="px-4 py-4 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-textLo">
+          Loading more…
+        </div>
+      )}
     </div>
   );
 }
