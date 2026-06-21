@@ -208,6 +208,16 @@ describe('transactionKeys.filtered — only server filters affect the key', () =
     const b = transactionKeys.filtered('user-2', base);
     expect(a).not.toEqual(b);
   });
+
+  it('infinite key is also stable across client-side filters and distinct from filtered', () => {
+    const a = transactionKeys.infinite('user-1', { ...base, searchText: 'a', direction: 'expense' });
+    const b = transactionKeys.infinite('user-1', { ...base, searchText: 'b', direction: 'income' });
+    expect(a).toEqual(b);
+    // Distinct namespace from the non-paginated key (different cached shape).
+    expect(transactionKeys.infinite('user-1', base)).not.toEqual(
+      transactionKeys.filtered('user-1', base)
+    );
+  });
 });
 
 describe('applyClientFilters', () => {
