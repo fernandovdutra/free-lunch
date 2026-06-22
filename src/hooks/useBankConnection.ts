@@ -26,6 +26,7 @@ import {
   type ConnectionLike,
   type TxnLike,
 } from './disconnectBankRouting';
+import { timed } from '@/lib/perf';
 
 export function useAvailableBanks(country = 'NL') {
   const { dataOwnerId } = useAuth();
@@ -47,7 +48,7 @@ export function useBankConnections() {
   return useQuery({
     queryKey: ['bankConnections', dataOwnerId],
     queryFn: async () => {
-      const result = await getBankStatus();
+      const result = await timed('getBankStatus', () => getBankStatus());
       return result.data;
     },
     enabled: !!dataOwnerId,

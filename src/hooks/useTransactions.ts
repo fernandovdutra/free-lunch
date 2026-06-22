@@ -9,10 +9,12 @@ import {
   startAfter,
   Timestamp,
   where,
+  type QueryConstraint,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { timed } from '@/lib/perf';
 import type { Transaction, TransactionSplit, ReimbursementInfo } from '@/types';
 
 // Re-export mutations from dedicated file for backward compatibility
@@ -371,7 +373,7 @@ export function useInfiniteTransactions(filters: TransactionFilters = {}) {
       if (!dataOwnerId) return { transactions: [], lastDoc: null, hasMore: false };
 
       const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
-      const constraints = [];
+      const constraints: QueryConstraint[] = [];
 
       if (categoryId) {
         constraints.push(
@@ -390,7 +392,9 @@ export function useInfiniteTransactions(filters: TransactionFilters = {}) {
       }
       constraints.push(limit(TRANSACTIONS_PAGE_SIZE));
 
-      const snapshot = await getDocs(query(transactionsRef, ...constraints));
+      const snapshot = await timed(pageParam ? 'transactions:nextPage' : 'transactions:firstPage', () =>
+        getDocs(query(transactionsRef, ...constraints))
+      );
       return {
         transactions: snapshot.docs.map(transformTransaction),
         lastDoc: snapshot.docs[snapshot.docs.length - 1] ?? null,
