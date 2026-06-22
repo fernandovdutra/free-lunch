@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import Anthropic from '@anthropic-ai/sdk';
+import { createAnthropic } from '../shared/anthropic.js';
 import { subDays, format } from 'date-fns';
 import {
   calculateSummary,
@@ -120,7 +120,7 @@ Respond with a JSON object (no markdown code blocks):
   "narrative": "Detailed analysis answering the user's question or providing general advice"
 }`;
 
-    const client = new Anthropic({ apiKey });
+    const client = await createAnthropic(apiKey);
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,

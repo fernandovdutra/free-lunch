@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import Anthropic from '@anthropic-ai/sdk';
+import { createAnthropic } from '../shared/anthropic.js';
 import { consolidateAdvisorMemory } from '../shared/memoryManager.js';
 import { config } from '../config.js';
 import { resolveDataOwner, requireRole } from '../shared/dataOwner.js';
@@ -30,7 +30,7 @@ export const refreshAdvisorMemory = onCall(
 
     const userId = await resolveDataOwner(request.auth.uid);
     await requireRole(request.auth.uid, userId, ['owner', 'editor']);
-    const client = new Anthropic({ apiKey });
+    const client = await createAnthropic(apiKey);
 
     const result = await consolidateAdvisorMemory(userId, client);
 

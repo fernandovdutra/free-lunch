@@ -1,8 +1,9 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import { timingSafeEqual } from 'node:crypto';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { createServer } from './server.js';
+// The MCP SDK (and ./server, which imports it) are loaded lazily inside the
+// handler so they stay out of every other function's cold start — the Functions
+// runtime loads this module's top-level imports on each cold start.
 
 /**
  * Constant-time comparison of the URL path token against the configured secret.
@@ -49,6 +50,11 @@ export const mcp = onRequest(
       response.status(405).json({ error: 'Method not allowed' });
       return;
     }
+
+    const [{ StreamableHTTPServerTransport }, { createServer }] = await Promise.all([
+      import('@modelcontextprotocol/sdk/server/streamableHttp.js'),
+      import('./server.js'),
+    ]);
 
     const server = createServer(getFirestore(), userId);
     const transport = new StreamableHTTPServerTransport({

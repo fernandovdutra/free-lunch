@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { createAnthropic } from '../shared/anthropic.js';
 import type { CategorizationResult } from './types.js';
 
 interface CategoryInfo {
@@ -96,7 +96,7 @@ Rules:
 Respond ONLY with the JSON array, no other text.`;
 
   try {
-    const client = new Anthropic({ apiKey });
+    const client = await createAnthropic(apiKey);
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 4096,

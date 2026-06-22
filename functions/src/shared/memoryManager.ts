@@ -1,5 +1,5 @@
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
-import Anthropic from '@anthropic-ai/sdk';
+import type { AnthropicClient } from './anthropic.js';
 import { format, subDays, startOfMonth, endOfMonth, startOfWeek } from 'date-fns';
 import type { TransactionDoc, CategoryDoc } from './aggregations.js';
 
@@ -299,7 +299,7 @@ ${topCats}`;
  */
 export async function consolidateAdvisorMemory(
   userId: string,
-  anthropicClient: Anthropic,
+  anthropicClient: AnthropicClient,
   options?: { model?: string }
 ): Promise<{ baselines: number; merchants: number; patterns: number }> {
   const db = getFirestore();
@@ -424,7 +424,7 @@ export async function applyDailyMicroUpdate(
   userId: string,
   todayTransactions: TransactionWithId[],
   currentMemory: AdvisorMemoryData,
-  anthropicClient: Anthropic
+  anthropicClient: AnthropicClient
 ): Promise<void> {
   if (todayTransactions.length === 0) return;
 
