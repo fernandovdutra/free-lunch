@@ -1,6 +1,6 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import Anthropic from '@anthropic-ai/sdk';
+import { createAnthropic } from '../shared/anthropic.js';
 import { startOfDay, endOfDay, subDays, format } from 'date-fns';
 import {
   calculateSummary,
@@ -108,7 +108,7 @@ export const generateDailyInsight = onSchedule(
       advisorMemory: advisorMemory ? formatMemoryForPrompt(advisorMemory) : undefined,
     });
 
-    const client = new Anthropic({ apiKey });
+    const client = await createAnthropic(apiKey);
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2048,

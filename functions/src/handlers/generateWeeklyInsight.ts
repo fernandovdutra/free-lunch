@@ -1,6 +1,6 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import Anthropic from '@anthropic-ai/sdk';
+import { createAnthropic } from '../shared/anthropic.js';
 import { startOfWeek, endOfWeek, subWeeks, format } from 'date-fns';
 import {
   calculateSummary,
@@ -159,7 +159,7 @@ export const generateWeeklyInsight = onSchedule(
       investmentSummary,
     });
 
-    const client = new Anthropic({ apiKey });
+    const client = await createAnthropic(apiKey);
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
