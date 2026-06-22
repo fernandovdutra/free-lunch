@@ -18,6 +18,48 @@ import { recategorizeTransactions } from '@/lib/bankingFunctions';
 import type { Transaction, TransactionFormData } from '@/types';
 import { generateId } from '@/lib/utils';
 
+/**
+ * Apply a partial patch to the transaction with `id` inside a cached query value,
+ * handling both shapes that live under the `['transactions', …]` key space:
+ *   - a flat `Transaction[]` (the non-paginated `useTransactions` queries), and
+ *   - `InfiniteData` from `useInfiniteTransactions` (`{ pages: [{ transactions }] }`).
+ * Returns the value unchanged for any other shape, so a single optimistic updater
+ * can safely run across every matching query without assuming an array.
+ */
+export function patchTransactionInCache(
+  old: unknown,
+  id: string,
+  patch: Partial<Transaction>
+): unknown {
+  if (!old) return old;
+
+  if (Array.isArray(old)) {
+    return (old as Transaction[]).map((t) => (t.id === id ? { ...t, ...patch } : t));
+  }
+
+  if (
+    typeof old === 'object' &&
+    'pages' in old &&
+    Array.isArray((old as { pages: unknown }).pages)
+  ) {
+    const data = old as {
+      pages: { transactions: Transaction[] }[];
+      pageParams: unknown;
+    };
+    return {
+      ...data,
+      pages: data.pages.map((page) => ({
+        ...page,
+        transactions: page.transactions.map((t) =>
+          t.id === id ? { ...t, ...patch } : t
+        ),
+      })),
+    };
+  }
+
+  return old;
+}
+
 export function useCreateTransaction() {
   const queryClient = useQueryClient();
   const { dataOwnerId } = useAuth();
@@ -111,9 +153,10 @@ export function useUpdateTransactionCategory() {
       // Snapshot the previous value
       const previousTransactions = queryClient.getQueriesData({ queryKey: ['transactions'] });
 
-      // Optimistically update all transaction queries
-      queryClient.setQueriesData({ queryKey: ['transactions'] }, (old: Transaction[] | undefined) =>
-        old?.map((t) => (t.id === id ? { ...t, categoryId, categorySource: 'manual' as const } : t))
+      // Optimistically update all transaction queries (flat arrays and the
+      // paginated InfiniteData shape alike).
+      queryClient.setQueriesData({ queryKey: ['transactions'] }, (old: unknown) =>
+        patchTransactionInCache(old, id, { categoryId, categorySource: 'manual' })
       );
 
       return { previousTransactions };
