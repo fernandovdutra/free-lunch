@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { InstallBanner } from '@/components/layout/InstallBanner';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
+import { PerfOverlay } from '@/components/dev/PerfOverlay';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { MonthProvider } from '@/contexts/MonthContext';
 
@@ -117,6 +118,7 @@ export function App() {
             <Toaster />
             <InstallBanner />
             <OfflineBanner />
+            <PerfOverlay />
           </MonthProvider>
         </AuthProvider>
       </BrowserRouter>

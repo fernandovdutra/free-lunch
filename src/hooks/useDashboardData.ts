@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDashboardData as getDashboardDataFn, deserializeTransaction } from '@/lib/bankingFunctions';
+import { timed } from '@/lib/perf';
 import type {
   Transaction,
   SpendingSummary,
@@ -39,10 +40,12 @@ export function useDashboardData(dateRange: DashboardDateRange) {
     queryFn: async (): Promise<DashboardData> => {
       if (!dataOwnerId) throw new Error('Not authenticated');
 
-      const result = await getDashboardDataFn({
-        startDate: dateRange.startDate.toISOString(),
-        endDate: dateRange.endDate.toISOString(),
-      });
+      const result = await timed('getDashboardData', () =>
+        getDashboardDataFn({
+          startDate: dateRange.startDate.toISOString(),
+          endDate: dateRange.endDate.toISOString(),
+        })
+      );
 
       return {
         summary: result.data.summary,
