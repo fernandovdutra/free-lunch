@@ -13,6 +13,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import type { Insight } from '@/types';
 
 interface InsightDocument {
@@ -31,9 +32,10 @@ interface InsightDocument {
   isRead?: boolean;
 }
 
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
 export const insightKeys = {
-  all: (userId: string) => ['insights', userId] as const,
-  detail: (userId: string, id: string) => ['insights', userId, id] as const,
+  all: (userId: string) => queryKeys.insights.all(userId),
+  detail: (userId: string, id: string) => [...queryKeys.insights.all(userId), id] as const,
 };
 
 function transformInsight(docSnap: QueryDocumentSnapshot): Insight {
@@ -61,7 +63,7 @@ export function useInsights(maxCount = 20) {
   const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: [...insightKeys.all(dataOwnerId ?? ''), maxCount],
+    queryKey: queryKeys.insights.list(dataOwnerId ?? '', maxCount),
     queryFn: async () => {
       if (!dataOwnerId) return [];
       const insightsRef = collection(db, 'users', dataOwnerId, 'insights');

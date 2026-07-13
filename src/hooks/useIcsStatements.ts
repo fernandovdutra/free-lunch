@@ -4,6 +4,7 @@ import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firesto
 import { format } from 'date-fns';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   buildIcsCoverage,
   latestMissingMonth as pickLatestMissing,
@@ -36,8 +37,9 @@ function monthKeyFor(statementId: string, statementDate: Date | null): string {
   return statementDate ? format(statementDate, 'yyyy-MM') : '';
 }
 
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
 export const icsStatementKeys = {
-  all: (userId: string) => ['icsStatements', userId] as const,
+  all: (userId: string) => queryKeys.icsStatements.all(userId),
 };
 
 export interface UseIcsStatementsResult {

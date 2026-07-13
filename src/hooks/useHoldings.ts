@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import { deriveUpdatedDaysAgo } from '@/lib/holdingsMapping';
 import type {
   AssetType,
@@ -48,8 +49,9 @@ export interface HoldingDocument {
   updatedAt?: Timestamp;
 }
 
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
 export const holdingKeys = {
-  all: (userId: string) => ['holdings', userId] as const,
+  all: (userId: string) => queryKeys.holdings.all(userId),
 };
 
 function pointDateToIso(date: Timestamp | string): string {

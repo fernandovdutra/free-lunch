@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { collection, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { queryKeys } from '@/lib/queryKeys';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildCashBenchmark } from '@/lib/wealth';
 import type { Benchmark, BenchmarkSeries, HistoryPoint } from '@/types/wealth';
@@ -27,7 +28,7 @@ export function useBenchmarks() {
   const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: ['benchmarks'],
+    queryKey: queryKeys.benchmarks.all,
     queryFn: async (): Promise<Record<string, BenchmarkSeries>> => {
       const out: Record<string, BenchmarkSeries> = {
         CASH: { key: 'CASH', label: 'CASH 3.5%', history: buildCashBenchmark() },

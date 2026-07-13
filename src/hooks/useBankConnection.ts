@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { invalidateFinancialData, queryKeys } from '@/lib/queryKeys';
 import {
   getAvailableBanks,
   getBankStatus,
@@ -32,7 +33,7 @@ export function useAvailableBanks(country = 'NL') {
   const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: ['availableBanks', country],
+    queryKey: queryKeys.availableBanks.forCountry(country),
     queryFn: async () => {
       const result = await getAvailableBanks({ country });
       return result.data;
@@ -46,7 +47,7 @@ export function useBankConnections() {
   const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: ['bankConnections', dataOwnerId],
+    queryKey: queryKeys.bankConnections.all(dataOwnerId ?? ''),
     queryFn: async () => {
       const result = await timed('getBankStatus', () => getBankStatus());
       return result.data;
@@ -78,9 +79,9 @@ export function useSyncTransactions() {
       return result.data;
     },
     onSuccess: () => {
-      // Invalidate transactions and bank connections
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['bankConnections'] });
+      // Sync writes transactions → refresh every money surface + connections.
+      invalidateFinancialData(queryClient);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bankConnections.root });
     },
   });
 }
@@ -117,9 +118,8 @@ export function useSyncAllConnections() {
       };
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['bankConnections'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      invalidateFinancialData(queryClient);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bankConnections.root });
     },
   });
 }
@@ -184,11 +184,8 @@ export function useResetTransactionData() {
       };
     },
     onSuccess: () => {
-      // Invalidate all related queries
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['bankConnections'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
+      invalidateFinancialData(queryClient);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bankConnections.root });
     },
   });
 }
@@ -335,10 +332,8 @@ export function useDisconnectBankConnection() {
       };
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['bankConnections'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
+      invalidateFinancialData(queryClient);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bankConnections.root });
     },
   });
 }
@@ -356,9 +351,8 @@ export function useRecategorizeTransactions() {
       return result.data;
     },
     onSuccess: () => {
-      // Invalidate transactions to reflect new categories
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      // Recategorization rewrites categoryIds → refresh every money surface.
+      invalidateFinancialData(queryClient);
     },
   });
 }

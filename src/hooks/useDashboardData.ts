@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import { getDashboardData as getDashboardDataFn, deserializeTransaction } from '@/lib/bankingFunctions';
 import { timed } from '@/lib/perf';
 import type {
@@ -9,11 +10,11 @@ import type {
   TimelineData,
 } from '@/types';
 
-// Query keys
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
 export const dashboardKeys = {
-  all: (userId: string) => ['dashboard', userId] as const,
-  dateRange: (userId: string, startDate: string, endDate: string) =>
-    ['dashboard', userId, startDate, endDate] as const,
+  all: (userId: string) => queryKeys.dashboard.all(userId),
+  dateRange: (userId: string, range: { startDate: Date; endDate: Date }) =>
+    queryKeys.dashboard.range(userId, range),
 };
 
 interface DashboardDateRange {
@@ -32,11 +33,7 @@ export function useDashboardData(dateRange: DashboardDateRange) {
   const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: dashboardKeys.dateRange(
-      dataOwnerId ?? '',
-      dateRange.startDate.toISOString(),
-      dateRange.endDate.toISOString()
-    ),
+    queryKey: dashboardKeys.dateRange(dataOwnerId ?? '', dateRange),
     queryFn: async (): Promise<DashboardData> => {
       if (!dataOwnerId) throw new Error('Not authenticated');
 
