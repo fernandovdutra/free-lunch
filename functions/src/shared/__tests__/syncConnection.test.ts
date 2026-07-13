@@ -44,6 +44,18 @@ describe('getStableExternalId', () => {
     expect(id).toMatch(/^gen_[0-9a-f]{40}$/);
   });
 
+  it('reproduces the exact hash of the legacy implementation (golden value)', () => {
+    // Golden value computed by executing the pre-refactor implementation
+    // (git merge-base with origin/main) on this exact fixture. It pins the
+    // whole hash recipe — including the '\u0000' join separator, which the
+    // legacy source contained as a literal NUL byte. Production documents
+    // store gen_ externalIds produced by that recipe; if this test fails,
+    // every legacy transaction would be re-inserted as a duplicate.
+    expect(getStableExternalId(sepaTransfer())).toBe(
+      'gen_e201ea9b4c8ccebb1153d7b97c528139d2f06e20'
+    );
+  });
+
   it('treats placeholders case-insensitively', () => {
     expect(getStableExternalId(sepaTransfer({ entry_reference: 'notprovided' }))).toMatch(/^gen_/);
     expect(getStableExternalId(sepaTransfer({ entry_reference: 'Not Provided' }))).toMatch(/^gen_/);

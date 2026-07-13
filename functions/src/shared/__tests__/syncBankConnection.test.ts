@@ -269,6 +269,11 @@ function bankTx(
   };
 }
 
+/** Local `yyyy-MM-dd`, matching how the sync formats bank date params. */
+function localIso(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 /** Local-noon MockTimestamp matching how transformTransaction stamps bookingDate. */
 function bookingTs(iso: string) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -347,6 +352,85 @@ describe('syncBankConnection', () => {
     expect(result.totalNew).toBe(0);
     expect(db.store.has(`${TX_PATH}/${transactionDocId('REF-A')}`)).toBe(false);
     expect(db.store.get(`${TX_PATH}/legacyRandomId`)).toMatchObject({ categoryId: 'groceries' });
+  });
+
+  it('dedups legacy docs whose bookingDate was clobbered to a raw string', async () => {
+    // The old pending→booked update path wrote bookingDate as a raw
+    // 'yyyy-MM-dd' string; Firestore type-bracketing hides those from the
+    // Timestamp range query, so the string-bounded companion query must
+    // catch them.
+    db.store.set(`${TX_PATH}/legacyStringDate`, {
+      externalId: 'REF-A',
+      status: 'booked',
+      bookingDate: '2026-06-25',
+      categoryId: 'groceries',
+    });
+    getTransactions.mockResolvedValue({ transactions: [bankTx('REF-A')] });
+
+    const result = await syncBankConnection(USER, CONN);
+
+    expect(result.totalNew).toBe(0);
+    expect(db.store.has(`${TX_PATH}/${transactionDocId('REF-A')}`)).toBe(false);
+    expect(txDocs()).toHaveLength(1);
+    expect(db.store.get(`${TX_PATH}/legacyStringDate`)).toMatchObject({
+      categoryId: 'groceries',
+      bookingDate: '2026-06-25', // booked docs are left completely untouched
+    });
+  });
+
+  it('repairs a legacy string bookingDate to a Timestamp when upgrading pending to booked', async () => {
+    db.store.set(`${TX_PATH}/legacyStringPending`, {
+      externalId: 'REF-A',
+      status: 'pending',
+      bookingDate: '2026-06-24',
+      categoryId: 'user-picked',
+    });
+    getTransactions.mockResolvedValue({
+      transactions: [bankTx('REF-A', { status: 'booked', booking_date: '2026-06-25' })],
+    });
+
+    const result = await syncBankConnection(USER, CONN);
+
+    expect(result.totalUpdated).toBe(1);
+    expect(result.totalNew).toBe(0);
+    const doc = db.store.get(`${TX_PATH}/legacyStringPending`)!;
+    expect(doc.status).toBe('booked');
+    expect(doc.bookingDate).toBeInstanceOf(MockTimestamp);
+    expect((doc.bookingDate as InstanceType<typeof MockTimestamp>).toDate()).toEqual(
+      new Date(2026, 5, 25, 12, 0, 0)
+    );
+    expect(doc.categoryId).toBe('user-picked');
+    expect(txDocs()).toHaveLength(1);
+  });
+
+  it('clamps the fetch window to the max lookback when lastSync is stale', async () => {
+    const staleLastSync = new Date();
+    staleLastSync.setDate(staleLastSync.getDate() - 200); // frozen by long-failing syncs
+    db.store.set(CONN_PATH, { ...db.store.get(CONN_PATH)!, lastSync: staleLastSync });
+
+    await syncBankConnection(USER, CONN);
+
+    const expectedFrom = new Date();
+    expectedFrom.setDate(expectedFrom.getDate() - 85);
+    expect(getTransactions).toHaveBeenCalledWith(
+      'acc1',
+      expect.objectContaining({ date_from: localIso(expectedFrom) })
+    );
+  });
+
+  it('does not clamp a fresh lastSync (still overlaps by one day)', async () => {
+    const recentLastSync = new Date();
+    recentLastSync.setDate(recentLastSync.getDate() - 10);
+    db.store.set(CONN_PATH, { ...db.store.get(CONN_PATH)!, lastSync: recentLastSync });
+
+    await syncBankConnection(USER, CONN);
+
+    const expectedFrom = new Date(recentLastSync);
+    expectedFrom.setDate(expectedFrom.getDate() - 1);
+    expect(getTransactions).toHaveBeenCalledWith(
+      'acc1',
+      expect.objectContaining({ date_from: localIso(expectedFrom) })
+    );
   });
 
   it('closes the concurrent-sync race: a doc created after the bulk lookup is neither duplicated nor overwritten', async () => {

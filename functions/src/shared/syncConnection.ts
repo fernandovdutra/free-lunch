@@ -59,7 +59,12 @@ export function getStableExternalId(tx: EnableBankingTransaction): string {
     remittance.join('|'),
   ];
 
-  const hash = createHash('sha1').update(parts.join(' ')).digest('hex');
+  // The join separator is a NUL character (written escaped so the file stays
+  // valid text). This is load-bearing legacy compatibility: production
+  // documents store gen_ ids hashed with exactly this separator, and changing
+  // it would make every legacy externalId mismatch on the next sync (mass
+  // duplicates). Pinned by a golden-hash regression test.
+  const hash = createHash('sha1').update(parts.join('\u0000')).digest('hex');
   return `gen_${hash}`;
 }
 
@@ -180,6 +185,12 @@ export function summarizeSyncErrors(results: SyncResult[]): string {
 
 // Firestore batch limit is 500 operations
 const BATCH_SIZE = 249; // Each item = 2 writes (transaction + raw); 249 × 2 = 498, safely under Firestore's 500 limit
+
+// Maximum lookback when deriving the fetch window from a stale lastSync.
+// Enable Banking rejects date_from older than ~90 days for unattended access;
+// 85 leaves headroom. (The initial sync's 365-day window is different: it runs
+// inside the authorization window, where banks allow the full history.)
+const MAX_SYNC_LOOKBACK_DAYS = 85;
 
 // Extra days added on both sides of the fetch window when bulk-loading
 // existing externalIds, to absorb timezone drift between the bank's dates and
@@ -309,7 +320,15 @@ function resolveSyncWindow(connection: FirebaseFirestore.DocumentData): {
         ? connection.lastSync.toDate()
         : new Date(connection.lastSync);
     lastSync.setDate(lastSync.getDate() - 1); // Overlap by 1 day
-    dateFrom = formatLocalDate(lastSync);
+
+    // Clamp the lookback: lastSync is frozen while syncs fail, and Enable
+    // Banking rejects date_from older than ~90 days outside the initial auth
+    // window — without a clamp, one persistently-failing account would grow
+    // the window until the fetch itself starts failing for every account on
+    // the connection.
+    const maxLookback = new Date();
+    maxLookback.setDate(maxLookback.getDate() - MAX_SYNC_LOOKBACK_DAYS);
+    dateFrom = formatLocalDate(lastSync > maxLookback ? lastSync : maxLookback);
   } else {
     // Fetch up to 1 year of history on initial sync (banks typically support this during auth window)
     const oneYearAgo = new Date();
@@ -351,28 +370,42 @@ interface ExistingTransactionInfo {
 
 /**
  * Bulk-load the externalIds of transactions already stored in the fetch
- * window: ONE range query per account per sync (on the automatically indexed
- * `bookingDate` field, so no composite index is needed) instead of one indexed
- * query per fetched transaction. This is how legacy documents — written with
- * random ids before deterministic ids existed — keep being de-duplicated
- * without a migration.
+ * window: bounded range queries per account per sync (on the automatically
+ * indexed `bookingDate` field, so no composite index is needed) instead of one
+ * indexed query per fetched transaction. This is how legacy documents —
+ * written with random ids before deterministic ids existed — keep being
+ * de-duplicated without a migration.
+ *
+ * Two queries are needed because Firestore range queries are type-bracketed:
+ * `bookingDate` is a Timestamp on normally-written docs, but the old
+ * pending→booked update path clobbered it to a raw `yyyy-MM-dd` STRING on the
+ * docs it touched, and those would be invisible to the Timestamp range. ISO
+ * date strings sort chronologically, so an equivalent string-bounded range
+ * over the same window picks them up.
  */
 async function loadExistingTransactionsByExternalId(
   transactionsRef: CollectionReference,
   dateFrom: string,
   dateTo: string
 ): Promise<Map<string, ExistingTransactionInfo>> {
-  const start = Timestamp.fromDate(localDateFromIso(dateFrom, -DEDUP_WINDOW_BUFFER_DAYS));
-  const end = Timestamp.fromDate(localDateFromIso(dateTo, DEDUP_WINDOW_BUFFER_DAYS + 1));
+  const startDate = localDateFromIso(dateFrom, -DEDUP_WINDOW_BUFFER_DAYS);
+  const endDate = localDateFromIso(dateTo, DEDUP_WINDOW_BUFFER_DAYS + 1);
 
-  const snapshot = await transactionsRef
-    .where('bookingDate', '>=', start)
-    .where('bookingDate', '<=', end)
-    .select('externalId', 'status')
-    .get();
+  const [timestampSnapshot, stringSnapshot] = await Promise.all([
+    transactionsRef
+      .where('bookingDate', '>=', Timestamp.fromDate(startDate))
+      .where('bookingDate', '<=', Timestamp.fromDate(endDate))
+      .select('externalId', 'status')
+      .get(),
+    transactionsRef
+      .where('bookingDate', '>=', formatLocalDate(startDate))
+      .where('bookingDate', '<=', formatLocalDate(endDate))
+      .select('externalId', 'status')
+      .get(),
+  ]);
 
   const byExternalId = new Map<string, ExistingTransactionInfo>();
-  for (const doc of snapshot.docs) {
+  for (const doc of [...timestampSnapshot.docs, ...stringSnapshot.docs]) {
     const data = doc.data();
     const externalId = data.externalId as string | undefined;
     if (externalId) {
@@ -743,7 +776,11 @@ export async function syncBankConnection(
       // Collect new transactions for batch processing
       const newTransactionsToCreate: PendingTransaction[] = [];
       // Guard against the bank returning the same row twice in one fetch
-      // (e.g. pagination overlap): the first occurrence wins.
+      // (e.g. pagination overlap): the first occurrence wins. Note the
+      // limitation: this only catches repeats of REAL entry_references —
+      // duplicated reference-less rows already received distinct `#n` suffixes
+      // in assignStableExternalIds (they are indistinguishable from genuinely
+      // identical transactions), matching the pre-refactor behavior.
       const seenInFetch = new Set<string>();
 
       for (const { tx, externalId } of assignStableExternalIds(allTransactions)) {
