@@ -56,18 +56,19 @@ export function useAdvisorMemoryMeta() {
       }
 
       // Firestore returns loosely-typed DocumentData; cast to the shape we
-      // expect and stay defensive about missing fields.
+      // expect but keep the timestamp accessors optional so a malformed
+      // field degrades to null instead of throwing inside the queryFn.
       const data = snap.data() as {
-        updatedAt?: Timestamp;
-        consolidatedAt?: Timestamp;
+        updatedAt?: Partial<Timestamp>;
+        consolidatedAt?: Partial<Timestamp>;
         spendingBaselines?: unknown[];
         knownMerchants?: unknown[];
         behavioralPatterns?: unknown[];
         temporalPatterns?: unknown[];
       };
       return {
-        updatedAt: data.updatedAt?.toDate() ?? null,
-        consolidatedAt: data.consolidatedAt?.toDate() ?? null,
+        updatedAt: data.updatedAt?.toDate?.() ?? null,
+        consolidatedAt: data.consolidatedAt?.toDate?.() ?? null,
         baselinesCount: data.spendingBaselines?.length ?? 0,
         merchantsCount: data.knownMerchants?.length ?? 0,
         behavioralPatternsCount: data.behavioralPatterns?.length ?? 0,

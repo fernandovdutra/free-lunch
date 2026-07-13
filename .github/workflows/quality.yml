@@ -4,6 +4,10 @@ on:
   pull_request:
   workflow_call:
 
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -30,6 +34,12 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      # Root typecheck/lint only cover src/; compile the functions so backend
+      # type errors fail the gate instead of surfacing during deploy.
+      - name: Typecheck functions
+        working-directory: functions
+        run: npm run build
 
       - name: Lint
         run: npm run lint
