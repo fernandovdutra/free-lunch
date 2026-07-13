@@ -24,7 +24,9 @@ export function useInstallPrompt() {
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
-    const installedHandler = () => setIsInstalled(true);
+    const installedHandler = () => {
+      setIsInstalled(true);
+    };
 
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', installedHandler);

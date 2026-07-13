@@ -22,8 +22,7 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
 
-    /* Aliases */
-    "baseUrl": ".",
+    /* Aliases (paths are resolved relative to this tsconfig) */
     "paths": {
       "@/*": ["./src/*"]
     }

@@ -15,7 +15,12 @@ export function InstallBanner() {
           <p className="text-sm font-medium">Install Free Lunch</p>
           <p className="text-xs text-muted-foreground">Add to your home screen for quick access</p>
         </div>
-        <Button size="sm" onClick={install}>
+        <Button
+          size="sm"
+          onClick={() => {
+            void install();
+          }}
+        >
           Install
         </Button>
         <button

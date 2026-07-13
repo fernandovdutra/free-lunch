@@ -6,10 +6,16 @@ on:
       - main
 
 jobs:
+  # Quality gate: typecheck, lint, and unit tests must pass before anything
+  # is built or deployed. Reuses the shared quality workflow.
+  quality:
+    uses: ./.github/workflows/quality.yml
+
   # Build the Cloud Functions in parallel with the frontend. Only the compiled
   # output (functions/lib) is needed at deploy time — Cloud Build installs deps
   # server-side — so we hand it off as an artifact.
   build-functions:
+    needs: quality
     runs-on: ubuntu-latest
     concurrency:
       group: build-functions-${{ github.workflow }}-${{ github.ref }}
@@ -41,6 +47,7 @@ jobs:
   # Build the frontend in parallel with the functions. The VITE_* values are
   # inlined at build time, so they must stay on this build step.
   build-frontend:
+    needs: quality
     runs-on: ubuntu-latest
     concurrency:
       group: build-frontend-${{ github.workflow }}-${{ github.ref }}
