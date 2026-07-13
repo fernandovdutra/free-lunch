@@ -30,6 +30,11 @@ vi.mock('firebase-admin/firestore', () => ({
 const syncBankConnection = vi.fn();
 vi.mock('../../shared/syncConnection.js', () => ({
   syncBankConnection: (...args: unknown[]) => syncBankConnection(...args),
+  summarizeSyncErrors: (results: Array<{ accountId: string; errors: string[] }>) =>
+    results
+      .filter((r) => r.errors.length > 0)
+      .map((r) => `${r.accountId}: ${r.errors[0]}`)
+      .join('; '),
 }));
 
 const sendInsightEmail = vi.fn();
@@ -107,6 +112,33 @@ describe('runAutoSync', () => {
     await runAutoSync();
 
     expect(syncBankConnection).not.toHaveBeenCalled();
+  });
+
+  it('stamps lastAutoSyncError when the sync resolves with account-level errors', async () => {
+    const doc = makeConnDoc('user1', 'conn1', { status: 'active' });
+    setupDb([doc]);
+    syncBankConnection.mockResolvedValue({
+      success: false,
+      results: [
+        {
+          accountId: 'acc1',
+          newTransactions: 0,
+          updatedTransactions: 0,
+          errors: ['Enable Banking API error: 500'],
+        },
+      ],
+      totalNew: 0,
+      totalUpdated: 0,
+    });
+
+    await runAutoSync();
+
+    expect(doc.ref.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastAutoSyncAt: 'SERVER_TS',
+        lastAutoSyncError: expect.stringContaining('Enable Banking API error: 500'),
+      })
+    );
   });
 
   it('records the error when a connection sync fails without aborting others', async () => {
