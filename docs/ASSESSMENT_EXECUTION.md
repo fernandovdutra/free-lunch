@@ -37,7 +37,7 @@ This file is the durable state — update status here after every unit.
 | U7 | `claude/assess-u07-backend-robustness` | Robust LLM JSON parsing w/ retry (1.20); record categorization failures + "needs review" surface with retry (P1.7); extract shared categorization pipeline (2.5); transactional holding upsert (2.5); fix stale doc-comments (1.21); document single-user constraint decision (2.5) | pending | — |
 | U8 | `claude/assess-u08-split-ui` | Restore transaction-split UI (P2.9, US-4) on existing `isSplit`/`splits[]` model | pending | — |
 | U9 | `claude/assess-u09-tags-ui` | First-class tags UI: add/remove/filter in transactions UI (P2.10) | pending | — |
-| U10 | `claude/assess-u10-invite-email` | Sharing invitation email via existing email infra (P2.11, `inviteMember.ts:92`) | pushed, in review | — |
+| U10 | `claude/assess-u10-invite-email` | Sharing invitation email via existing email infra (P2.11, `inviteMember.ts:92`) | reviewed: merge-ready | — |
 | U11 | `claude/assess-u11-repo-slim` | Remove mockups + design-handoff binaries from working tree (NO history rewrite — owner decision), dead frontend code, one-off scripts, irrelevant reference docs (§3, P3.13) | in-progress | — |
 | U12 | `claude/assess-u12-docs` | Truthful docs: PRD/README rewrite to shipped scope, CLAUDE.md test-setup notes, archive redesign docs (2.7, P3.14) | pending | — |
 
@@ -86,4 +86,4 @@ Every unit must pass before PR-open: `npm run typecheck` · `npm run lint` (0 er
 | U1 | ✅ | ✅ 0 err / 65 warn | ✅ 460/460 | `npm run build` ✅; functions `tsc` ✅; independent review: merge-ready (3 minor findings fixed pre-merge: `/` fallback restored, non-throwing advisor timestamps, functions typecheck added to CI); quality workflow green on PR #86 |
 | U3 | ✅ | ✅ 0 err | ✅ 488/488 | race/idempotency/error-surfacing/ICS tests + golden-hash regression pinned to old implementation's output (independently re-validated); review found 2 blockers (hash-separator regression, legacy string bookingDate) — fixed and re-verified merge-ready. Extra hardening: dateFrom clamped to 85d lookback; lastSync frozen on failed runs |
 | U4 | ✅ | ✅ 0 err | ✅ 485/485 | MCP handler exercised end-to-end via compiled function + curl (both auth forms); review merge-ready; owner action eventually: switch connector to Bearer header + rotate token (old one is already in Cloud Logging) |
-| U10 | ✅ | ✅ 0 err | ✅ 465/465 | 5 new inviteMember tests (send, fallback, Resend 500, unconfigured key, duplicate-invite no-send); review in progress |
+| U10 | ✅ | ✅ 0 err | ✅ 465/465 | 5 new inviteMember tests (send, fallback, Resend 500, unconfigured key, duplicate-invite no-send); review merge-ready (nits only). Owner FYI: sender is Resend sandbox `onboarding@resend.dev` — real invitees need a verified domain sender configured |
