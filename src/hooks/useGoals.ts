@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import type { Goal, GoalFormData } from '@/types';
 import { generateId } from '@/lib/utils';
 
@@ -31,8 +32,9 @@ interface GoalDocument {
   updatedAt?: Timestamp;
 }
 
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
 export const goalKeys = {
-  all: (userId: string) => ['goals', userId] as const,
+  all: (userId: string) => queryKeys.goals.all(userId),
 };
 
 function transformGoal(docSnap: QueryDocumentSnapshot): Goal {

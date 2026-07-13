@@ -15,6 +15,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { timed } from '@/lib/perf';
+import { queryKeys, type TransactionServerFilters } from '@/lib/queryKeys';
 import type { Transaction, TransactionSplit, ReimbursementInfo } from '@/types';
 
 // Re-export mutations from dedicated file for backward compatibility
@@ -80,11 +81,7 @@ export const TRANSACTIONS_QUERY_LIMIT = 500;
 // they (and only they) belong in the query key — changing them requires a
 // new network read. Values are explicitly `| undefined` so the pick helpers
 // can assign them under `exactOptionalPropertyTypes`.
-interface ServerFilters {
-  startDate?: Date | undefined;
-  endDate?: Date | undefined;
-  categoryId?: string | null | undefined;
-}
+type ServerFilters = TransactionServerFilters;
 
 // Client-side filters: applied in-memory via `select`, so changing them
 // re-derives from the cached dataset without touching the network.
@@ -105,18 +102,19 @@ function pickServerFilters(filters: TransactionFilters): ServerFilters {
   };
 }
 
-// Query keys with filters
+// Query keys with filters — thin wrappers over the central factory
+// (src/lib/queryKeys.ts) that pick out the server-side filters first.
 export const transactionKeys = {
-  all: (userId: string) => ['transactions', userId] as const,
+  all: (userId: string) => queryKeys.transactions.all(userId),
   // Keyed only on the server filters so client-side filter changes reuse the
   // cached result instead of refetching.
   filtered: (userId: string, filters: TransactionFilters) =>
-    ['transactions', userId, pickServerFilters(filters)] as const,
+    queryKeys.transactions.list(userId, pickServerFilters(filters)),
   // Paginated (infinite) variant used by the Transactions page. Distinct shape
   // (InfiniteData) so it needs its own key namespace; still keyed only on the
   // server filters.
   infinite: (userId: string, filters: TransactionFilters) =>
-    ['transactions', userId, 'infinite', pickServerFilters(filters)] as const,
+    queryKeys.transactions.infinite(userId, pickServerFilters(filters)),
 };
 
 /**
@@ -426,7 +424,7 @@ export function useCountMatchingTransactions(counterparty: string | null) {
   const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: ['matchingTransactionsCount', dataOwnerId, counterparty],
+    queryKey: queryKeys.transactions.matchingCount(dataOwnerId ?? '', counterparty),
     queryFn: async () => {
       if (!dataOwnerId || !counterparty) return 0;
 

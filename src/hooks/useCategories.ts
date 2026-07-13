@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import type { Category, CategoryFormData, CategoryWithChildren } from '@/types';
 import { generateId } from '@/lib/utils';
 import { resolveIcon } from '@/lib/iconUtils';
@@ -30,9 +31,9 @@ interface CategoryDocument {
   updatedAt?: Timestamp;
 }
 
-// Query keys
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
 export const categoryKeys = {
-  all: (userId: string) => ['categories', userId] as const,
+  all: (userId: string) => queryKeys.categories.all(userId),
 };
 
 // Transform Firestore data to Category type

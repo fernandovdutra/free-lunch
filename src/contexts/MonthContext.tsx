@@ -20,28 +20,86 @@ interface MonthContextType {
 
 const MonthContext = createContext<MonthContextType | undefined>(undefined);
 
+/** localStorage key for the persisted month selection. */
+export const SELECTED_MONTH_STORAGE_KEY = 'freeLunch.selectedMonth';
+
+// How far a stored month may deviate from today before we treat it as
+// garbage and fall back to the current month. Wide enough for any real
+// browsing session, narrow enough to reject corrupted / absurd values.
+const MAX_YEARS_IN_PAST = 10;
+const MAX_YEARS_IN_FUTURE = 1;
+
+/**
+ * Parse a stored `yyyy-MM` value back into a start-of-month Date.
+ * Returns null (→ fall back to the current month) for anything malformed
+ * or implausibly far from today.
+ */
+export function parseStoredMonth(raw: string | null, now: Date = new Date()): Date | null {
+  if (!raw) return null;
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(raw);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (year < now.getFullYear() - MAX_YEARS_IN_PAST) return null;
+  if (year > now.getFullYear() + MAX_YEARS_IN_FUTURE) return null;
+  // Local-time construction, consistent with startOfMonth(new Date()).
+  return startOfMonth(new Date(year, month - 1, 1));
+}
+
+function readStoredMonth(): Date | null {
+  try {
+    return parseStoredMonth(window.localStorage.getItem(SELECTED_MONTH_STORAGE_KEY));
+  } catch {
+    // Storage unavailable (private mode, SSR) — just use the current month.
+    return null;
+  }
+}
+
+function storeMonth(date: Date): void {
+  try {
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    window.localStorage.setItem(SELECTED_MONTH_STORAGE_KEY, key);
+  } catch {
+    // Best-effort persistence only.
+  }
+}
+
 interface MonthProviderProps {
   children: ReactNode;
 }
 
 export function MonthProvider({ children }: MonthProviderProps) {
-  const [selectedMonth, setSelectedMonthInternal] = useState(() => startOfMonth(new Date()));
+  const [selectedMonth, setSelectedMonthInternal] = useState(
+    () => readStoredMonth() ?? startOfMonth(new Date())
+  );
 
-  const setSelectedMonth = useCallback((date: Date) => {
-    setSelectedMonthInternal(startOfMonth(date));
+  // Persist every change so a reload restores the last-viewed month.
+  const setAndStore = useCallback((updater: (prev: Date) => Date) => {
+    setSelectedMonthInternal((prev) => {
+      const next = updater(prev);
+      storeMonth(next);
+      return next;
+    });
   }, []);
+
+  const setSelectedMonth = useCallback(
+    (date: Date) => {
+      setAndStore(() => startOfMonth(date));
+    },
+    [setAndStore]
+  );
 
   const goToNextMonth = useCallback(() => {
-    setSelectedMonthInternal((prev) => addMonths(prev, 1));
-  }, []);
+    setAndStore((prev) => addMonths(prev, 1));
+  }, [setAndStore]);
 
   const goToPreviousMonth = useCallback(() => {
-    setSelectedMonthInternal((prev) => subMonths(prev, 1));
-  }, []);
+    setAndStore((prev) => subMonths(prev, 1));
+  }, [setAndStore]);
 
   const goToCurrentMonth = useCallback(() => {
-    setSelectedMonthInternal(startOfMonth(new Date()));
-  }, []);
+    setAndStore(() => startOfMonth(new Date()));
+  }, [setAndStore]);
 
   const isCurrentMonth = useMemo(
     () => isSameMonth(selectedMonth, new Date()),
