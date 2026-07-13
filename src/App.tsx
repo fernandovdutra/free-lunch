@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -7,38 +8,92 @@ import { PerfOverlay } from '@/components/dev/PerfOverlay';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { MonthProvider } from '@/contexts/MonthContext';
 
-// Pages
-import { Home } from '@/pages/Home';
-import { Transactions } from '@/pages/Transactions';
-import { Budgets } from '@/pages/Budgets';
-import { Reimbursements } from '@/pages/Reimbursements';
-import { SettingsHub } from '@/pages/settings/SettingsHub';
-import { SettingsAccountsSync } from '@/pages/settings/SettingsAccountsSync';
-import { SettingsCategorization } from '@/pages/settings/SettingsCategorization';
-import { SettingsPreferences } from '@/pages/settings/SettingsPreferences';
-import { SettingsExport } from '@/pages/settings/SettingsExport';
-import { SettingsAccount } from '@/pages/settings/SettingsAccount';
-import { SettingsDanger } from '@/pages/settings/SettingsDanger';
-import { SettingsAdvisorMemory } from '@/pages/settings/SettingsAdvisorMemory';
-import { SettingsSharing } from '@/pages/settings/SettingsSharing';
-import { CounterpartyDetail } from '@/pages/CounterpartyDetail';
-import { SpendingExplorer } from '@/pages/SpendingExplorer';
-import { SpendingCategory } from '@/pages/SpendingCategory';
-import { SpendingSubcategory } from '@/pages/SpendingSubcategory';
-import { IcsOverview } from '@/pages/IcsOverview';
-import { IcsBreakdown } from '@/pages/IcsBreakdown';
-import { IcsBreakdownCategory } from '@/pages/IcsBreakdownCategory';
-import { Goals } from '@/pages/Goals';
-import { FixedCosts } from '@/pages/FixedCosts';
-import { Wealth } from '@/pages/Wealth';
-import { Insights } from '@/pages/Insights';
-import { InsightDetail } from '@/pages/InsightDetail';
-import { Login } from '@/pages/auth/Login';
-import { PrimitivesPlayground } from '@/pages/dev/PrimitivesPlayground';
-
-// Layout
+// Layout (kept eager — shared shell must never wait on a route chunk)
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
+import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
+import { PageLoader } from '@/components/layout/PageLoader';
+
+// Pages — lazy-loaded so each route ships as its own chunk. A chunk-load
+// failure (e.g. stale deploy) throws during render and is caught by the
+// nearest ErrorBoundary, which offers "Reload app".
+const Home = lazy(() => import('@/pages/Home').then((m) => ({ default: m.Home })));
+const Transactions = lazy(() =>
+  import('@/pages/Transactions').then((m) => ({ default: m.Transactions }))
+);
+const Budgets = lazy(() => import('@/pages/Budgets').then((m) => ({ default: m.Budgets })));
+const Reimbursements = lazy(() =>
+  import('@/pages/Reimbursements').then((m) => ({ default: m.Reimbursements }))
+);
+const SettingsHub = lazy(() =>
+  import('@/pages/settings/SettingsHub').then((m) => ({ default: m.SettingsHub }))
+);
+const SettingsAccountsSync = lazy(() =>
+  import('@/pages/settings/SettingsAccountsSync').then((m) => ({
+    default: m.SettingsAccountsSync,
+  }))
+);
+const SettingsCategorization = lazy(() =>
+  import('@/pages/settings/SettingsCategorization').then((m) => ({
+    default: m.SettingsCategorization,
+  }))
+);
+const SettingsPreferences = lazy(() =>
+  import('@/pages/settings/SettingsPreferences').then((m) => ({
+    default: m.SettingsPreferences,
+  }))
+);
+const SettingsExport = lazy(() =>
+  import('@/pages/settings/SettingsExport').then((m) => ({ default: m.SettingsExport }))
+);
+const SettingsAccount = lazy(() =>
+  import('@/pages/settings/SettingsAccount').then((m) => ({ default: m.SettingsAccount }))
+);
+const SettingsDanger = lazy(() =>
+  import('@/pages/settings/SettingsDanger').then((m) => ({ default: m.SettingsDanger }))
+);
+const SettingsAdvisorMemory = lazy(() =>
+  import('@/pages/settings/SettingsAdvisorMemory').then((m) => ({
+    default: m.SettingsAdvisorMemory,
+  }))
+);
+const SettingsSharing = lazy(() =>
+  import('@/pages/settings/SettingsSharing').then((m) => ({ default: m.SettingsSharing }))
+);
+const CounterpartyDetail = lazy(() =>
+  import('@/pages/CounterpartyDetail').then((m) => ({ default: m.CounterpartyDetail }))
+);
+const SpendingExplorer = lazy(() =>
+  import('@/pages/SpendingExplorer').then((m) => ({ default: m.SpendingExplorer }))
+);
+const SpendingCategory = lazy(() =>
+  import('@/pages/SpendingCategory').then((m) => ({ default: m.SpendingCategory }))
+);
+const SpendingSubcategory = lazy(() =>
+  import('@/pages/SpendingSubcategory').then((m) => ({ default: m.SpendingSubcategory }))
+);
+const IcsOverview = lazy(() =>
+  import('@/pages/IcsOverview').then((m) => ({ default: m.IcsOverview }))
+);
+const IcsBreakdown = lazy(() =>
+  import('@/pages/IcsBreakdown').then((m) => ({ default: m.IcsBreakdown }))
+);
+const IcsBreakdownCategory = lazy(() =>
+  import('@/pages/IcsBreakdownCategory').then((m) => ({ default: m.IcsBreakdownCategory }))
+);
+const Goals = lazy(() => import('@/pages/Goals').then((m) => ({ default: m.Goals })));
+const FixedCosts = lazy(() =>
+  import('@/pages/FixedCosts').then((m) => ({ default: m.FixedCosts }))
+);
+const Wealth = lazy(() => import('@/pages/Wealth').then((m) => ({ default: m.Wealth })));
+const Insights = lazy(() => import('@/pages/Insights').then((m) => ({ default: m.Insights })));
+const InsightDetail = lazy(() =>
+  import('@/pages/InsightDetail').then((m) => ({ default: m.InsightDetail }))
+);
+const Login = lazy(() => import('@/pages/auth/Login').then((m) => ({ default: m.Login })));
+const PrimitivesPlayground = lazy(() =>
+  import('@/pages/dev/PrimitivesPlayground').then((m) => ({ default: m.PrimitivesPlayground }))
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,63 +120,73 @@ if (typeof window !== 'undefined') {
 
 export function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <MonthProvider>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<Login />} />
-              {import.meta.env.DEV && (
-                <Route path="/__dev/primitives" element={<PrimitivesPlayground />} />
-              )}
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <MonthProvider>
+              <Suspense fallback={<PageLoader fullScreen />}>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/login" element={<Login />} />
+                  {import.meta.env.DEV && (
+                    <Route path="/__dev/primitives" element={<PrimitivesPlayground />} />
+                  )}
 
-              {/* Protected routes */}
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Home />} />
-                <Route path="transactions" element={<Transactions />} />
-                <Route path="budgets" element={<Budgets />} />
-                <Route path="reimbursements" element={<Reimbursements />} />
-                <Route path="settings" element={<SettingsHub />} />
-                <Route path="settings/accounts" element={<SettingsAccountsSync />} />
-                <Route path="settings/categorization" element={<SettingsCategorization />} />
-                <Route path="settings/preferences" element={<SettingsPreferences />} />
-                <Route path="settings/export" element={<SettingsExport />} />
-                <Route path="settings/account" element={<SettingsAccount />} />
-                <Route path="settings/danger" element={<SettingsDanger />} />
-                <Route path="settings/advisor-memory" element={<SettingsAdvisorMemory />} />
-                <Route path="settings/sharing" element={<SettingsSharing />} />
-                <Route path="expenses" element={<SpendingExplorer />} />
-                <Route path="expenses/:categoryId" element={<SpendingCategory />} />
-                <Route path="expenses/:categoryId/:subcategoryId" element={<SpendingSubcategory />} />
-                <Route path="income" element={<SpendingExplorer />} />
-                <Route path="income/:categoryId" element={<SpendingCategory />} />
-                <Route path="income/:categoryId/:subcategoryId" element={<SpendingSubcategory />} />
-                <Route path="counterparty/:counterparty" element={<CounterpartyDetail />} />
-                <Route path="ics" element={<IcsOverview />} />
-                <Route path="ics/:statementId" element={<IcsBreakdown />} />
-                <Route path="ics/:statementId/:categoryId" element={<IcsBreakdownCategory />} />
-                <Route path="goals" element={<Goals />} />
-                <Route path="fixed-costs" element={<FixedCosts />} />
-                <Route path="wealth" element={<Wealth />} />
-                <Route path="insights" element={<Insights />} />
-                <Route path="insights/:insightId" element={<InsightDetail />} />
-              </Route>
-            </Routes>
-            <Toaster />
-            <InstallBanner />
-            <OfflineBanner />
-            <PerfOverlay />
-          </MonthProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+                  {/* Protected routes */}
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<Home />} />
+                    <Route path="transactions" element={<Transactions />} />
+                    <Route path="budgets" element={<Budgets />} />
+                    <Route path="reimbursements" element={<Reimbursements />} />
+                    <Route path="settings" element={<SettingsHub />} />
+                    <Route path="settings/accounts" element={<SettingsAccountsSync />} />
+                    <Route path="settings/categorization" element={<SettingsCategorization />} />
+                    <Route path="settings/preferences" element={<SettingsPreferences />} />
+                    <Route path="settings/export" element={<SettingsExport />} />
+                    <Route path="settings/account" element={<SettingsAccount />} />
+                    <Route path="settings/danger" element={<SettingsDanger />} />
+                    <Route path="settings/advisor-memory" element={<SettingsAdvisorMemory />} />
+                    <Route path="settings/sharing" element={<SettingsSharing />} />
+                    <Route path="expenses" element={<SpendingExplorer />} />
+                    <Route path="expenses/:categoryId" element={<SpendingCategory />} />
+                    <Route
+                      path="expenses/:categoryId/:subcategoryId"
+                      element={<SpendingSubcategory />}
+                    />
+                    <Route path="income" element={<SpendingExplorer />} />
+                    <Route path="income/:categoryId" element={<SpendingCategory />} />
+                    <Route
+                      path="income/:categoryId/:subcategoryId"
+                      element={<SpendingSubcategory />}
+                    />
+                    <Route path="counterparty/:counterparty" element={<CounterpartyDetail />} />
+                    <Route path="ics" element={<IcsOverview />} />
+                    <Route path="ics/:statementId" element={<IcsBreakdown />} />
+                    <Route path="ics/:statementId/:categoryId" element={<IcsBreakdownCategory />} />
+                    <Route path="goals" element={<Goals />} />
+                    <Route path="fixed-costs" element={<FixedCosts />} />
+                    <Route path="wealth" element={<Wealth />} />
+                    <Route path="insights" element={<Insights />} />
+                    <Route path="insights/:insightId" element={<InsightDetail />} />
+                  </Route>
+                </Routes>
+              </Suspense>
+              <Toaster />
+              <InstallBanner />
+              <OfflineBanner />
+              <PerfOverlay />
+            </MonthProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
