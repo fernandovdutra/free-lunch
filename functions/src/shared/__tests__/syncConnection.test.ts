@@ -1,16 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import type { EnableBankingTransaction } from '../../enableBanking/types';
 import {
+  assignStableExternalIds,
   extractBankDescription,
   getStableExternalId,
+  selectIcsStatementMatch,
+  summarizeSyncErrors,
+  transactionDocId,
   transformTransaction,
 } from '../syncConnection';
 
 // A reference-less SEPA "Overboeking" as ABN AMRO surfaces it: the payer
 // supplied no reference, so entry_reference is the "NOTPROVIDED" placeholder.
-function sepaTransfer(
-  overrides: Partial<EnableBankingTransaction> = {}
-): EnableBankingTransaction {
+function sepaTransfer(overrides: Partial<EnableBankingTransaction> = {}): EnableBankingTransaction {
   return {
     entry_reference: 'NOTPROVIDED',
     transaction_amount: { amount: '240.00', currency: 'EUR' },
@@ -43,12 +45,8 @@ describe('getStableExternalId', () => {
   });
 
   it('treats placeholders case-insensitively', () => {
-    expect(getStableExternalId(sepaTransfer({ entry_reference: 'notprovided' }))).toMatch(
-      /^gen_/
-    );
-    expect(getStableExternalId(sepaTransfer({ entry_reference: 'Not Provided' }))).toMatch(
-      /^gen_/
-    );
+    expect(getStableExternalId(sepaTransfer({ entry_reference: 'notprovided' }))).toMatch(/^gen_/);
+    expect(getStableExternalId(sepaTransfer({ entry_reference: 'Not Provided' }))).toMatch(/^gen_/);
   });
 
   it('generates a synthetic id for empty or missing entry_reference', () => {
@@ -74,6 +72,124 @@ describe('getStableExternalId', () => {
     const differentDate = getStableExternalId(sepaTransfer({ booking_date: '2026-05-19' }));
 
     expect(new Set([a, differentAmount, differentPayee, differentDate]).size).toBe(4);
+  });
+});
+
+describe('transactionDocId', () => {
+  it('is deterministic: the same externalId always maps to the same doc id', () => {
+    expect(transactionDocId('REF-123')).toBe(transactionDocId('REF-123'));
+  });
+
+  it('maps different externalIds to different doc ids', () => {
+    expect(transactionDocId('REF-123')).not.toBe(transactionDocId('REF-124'));
+    expect(transactionDocId('gen_abc')).not.toBe(transactionDocId('gen_abc#1'));
+  });
+
+  it('always produces a valid Firestore document id, even for hostile references', () => {
+    const hostile = [
+      'REF/WITH/SLASHES',
+      '.',
+      '..',
+      '__id__',
+      'x'.repeat(3000),
+      'gen_abc#1',
+      'ref with spaces\nand newline',
+    ];
+    for (const externalId of hostile) {
+      const id = transactionDocId(externalId);
+      expect(id).toMatch(/^tx_[0-9a-f]{32}$/); // no '/', not '.'/'..', well under 1500 bytes
+    }
+  });
+});
+
+describe('assignStableExternalIds', () => {
+  const A = sepaTransfer(); // reference-less → synthetic id
+  const B = sepaTransfer({ transaction_amount: { amount: '99.00', currency: 'EUR' } });
+  const C = sepaTransfer({ entry_reference: 'REAL-REF-1' });
+
+  it('keeps real entry_references untouched and suffix-free', () => {
+    const [assignment] = assignStableExternalIds([C]);
+    expect(assignment.externalId).toBe('REAL-REF-1');
+  });
+
+  it('gives identical reference-less duplicates distinct, occurrence-indexed ids', () => {
+    const ids = assignStableExternalIds([A, { ...A }, { ...A }]).map((a) => a.externalId);
+    const base = getStableExternalId(A);
+    expect(ids.sort()).toEqual([base, `${base}#1`, `${base}#2`]);
+  });
+
+  it('re-fetching the same payload produces exactly the same id set', () => {
+    const first = assignStableExternalIds([A, { ...A }, B, C]).map((a) => a.externalId);
+    const second = assignStableExternalIds([A, { ...A }, B, C]).map((a) => a.externalId);
+    expect(second).toEqual(first);
+  });
+
+  it('is independent of the order the bank returns the payload in', () => {
+    const original = assignStableExternalIds([A, { ...A }, B, C]);
+    const reordered = assignStableExternalIds([C, B, { ...A }, A]);
+    expect(new Set(reordered.map((a) => a.externalId))).toEqual(
+      new Set(original.map((a) => a.externalId))
+    );
+  });
+
+  it('orders hash-colliding near-duplicates by unhashed fields, not fetch position', () => {
+    // Same hash inputs, but different status (status is not hashed).
+    const pending = sepaTransfer({ status: 'pending' });
+    const booked = sepaTransfer({ status: 'booked' });
+
+    const forward = assignStableExternalIds([pending, booked]);
+    const backward = assignStableExternalIds([booked, pending]);
+
+    const idFor = (list: typeof forward, status: string) =>
+      list.find((a) => a.tx.status === status)!.externalId;
+
+    expect(idFor(forward, 'pending')).toBe(idFor(backward, 'pending'));
+    expect(idFor(forward, 'booked')).toBe(idFor(backward, 'booked'));
+  });
+});
+
+describe('selectIcsStatementMatch', () => {
+  const day = (iso: string) => new Date(`${iso}T12:00:00`);
+
+  it('does not match an equal-amount statement outside the date window', () => {
+    const candidates = [{ id: 'old', statementDate: day('2026-01-15') }];
+    expect(selectIcsStatementMatch(candidates, day('2026-06-25'))).toBeNull();
+  });
+
+  it('does not match a statement dated too long after the debit', () => {
+    const candidates = [{ id: 'future', statementDate: day('2026-07-10') }];
+    expect(selectIcsStatementMatch(candidates, day('2026-06-25'))).toBeNull();
+  });
+
+  it('matches a statement whose debit lands within the window after the statement date', () => {
+    const candidates = [{ id: 'near', statementDate: day('2026-06-10') }];
+    expect(selectIcsStatementMatch(candidates, day('2026-06-25'))?.id).toBe('near');
+  });
+
+  it('prefers the closest-dated statement when several are within the window', () => {
+    const candidates = [
+      { id: 'far', statementDate: day('2026-06-01') },
+      { id: 'closest', statementDate: day('2026-06-20') },
+      { id: 'mid', statementDate: day('2026-06-10') },
+    ];
+    expect(selectIcsStatementMatch(candidates, day('2026-06-25'))?.id).toBe('closest');
+  });
+});
+
+describe('summarizeSyncErrors', () => {
+  it('summarizes per-account errors compactly', () => {
+    const summary = summarizeSyncErrors([
+      { accountId: 'acc1', newTransactions: 0, updatedTransactions: 0, errors: ['boom', 'later'] },
+      { accountId: 'acc2', newTransactions: 3, updatedTransactions: 0, errors: [] },
+    ]);
+    expect(summary).toBe('acc1: boom (+1 more)');
+  });
+
+  it('caps the message length so the connection doc stays small', () => {
+    const summary = summarizeSyncErrors([
+      { accountId: 'acc1', newTransactions: 0, updatedTransactions: 0, errors: ['x'.repeat(500)] },
+    ]);
+    expect(summary.length).toBeLessThanOrEqual(300);
   });
 });
 
