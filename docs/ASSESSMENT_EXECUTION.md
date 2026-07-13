@@ -66,6 +66,16 @@ Status values: `pending` → `in-progress` → `pushed` → `reviewed` → `PR-o
   `main`, and the deploy workflow made to depend on it. E2E stays out of CI for now
   (needs emulators + secrets).
 
+## Follow-ups accepted (not blocking any unit)
+
+- Manual "Sync now" partial failures: callable returns `success: false` after U3 but
+  `useBankConnection.ts` doesn't surface it in the UI (parity with old behavior; auto-sync
+  failures ARE surfaced via `lastAutoSyncError`). Candidate small UX fix later.
+- Pre-existing duplicate docs sharing an externalId: dedup map keeps an arbitrary one as
+  the pending→booked update target (U3 review nit 7) — harmless, noted for awareness.
+- `npm run lint` gate passes with ~65 accepted warnings (non-null assertions etc.);
+  no `--max-warnings` ratchet yet.
+
 ## Verification ledger
 
 Every unit must pass before PR-open: `npm run typecheck` · `npm run lint` (0 errors) ·
