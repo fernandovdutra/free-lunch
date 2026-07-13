@@ -86,6 +86,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
  * navigating to another route automatically resets the tripped boundary.
  */
 export function RouteErrorBoundary({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation();
-  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
+  // location.key changes on EVERY navigation (including re-tapping the same
+  // nav item or a search-param-only change), so any navigation recovers a
+  // tripped boundary — pathname alone would miss same-path navigations.
+  const { key } = useLocation();
+  return <ErrorBoundary resetKey={key}>{children}</ErrorBoundary>;
 }
