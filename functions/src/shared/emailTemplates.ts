@@ -166,6 +166,53 @@ export function buildConsentExpiryEmailHtml(data: ConsentExpiryEmailData): strin
   return baseLayout('Bank connection expiring soon', content);
 }
 
+interface InvitationEmailData {
+  inviterName?: string;
+  inviterEmail?: string;
+  inviteeEmail: string;
+  role: 'editor' | 'viewer';
+  appUrl: string;
+}
+
+export function buildInvitationEmailHtml(data: InvitationEmailData): string {
+  const inviter = data.inviterName
+    ? `${data.inviterName}${data.inviterEmail ? ` (${data.inviterEmail})` : ''}`
+    : (data.inviterEmail ?? 'A Free Lunch user');
+  const roleDescription =
+    data.role === 'editor'
+      ? 'an editor — you will be able to view and edit their transactions, categories, and budgets'
+      : 'a viewer — you will be able to view their transactions and reports';
+
+  const content = `
+    <p style="font-size:16px;font-weight:600;color:#111827;margin:0 0 12px;">
+      You've been invited to share a household on Free Lunch
+    </p>
+    <p style="margin:8px 0;line-height:1.6;color:#374151;">
+      <strong>${escapeHtml(inviter)}</strong> has invited you to share their household
+      finances in Free Lunch, a personal finance app. You've been invited as
+      ${escapeHtml(roleDescription)}.
+    </p>
+    <p style="margin:8px 0;line-height:1.6;color:#374151;">
+      To accept, sign in to Free Lunch — or create an account — using
+      <strong>this email address (${escapeHtml(data.inviteeEmail)})</strong>.
+      The invitation is matched to this exact address, so it will be waiting for you
+      when you sign in.
+    </p>
+    <div style="margin:20px 0;text-align:center;">
+      <a href="${escapeHtml(data.appUrl)}"
+         style="display:inline-block;background:#18181b;color:white;text-decoration:none;
+                padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">
+        Open Free Lunch
+      </a>
+    </div>
+    <p style="margin:8px 0;line-height:1.6;color:#6b7280;font-size:13px;">
+      If you weren't expecting this invitation, you can safely ignore this email.
+    </p>
+  `;
+
+  return baseLayout('Household sharing invitation', content);
+}
+
 export function buildWeeklyEmailHtml(data: WeeklyEmailData): string {
   // Reuse daily template structure with added sections
   let extraSections = '';
