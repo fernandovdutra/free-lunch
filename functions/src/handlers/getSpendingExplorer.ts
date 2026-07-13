@@ -1,12 +1,24 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { format, startOfMonth, subMonths, endOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 import {
   serializeTransaction,
   type TransactionDoc,
   type CategoryDoc,
 } from '../shared/aggregations.js';
+import {
+  amsterdamMonthKey,
+  amsterdamMonthRangeUtc,
+  shiftMonthKey,
+} from '../shared/amsterdamTime.js';
 import { resolveDataOwner } from '../shared/dataOwner.js';
+
+/** Local Date carrying the calendar parts of a `yyyy-MM` key, for date-fns
+ * display formatting (TZ-safe: no UTC-midnight anchoring). */
+function monthKeyToDisplayDate(monthKey: string): Date {
+  const [year, month] = monthKey.split('-').map(Number);
+  return new Date(year, month - 1, 1);
+}
 
 // ============================================================================
 // Response types
@@ -128,27 +140,31 @@ export const getSpendingExplorer = onCall(
 
     // The focal month is unambiguous when sent as `monthKey` (yyyy-MM): the
     // frontend formats `selectedMonth` in local time, so May local → '2026-05'
-    // regardless of TZ. We anchor in UTC so date-fns format/subMonths produce
-    // the same yyyy-MM bucket on the (UTC) Functions runtime as the client.
-    let selectedStart: Date;
-    let selectedEnd: Date;
+    // regardless of TZ. All month buckets and boundaries below are AMSTERDAM
+    // calendar months (the app's canonical zone) — server-local (UTC)
+    // bucketing would put late-evening CET/CEST transactions near a month
+    // boundary into the wrong month.
+    let selectedMonthKey: string;
+    let endMonthKey: string;
     if (monthKey) {
       if (!/^\d{4}-\d{2}$/.test(monthKey)) {
         throw new HttpsError('invalid-argument', 'monthKey must be yyyy-MM');
       }
-      selectedStart = new Date(`${monthKey}-01T00:00:00.000Z`);
-      selectedEnd = endOfMonth(selectedStart);
+      selectedMonthKey = monthKey;
+      endMonthKey = monthKey;
     } else {
-      selectedStart = new Date(startDate as string);
-      selectedEnd = new Date(endDate as string);
-    }
-    if (isNaN(selectedStart.getTime()) || isNaN(selectedEnd.getTime())) {
-      throw new HttpsError('invalid-argument', 'invalid date inputs');
+      const selectedStart = new Date(startDate as string);
+      const selectedEnd = new Date(endDate as string);
+      if (isNaN(selectedStart.getTime()) || isNaN(selectedEnd.getTime())) {
+        throw new HttpsError('invalid-argument', 'invalid date inputs');
+      }
+      selectedMonthKey = amsterdamMonthKey(selectedStart);
+      endMonthKey = amsterdamMonthKey(selectedEnd);
     }
 
     // Calculate 6-month window: selected month + 5 previous months
-    const sixMonthStart = startOfMonth(subMonths(selectedStart, 5));
-    const sixMonthEnd = endOfMonth(selectedEnd);
+    const sixMonthStart = amsterdamMonthRangeUtc(shiftMonthKey(selectedMonthKey, -5)).start;
+    const sixMonthEnd = amsterdamMonthRangeUtc(endMonthKey).end;
 
     const db = getFirestore();
 
@@ -192,9 +208,7 @@ export const getSpendingExplorer = onCall(
 
     // Initialize all 6 months
     for (let i = 5; i >= 0; i--) {
-      const monthDate = subMonths(selectedStart, i);
-      const key = format(monthDate, 'yyyy-MM');
-      monthlyMap.set(key, { amount: 0, count: 0 });
+      monthlyMap.set(shiftMonthKey(selectedMonthKey, -i), { amount: 0, count: 0 });
     }
 
     // If filtering by specific counterparty within category context
@@ -207,7 +221,7 @@ export const getSpendingExplorer = onCall(
           : doc.categoryId === subcategoryId;
         if (!matchesSubcategory) continue;
 
-        const monthKey = format(doc.date.toDate(), 'yyyy-MM');
+        const monthKey = amsterdamMonthKey(doc.date.toDate());
         const entry = monthlyMap.get(monthKey);
         if (entry) {
           entry.amount += effectiveAmount(doc.amount);
@@ -222,7 +236,7 @@ export const getSpendingExplorer = onCall(
           : doc.categoryId === subcategoryId;
         if (!matchesSubcategory) continue;
 
-        const monthKey = format(doc.date.toDate(), 'yyyy-MM');
+        const monthKey = amsterdamMonthKey(doc.date.toDate());
         const entry = monthlyMap.get(monthKey);
         if (entry) {
           if (doc.isSplit && doc.splits) {
@@ -245,7 +259,7 @@ export const getSpendingExplorer = onCall(
           ? null // handled per split
           : getTopLevelCategoryId(doc.categoryId, categories);
 
-        const monthKey = format(doc.date.toDate(), 'yyyy-MM');
+        const monthKey = amsterdamMonthKey(doc.date.toDate());
         const entry = monthlyMap.get(monthKey);
         if (!entry) continue;
 
@@ -265,7 +279,7 @@ export const getSpendingExplorer = onCall(
     } else {
       // All transactions for this direction
       for (const { doc } of directedTransactions) {
-        const monthKey = format(doc.date.toDate(), 'yyyy-MM');
+        const monthKey = amsterdamMonthKey(doc.date.toDate());
         const entry = monthlyMap.get(monthKey);
         if (entry) {
           entry.amount += effectiveAmount(doc.amount);
@@ -278,7 +292,7 @@ export const getSpendingExplorer = onCall(
     const monthlyTotals: MonthlyTotal[] = Array.from(monthlyMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, data]) => ({
-        month: format(new Date(key + '-01'), 'MMM yyyy'),
+        month: format(monthKeyToDisplayDate(key), 'MMM yyyy'),
         monthKey: key,
         amount: Math.round(data.amount * 100) / 100,
         transactionCount: data.count,
@@ -289,14 +303,13 @@ export const getSpendingExplorer = onCall(
     // ========================================================================
 
     // Determine which month to show breakdown for
-    const effectiveMonthKey = breakdownMonthKey ?? format(selectedStart, 'yyyy-MM');
-    const effectiveMonthDate = new Date(effectiveMonthKey + '-01');
-    const effectiveMonthStart = startOfMonth(effectiveMonthDate);
-    const effectiveMonthEnd = endOfMonth(effectiveMonthDate);
+    const effectiveMonthKey = breakdownMonthKey ?? selectedMonthKey;
+    const { start: effectiveMonthStart, end: effectiveMonthEnd } =
+      amsterdamMonthRangeUtc(effectiveMonthKey);
 
     const currentMonthTotal = monthlyMap.get(effectiveMonthKey);
     const currentTotal = Math.round((currentMonthTotal?.amount ?? 0) * 100) / 100;
-    const currentMonth = format(effectiveMonthStart, 'MMMM yyyy');
+    const currentMonth = format(monthKeyToDisplayDate(effectiveMonthKey), 'MMMM yyyy');
 
     // Filter to breakdown month for category/transaction detail
     const selectedMonthTransactions = directedTransactions.filter(({ doc }) => {

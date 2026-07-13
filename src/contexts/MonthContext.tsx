@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
-import { startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } from 'date-fns';
+import { startOfMonth, addMonths, subMonths, isSameMonth } from 'date-fns';
+import { monthRangeFor } from '@/lib/monthRange';
 
 interface MonthContextType {
   /** The first day of the selected month */
@@ -14,7 +15,11 @@ interface MonthContextType {
   goToCurrentMonth: () => void;
   /** Check if selected month is current month */
   isCurrentMonth: boolean;
-  /** Date range for the selected month (for use with data hooks) */
+  /**
+   * Date range for the selected month (for use with data hooks): exact UTC
+   * instants of the Amsterdam month boundaries (see src/lib/monthRange.ts),
+   * safe to serialize with toISOString() for query keys and backend calls.
+   */
   dateRange: { startDate: Date; endDate: Date };
 }
 
@@ -106,13 +111,9 @@ export function MonthProvider({ children }: MonthProviderProps) {
     [selectedMonth]
   );
 
-  const dateRange = useMemo(
-    () => ({
-      startDate: selectedMonth,
-      endDate: endOfMonth(selectedMonth),
-    }),
-    [selectedMonth]
-  );
+  // Canonical Amsterdam month boundaries — NOT local startOfMonth/endOfMonth,
+  // whose toISOString() serialization skewed backend day-bucketing by a day.
+  const dateRange = useMemo(() => monthRangeFor(selectedMonth), [selectedMonth]);
 
   const value = useMemo(
     () => ({

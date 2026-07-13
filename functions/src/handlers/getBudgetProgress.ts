@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { amsterdamMonthKey, amsterdamMonthRangeUtc, shiftMonthKey } from '../shared/amsterdamTime.js';
 import {
   calculateSpendingByCategory,
   calculateBudgetProgress,
@@ -33,9 +33,11 @@ export const getBudgetProgress = onCall(
       suggestions?: boolean;
     };
 
-    const now = new Date();
-    const start = data.startDate ? new Date(data.startDate) : startOfMonth(now);
-    const end = data.endDate ? new Date(data.endDate) : endOfMonth(now);
+    // Default window = the current AMSTERDAM calendar month (the server's
+    // zone is UTC; its local month boundaries would be shifted by 1-2 h).
+    const currentMonth = amsterdamMonthRangeUtc(amsterdamMonthKey());
+    const start = data.startDate ? new Date(data.startDate) : currentMonth.start;
+    const end = data.endDate ? new Date(data.endDate) : currentMonth.end;
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       throw new HttpsError('invalid-argument', 'startDate and endDate must be valid ISO date strings');
@@ -80,8 +82,9 @@ export const getBudgetProgress = onCall(
 
     // Optionally compute suggestions (3-month average spending)
     if (data.suggestions) {
-      const threeMonthsAgo = subMonths(startOfMonth(now), 3);
-      const endOfLastMonth = endOfMonth(subMonths(now, 1));
+      const nowMonthKey = amsterdamMonthKey();
+      const threeMonthsAgo = amsterdamMonthRangeUtc(shiftMonthKey(nowMonthKey, -3)).start;
+      const endOfLastMonth = amsterdamMonthRangeUtc(shiftMonthKey(nowMonthKey, -1)).end;
 
       const suggestionsSnapshot = await userRef
         .collection('transactions')

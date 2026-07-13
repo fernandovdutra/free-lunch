@@ -242,6 +242,7 @@ vi.mock('../../categorization/index.js', () => ({
 }));
 
 import { syncBankConnection, transactionDocId } from '../syncConnection';
+import { amsterdamDayKey, amsterdamToday, shiftDayKey } from '../amsterdamTime';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -269,12 +270,9 @@ function bankTx(
   };
 }
 
-/** Local `yyyy-MM-dd`, matching how the sync formats bank date params. */
-function localIso(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-/** Local-noon MockTimestamp matching how transformTransaction stamps bookingDate. */
+/** Local-noon MockTimestamp — the LEGACY server-local bookingDate convention;
+ * seeded docs written this way must keep de-duplicating after the switch to
+ * Amsterdam-noon stamps (the dedup window's ±2-day buffer absorbs the skew). */
 function bookingTs(iso: string) {
   const [y, m, d] = iso.split('-').map(Number);
   return MockTimestamp.fromDate(new Date(y, m - 1, d, 12, 0, 0));
@@ -396,40 +394,41 @@ describe('syncBankConnection', () => {
     const doc = db.store.get(`${TX_PATH}/legacyStringPending`)!;
     expect(doc.status).toBe('booked');
     expect(doc.bookingDate).toBeInstanceOf(MockTimestamp);
+    // Amsterdam noon on the booking date (June = CEST = UTC+2 → 10:00Z),
+    // regardless of the server/test-runner zone.
     expect((doc.bookingDate as InstanceType<typeof MockTimestamp>).toDate()).toEqual(
-      new Date(2026, 5, 25, 12, 0, 0)
+      new Date('2026-06-25T10:00:00.000Z')
     );
     expect(doc.categoryId).toBe('user-picked');
     expect(txDocs()).toHaveLength(1);
   });
 
   it('clamps the fetch window to the max lookback when lastSync is stale', async () => {
-    const staleLastSync = new Date();
-    staleLastSync.setDate(staleLastSync.getDate() - 200); // frozen by long-failing syncs
+    const staleLastSync = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000); // frozen by long-failing syncs
     db.store.set(CONN_PATH, { ...db.store.get(CONN_PATH)!, lastSync: staleLastSync });
 
     await syncBankConnection(USER, CONN);
 
-    const expectedFrom = new Date();
-    expectedFrom.setDate(expectedFrom.getDate() - 85);
+    // Window dates are AMSTERDAM calendar dates (the runtime's UTC date is
+    // still "yesterday" around Amsterdam midnight).
     expect(getTransactions).toHaveBeenCalledWith(
       'acc1',
-      expect.objectContaining({ date_from: localIso(expectedFrom) })
+      expect.objectContaining({
+        date_from: shiftDayKey(amsterdamToday(), -85),
+        date_to: amsterdamToday(),
+      })
     );
   });
 
   it('does not clamp a fresh lastSync (still overlaps by one day)', async () => {
-    const recentLastSync = new Date();
-    recentLastSync.setDate(recentLastSync.getDate() - 10);
+    const recentLastSync = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
     db.store.set(CONN_PATH, { ...db.store.get(CONN_PATH)!, lastSync: recentLastSync });
 
     await syncBankConnection(USER, CONN);
 
-    const expectedFrom = new Date(recentLastSync);
-    expectedFrom.setDate(expectedFrom.getDate() - 1);
     expect(getTransactions).toHaveBeenCalledWith(
       'acc1',
-      expect.objectContaining({ date_from: localIso(expectedFrom) })
+      expect.objectContaining({ date_from: shiftDayKey(amsterdamDayKey(recentLastSync), -1) })
     );
   });
 
