@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   getIcsBreakdownFn,
   deserializeTransaction,
@@ -37,15 +38,13 @@ export function useIcsBreakdownExplorer({
   const monthKey = format(selectedMonth, 'yyyy-MM');
 
   return useQuery({
-    queryKey: [
-      'icsBreakdown',
-      dataOwnerId,
+    queryKey: queryKeys.icsBreakdown.explorer(dataOwnerId ?? '', {
       statementId,
       monthKey,
       categoryId,
       counterparty,
       breakdownMonthKey,
-    ],
+    }),
     queryFn: async (): Promise<IcsBreakdownData> => {
       if (!dataOwnerId || !statementId) throw new Error('Not authenticated or missing statementId');
 

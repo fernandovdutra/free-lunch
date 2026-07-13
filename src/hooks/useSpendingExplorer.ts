@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   getSpendingExplorerFn,
   deserializeTransaction,
@@ -10,28 +11,26 @@ import {
 } from '@/lib/bankingFunctions';
 import type { Transaction } from '@/types';
 
-// Query keys
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
 export const spendingExplorerKeys = {
-  all: (userId: string) => ['spendingExplorer', userId] as const,
+  all: (userId: string) => queryKeys.spendingExplorer.all(userId),
   explorer: (
     userId: string,
     direction: string,
-    monthISO: string,
+    monthKey: string,
     categoryId?: string,
     subcategoryId?: string,
     counterparty?: string,
     breakdownMonthKey?: string
   ) =>
-    [
-      'spendingExplorer',
-      userId,
+    queryKeys.spendingExplorer.explorer(userId, {
       direction,
-      monthISO,
+      monthKey,
       categoryId,
       subcategoryId,
       counterparty,
       breakdownMonthKey,
-    ] as const,
+    }),
 };
 
 interface UseSpendingExplorerParams {

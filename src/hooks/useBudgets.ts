@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import type { Budget, BudgetFormData } from '@/types';
 import { generateId } from '@/lib/utils';
 
@@ -28,9 +29,9 @@ interface BudgetDocument {
   updatedAt?: Timestamp;
 }
 
-// Query keys
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
 export const budgetKeys = {
-  all: (userId: string) => ['budgets', userId] as const,
+  all: (userId: string) => queryKeys.budgets.all(userId),
 };
 
 // Transform Firestore data to Budget type
@@ -82,7 +83,9 @@ export function useCreateBudget() {
       return id;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.budgets.root });
+      // Budget progress is derived per budget — refetch after any budget change.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.budgetProgress.root });
     },
   });
 }
@@ -102,7 +105,9 @@ export function useUpdateBudget() {
       return id;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.budgets.root });
+      // Budget progress is derived per budget — refetch after any budget change.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.budgetProgress.root });
     },
   });
 }
@@ -119,7 +124,9 @@ export function useDeleteBudget() {
       return id;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.budgets.root });
+      // Budget progress is derived per budget — refetch after any budget change.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.budgetProgress.root });
     },
   });
 }

@@ -2,23 +2,36 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBudgets } from '@/hooks/useBudgets';
 import { getBudgetProgressFn } from '@/lib/bankingFunctions';
+import { queryKeys, type DateRange } from '@/lib/queryKeys';
 import type { BudgetProgress } from '@/types';
 
-// Query keys
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
 export const budgetProgressKeys = {
-  current: (userId: string) => ['budgetProgress', userId, 'current'] as const,
-  suggestions: (userId: string) => ['budgetProgress', userId, 'suggestions'] as const,
+  current: (userId: string, dateRange: DateRange | null) =>
+    queryKeys.budgetProgress.forRange(userId, dateRange),
+  suggestions: (userId: string) => queryKeys.budgetProgress.suggestions(userId),
 };
 
 /**
- * Hook to get current month's budget progress
+ * Hook to get budget progress for the given date range (or the server's
+ * default window when none is passed).
+ *
+ * The key includes the range, so callers with different windows (Home's
+ * month-to-today vs. the explorer pages' default) each get their own cache
+ * entry, and changing the selected month refetches instead of reusing
+ * whichever caller happened to mount first.
+ *
+ * Note: `budgets` (from useBudgets) is only used to decorate the response
+ * with the full Budget object — the server payload already carries every
+ * field needed as a fallback. Budget mutations invalidate
+ * `['budgetProgress']` so this query refetches when budgets change.
  */
 export function useBudgetProgress(dateRange?: { startDate: Date; endDate: Date }) {
   const { dataOwnerId } = useAuth();
   const { data: budgets = [] } = useBudgets();
 
   const { data: budgetProgress = [], isLoading } = useQuery({
-    queryKey: budgetProgressKeys.current(dataOwnerId ?? ''),
+    queryKey: budgetProgressKeys.current(dataOwnerId ?? '', dateRange ?? null),
     queryFn: async (): Promise<BudgetProgress[]> => {
       if (!dataOwnerId) return [];
 

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { invalidateFinancialData } from '@/lib/queryKeys';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useResetTransactionData } from '@/hooks/useBankConnection';
 import { useToast } from '@/components/ui/toaster';
@@ -74,8 +75,7 @@ function useResetCategories() {
       return { cleared };
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      invalidateFinancialData(queryClient);
     },
   });
 }
