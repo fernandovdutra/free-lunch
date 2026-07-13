@@ -23,6 +23,7 @@ export {
   useCreateTransaction,
   useUpdateTransaction,
   useUpdateTransactionCategory,
+  useSetTransactionSplit,
   useDeleteTransaction,
   useBulkUpdateCategory,
   useAICategorizeTransaction,
