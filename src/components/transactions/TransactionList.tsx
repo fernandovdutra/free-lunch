@@ -248,7 +248,9 @@ function pickVariant(
   categoriesById: Map<string, Category>
 ): 'default' | 'pending' | 'transfer' | 'uncat' | 'income' {
   if (isTransferTxn(t, categoriesById)) return 'transfer';
-  if (!t.categoryId) return 'uncat';
+  // A split transaction is categorized via its splits even if the top-level
+  // categoryId is empty.
+  if (!t.categoryId && !hasSplits(t)) return 'uncat';
   if (t.reimbursement?.status === 'pending') return 'pending';
   if (t.amount > 0) return 'income';
   return 'default';
@@ -266,11 +268,24 @@ function isTransferTxn(t: Transaction, categoriesById: Map<string, Category>): b
   return false;
 }
 
-function buildMetaLine(t: Transaction, categoriesById: Map<string, Category>): string {
-  if (!t.categoryId) return 'UNCATEGORIZED';
+function hasSplits(t: Transaction): boolean {
+  return t.isSplit && !!t.splits && t.splits.length > 0;
+}
 
-  const cat = categoriesById.get(t.categoryId);
-  const categoryLabel = (cat?.name ?? 'CATEGORY').toUpperCase();
+function buildMetaLine(t: Transaction, categoriesById: Map<string, Category>): string {
+  // Split transactions (US-4): the category slot reads "SPLIT (N)" plus the
+  // per-split category names instead of a single category.
+  let categoryLabel: string;
+  if (hasSplits(t)) {
+    const names = (t.splits ?? []).map(
+      (s) => categoriesById.get(s.categoryId)?.name ?? 'Category'
+    );
+    categoryLabel = `SPLIT (${t.splits?.length ?? 0}) · ${names.join(' + ')}`.toUpperCase();
+  } else {
+    if (!t.categoryId) return 'UNCATEGORIZED';
+    const cat = categoriesById.get(t.categoryId);
+    categoryLabel = (cat?.name ?? 'CATEGORY').toUpperCase();
+  }
 
   if (t.reimbursement?.status === 'pending') {
     const owed = formatAmount(Math.abs(t.amount), { showSign: false });

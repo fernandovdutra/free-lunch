@@ -16,7 +16,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { invalidateFinancialData } from '@/lib/queryKeys';
 import { recategorizeTransactions } from '@/lib/bankingFunctions';
-import type { Transaction, TransactionFormData } from '@/types';
+import type { Transaction, TransactionFormData, TransactionSplit } from '@/types';
 import { generateId } from '@/lib/utils';
 
 /**
@@ -178,6 +178,62 @@ export function useUpdateTransactionCategory() {
       // Refetch every money-displaying surface. Invalidation (not cache
       // patching) also removes the row from any server-filtered list it no
       // longer belongs to (e.g. category changed while filtering by category).
+      invalidateFinancialData(queryClient);
+    },
+  });
+}
+
+export interface SetTransactionSplitInput {
+  id: string;
+  /** 2+ rows to store a split, or `null` to remove an existing one. */
+  splits: TransactionSplit[] | null;
+  /**
+   * Only meaningful when removing a split (`splits: null`): category the
+   * transaction falls back to (e.g. the surviving editor row's category).
+   * Omit to leave `categoryId` untouched.
+   */
+  categoryId?: string | null;
+}
+
+/**
+ * Write `isSplit` + `splits[]` (US-4) in a single `updateDoc`, so the split
+ * state and any category fallback change atomically with `updatedAt`.
+ *
+ * Stored shape must match the functions-side reader
+ * (functions/src/shared/aggregations.ts `TransactionDoc`): split amounts are
+ * POSITIVE euros summing to `abs(transaction.amount)` — backend aggregation
+ * skips `amount <= 0` rows, so those are rejected here.
+ */
+export function useSetTransactionSplit() {
+  const queryClient = useQueryClient();
+  const { dataOwnerId } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ id, splits, categoryId }: SetTransactionSplitInput) => {
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      if (splits !== null) {
+        if (splits.length < 2) throw new Error('A split needs at least two rows');
+        if (splits.some((s) => s.amount <= 0)) {
+          throw new Error('Split amounts must be positive');
+        }
+      }
+      const transactionRef = doc(db, 'users', dataOwnerId, 'transactions', id);
+
+      const updateData: Record<string, unknown> = {
+        isSplit: splits !== null,
+        splits,
+        updatedAt: serverTimestamp(),
+      };
+      if (splits === null && categoryId !== undefined) {
+        updateData.categoryId = categoryId;
+        updateData.categorySource = 'manual';
+        updateData.categoryConfidence = 1;
+      }
+
+      await updateDoc(transactionRef, updateData);
+      return id;
+    },
+    onSuccess: () => {
       invalidateFinancialData(queryClient);
     },
   });
