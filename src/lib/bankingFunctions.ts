@@ -37,7 +37,9 @@ export interface BankConnectionStatus {
 
 export interface RecategorizeRequest {
   useLLM?: boolean;
-  mode?: 'all' | 'uncategorized';
+  /** 'failed' retries transactions whose previous LLM pass failed
+   * (`categorizationStatus == 'failed'`) and implies LLM. */
+  mode?: 'all' | 'uncategorized' | 'failed';
   transactionIds?: string[];
 }
 
@@ -46,6 +48,10 @@ export interface RecategorizeResult {
   updated: number;
   skipped: number;
   llmCategorized: number;
+  /** Transactions the LLM pass could not categorize this run (marked
+   * `categorizationStatus: 'failed'` for retry). Optional so older deployed
+   * backends without the field don't break the UI. */
+  llmFailed?: number;
   errors: string[];
 }
 

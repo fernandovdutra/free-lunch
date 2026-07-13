@@ -13,6 +13,7 @@ import { EnableBankingClient } from '../enableBanking/client.js';
 import type { EnableBankingTransaction } from '../enableBanking/types.js';
 import { config } from '../config.js';
 import { Categorizer } from '../categorization/index.js';
+import { runLlmCategorization } from './categorizationPipeline.js';
 import { balanceToCashHolding, todayIso, upsertHistoryPoint } from './holdings.js';
 import type { HistoryPoint } from './holdings.js';
 
@@ -240,7 +241,7 @@ function bookingDateToTimestamp(iso: string): Timestamp {
  * write shape mirrors the client holding mutations (history points stamped as
  * Timestamps, denormalized `value`/`lastValueAt`).
  */
-async function upsertBankCashHolding(
+export async function upsertBankCashHolding(
   db: Firestore,
   userId: string,
   params: {
@@ -255,54 +256,61 @@ async function upsertBankCashHolding(
   const ref = db.collection('users').doc(userId).collection('holdings').doc(`bank-${accountUid}`);
 
   const date = todayIso();
-  const existing = await ref.get();
 
-  if (!existing.exists) {
-    const seed = balanceToCashHolding(amount, { name, platform, date });
-    const ts = isoToTimestamp(date);
-    await ref.set({
-      name: seed.name,
-      platform: seed.platform,
-      type: seed.type,
-      kind: seed.kind,
-      value: seed.value,
-      cost: seed.cost,
-      units: seed.units,
-      liquidity: seed.liquidity,
-      updateSource: seed.updateSource,
-      notes: seed.notes,
-      symbol: seed.symbol,
+  // The read-merge-write of the history array must be atomic: a plain
+  // get-then-set races concurrent syncs and client edits (both read the same
+  // snapshot, the loser's history merge is silently overwritten). A Firestore
+  // transaction re-runs the merge on contention instead.
+  await db.runTransaction(async (txn) => {
+    const existing = await txn.get(ref);
+
+    if (!existing.exists) {
+      const seed = balanceToCashHolding(amount, { name, platform, date });
+      const ts = isoToTimestamp(date);
+      txn.set(ref, {
+        name: seed.name,
+        platform: seed.platform,
+        type: seed.type,
+        kind: seed.kind,
+        value: seed.value,
+        cost: seed.cost,
+        units: seed.units,
+        liquidity: seed.liquidity,
+        updateSource: seed.updateSource,
+        notes: seed.notes,
+        symbol: seed.symbol,
+        bankConnectionId: connectionId,
+        bankAccountUid: accountUid,
+        history: seed.history.map((p) => ({ date: isoToTimestamp(p.date), value: p.value })),
+        lastValueAt: ts,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    // Upsert today's point into the existing history (one point per day) so the
+    // 4×/day auto-sync doesn't bloat the series with intraday duplicates.
+    const stored =
+      (existing.data()?.history as Array<{ date: Timestamp | string; value: number }>) ?? [];
+    const isoHistory: HistoryPoint[] = stored.map((p) => ({
+      date: pointDateToIso(p.date),
+      value: p.value,
+    }));
+    const nextHistory = upsertHistoryPoint(isoHistory, { date, value: amount }).map((p) => ({
+      date: isoToTimestamp(p.date),
+      value: p.value,
+    }));
+
+    txn.update(ref, {
+      value: amount,
+      history: nextHistory,
+      updateSource: 'bank',
       bankConnectionId: connectionId,
       bankAccountUid: accountUid,
-      history: seed.history.map((p) => ({ date: isoToTimestamp(p.date), value: p.value })),
-      lastValueAt: ts,
-      createdAt: FieldValue.serverTimestamp(),
+      lastValueAt: isoToTimestamp(date),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    return;
-  }
-
-  // Upsert today's point into the existing history (one point per day) so the
-  // 4×/day auto-sync doesn't bloat the series with intraday duplicates.
-  const stored =
-    (existing.data()?.history as Array<{ date: Timestamp | string; value: number }>) ?? [];
-  const isoHistory: HistoryPoint[] = stored.map((p) => ({
-    date: pointDateToIso(p.date),
-    value: p.value,
-  }));
-  const nextHistory = upsertHistoryPoint(isoHistory, { date, value: amount }).map((p) => ({
-    date: isoToTimestamp(p.date),
-    value: p.value,
-  }));
-
-  await ref.update({
-    value: amount,
-    history: nextHistory,
-    updateSource: 'bank',
-    bankConnectionId: connectionId,
-    bankAccountUid: accountUid,
-    lastValueAt: isoToTimestamp(date),
-    updatedAt: FieldValue.serverTimestamp(),
   });
 }
 
@@ -415,11 +423,16 @@ async function loadExistingTransactionsByExternalId(
   return byExternalId;
 }
 
-interface PendingTransaction {
+export interface PendingTransaction {
   tx: EnableBankingTransaction;
   externalId: string;
   docId: string;
-  transactionData: ReturnType<typeof transformTransaction>;
+  transactionData: ReturnType<typeof transformTransaction> & {
+    /** Set when the LLM fallback was attempted for this transaction and
+     * ultimately failed — surfaced in Settings → Categorization for retry. */
+    categorizationStatus?: 'failed';
+    categorizationError?: string;
+  };
 }
 
 /** Firestore surfaces failed create-preconditions as gRPC 6 / ALREADY_EXISTS. */
@@ -503,44 +516,43 @@ async function commitNewTransactions(
 
 /**
  * LLM categorization pass: batch-categorize transactions no rule/merchant
- * matched. Best-effort — failures are logged and the sync continues.
+ * matched, via the shared pipeline. Best-effort for the sync itself — the
+ * sync always continues — but transactions the LLM ultimately failed to
+ * categorize are stamped `categorizationStatus: 'failed'` on the document
+ * they are about to be created as, so the failure is visible and retryable
+ * instead of silently leaving them uncategorized.
+ *
+ * Exported for unit tests; not part of the module's public sync API.
  */
-async function applyLlmCategorization(
+export async function applyLlmCategorization(
   categorizer: Categorizer,
   items: PendingTransaction[]
 ): Promise<void> {
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicApiKey) return;
 
-  const uncategorized = items
-    .map((item, idx) => ({ item, idx }))
-    .filter(({ item }) => item.transactionData.categorySource === 'none');
+  const uncategorized = items.filter((item) => item.transactionData.categorySource === 'none');
   if (uncategorized.length === 0) return;
 
-  try {
-    const llmResults = await categorizer.categorizeBatchWithLLM(
-      uncategorized.map(({ item, idx }) => ({
-        index: idx,
-        description: item.transactionData.description,
-        counterparty: item.transactionData.counterparty,
-        amount: item.transactionData.amount,
-      })),
-      anthropicApiKey
-    );
+  const outcome = await runLlmCategorization(
+    categorizer,
+    uncategorized.map((item) => ({
+      payload: item,
+      description: item.transactionData.description,
+      counterparty: item.transactionData.counterparty,
+      amount: item.transactionData.amount,
+    })),
+    anthropicApiKey
+  );
 
-    for (const [idx, llmResult] of llmResults) {
-      if (llmResult.categoryId) {
-        items[idx].transactionData.categoryId = llmResult.categoryId;
-        items[idx].transactionData.categoryConfidence = llmResult.confidence;
-        items[idx].transactionData.categorySource = 'llm';
-      }
-    }
-
-    console.log(
-      `LLM categorized ${llmResults.size}/${uncategorized.length} uncategorized transactions`
-    );
-  } catch (err) {
-    console.warn('LLM categorization failed, continuing without:', err);
+  for (const { payload, categoryId, confidence } of outcome.categorized) {
+    payload.transactionData.categoryId = categoryId;
+    payload.transactionData.categoryConfidence = confidence;
+    payload.transactionData.categorySource = 'llm';
+  }
+  for (const { payload, error } of outcome.failed) {
+    payload.transactionData.categorizationStatus = 'failed';
+    payload.transactionData.categorizationError = error;
   }
 }
 

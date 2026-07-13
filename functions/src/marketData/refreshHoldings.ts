@@ -1,8 +1,11 @@
 /**
  * Shared auto-pricing routine: given a set of `holdings` docs, fetch fresh
- * Twelve Data quotes and write the recomputed value + live/prev price back,
- * appending a dated history point. Mirrors the write shape of the client
- * `useUpdateHoldingValue` mutation so charts read the same denormalized values.
+ * Twelve Data quotes and refresh the denormalized live-price cache
+ * (`livePrice`/`prevPrice`/`priceUpdatedAt`) on each holding. It deliberately
+ * does NOT write `value`, `history`, or `lastValueAt` — Wealth uses a snapshot
+ * paradigm where those only change when the user confirms a check-in (see
+ * {@link applyQuotesToHoldings}); the cached price is what the check-in flow
+ * reads to suggest a fresh value.
  *
  * Used by both the scheduled `refreshMarketData` (collection-group, all users)
  * and the on-demand `getLiveQuote` callable (a single caller's auto holdings).

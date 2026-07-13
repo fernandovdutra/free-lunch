@@ -14,8 +14,11 @@ import { loadAdvisorMemory, formatMemoryForPrompt, applyDailyMicroUpdate } from 
 import { storeInsight, getPreviousInsight, markInsightEmailed } from '../shared/insightStorage.js';
 import { sendInsightEmail } from '../shared/emailSender.js';
 import { buildDailyEmailHtml } from '../shared/emailTemplates.js';
+import { requestLlmJson } from '../shared/llmJson.js';
 import { config } from '../config.js';
 
+// Insights are single-user by design (household app) — see
+// functions/src/ARCHITECTURE.md for the boundary and its rationale.
 const SINGLE_USER_ID = process.env.SINGLE_USER_ID ?? '';
 
 /**
@@ -109,19 +112,21 @@ export const generateDailyInsight = onSchedule(
     });
 
     const client = new Anthropic({ apiKey });
-    const message = await client.messages.create({
+    // Robust JSON extraction with one corrective retry — prose around the
+    // JSON must not silently drop the day's insight.
+    const extracted = await requestLlmJson(client, {
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }],
+      maxTokens: 2048,
+      prompt,
+      label: 'daily insight',
     });
 
-    const textBlock = message.content.find((b) => b.type === 'text');
-    if (!textBlock || textBlock.type !== 'text') {
-      console.error('LLM returned no text');
+    if (!extracted.ok) {
+      console.error(`Daily insight skipped: ${extracted.error}`);
       return;
     }
 
-    let parsed: {
+    const parsed = extracted.value as {
       summary: string;
       highlights: { label: string; value: string; trend?: string; sentiment: string }[];
       recommendations: {
@@ -132,17 +137,6 @@ export const generateDailyInsight = onSchedule(
       }[];
       narrative: string;
     };
-
-    try {
-      let json = textBlock.text.trim();
-      if (json.startsWith('```')) {
-        json = json.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-      }
-      parsed = JSON.parse(json);
-    } catch (e) {
-      console.error('Failed to parse LLM response:', textBlock.text);
-      return;
-    }
 
     // Store insight
     const insightId = await storeInsight(SINGLE_USER_ID, {

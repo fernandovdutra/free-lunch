@@ -2,7 +2,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import type { CategorizationResult, StoredRule } from './types.js';
 import { matchRules } from './ruleEngine.js';
 import { matchMerchant } from './merchantDatabase.js';
-import { categorizeWithLLM } from './llmCategorizer.js';
+import { categorizeWithLLM, type LlmCategorizationOutcome } from './llmCategorizer.js';
 
 interface CategoryDoc {
   id: string;
@@ -173,7 +173,8 @@ export class Categorizer {
   /**
    * Batch-categorize uncategorized transactions using LLM.
    * Call this after pattern matching to fill in gaps.
-   * Returns a map from transaction index to categorization result.
+   * Returns per-index results plus per-index failure reasons — every input
+   * index lands in exactly one of the two maps.
    */
   async categorizeBatchWithLLM(
     transactions: Array<{
@@ -183,7 +184,7 @@ export class Categorizer {
       amount: number;
     }>,
     apiKey: string
-  ): Promise<Map<number, CategorizationResult>> {
+  ): Promise<LlmCategorizationOutcome> {
     if (!this.initialized) {
       throw new Error('Categorizer not initialized. Call initialize() first.');
     }

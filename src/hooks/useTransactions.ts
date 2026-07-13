@@ -4,6 +4,7 @@ import {
   collection,
   query,
   orderBy,
+  getCountFromServer,
   getDocs,
   limit,
   startAfter,
@@ -415,6 +416,32 @@ export function useInfiniteTransactions(filters: TransactionFilters = {}) {
     hasNextPage: result.hasNextPage,
     isFetchingNextPage: result.isFetchingNextPage,
   };
+}
+
+/**
+ * Count of transactions whose LLM categorization failed
+ * (`categorizationStatus == 'failed'`, stamped by the backend when the AI
+ * pass could not produce a category). Server-side aggregation — no documents
+ * are downloaded. The key lives under the `transactions` prefix, so
+ * `invalidateFinancialData` (called by every categorization mutation,
+ * including the retry) refreshes it automatically.
+ */
+export function useFailedCategorizationCount() {
+  const { dataOwnerId } = useAuth();
+
+  return useQuery({
+    queryKey: queryKeys.transactions.failedCategorizationCount(dataOwnerId ?? ''),
+    queryFn: async () => {
+      if (!dataOwnerId) return 0;
+      const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
+      const snapshot = await getCountFromServer(
+        query(transactionsRef, where('categorizationStatus', '==', 'failed'))
+      );
+      return snapshot.data().count;
+    },
+    enabled: !!dataOwnerId,
+    staleTime: 1000 * 60 * 5,
+  });
 }
 
 /**

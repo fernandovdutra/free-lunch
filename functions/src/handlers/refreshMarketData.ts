@@ -6,8 +6,10 @@ import { refreshHoldings } from '../marketData/refreshHoldings.js';
 /**
  * Scheduled auto-pricing — runs once daily at 23:30 CET (after market close).
  * Collection-group-queries every auto-priced holding with a symbol, batches the
- * symbols into Twelve Data `/quote` calls, and writes the recomputed value +
- * live/prev price back to each holding (appending a dated history point).
+ * symbols into Twelve Data `/quote` calls, and refreshes each holding's
+ * live-price cache (`livePrice`/`prevPrice`/`priceUpdatedAt`). It never writes
+ * `value` or `history` — recorded snapshots only change when the user confirms
+ * a check-in (see `marketData/refreshHoldings.ts`).
  */
 export const refreshMarketData = onSchedule(
   {
