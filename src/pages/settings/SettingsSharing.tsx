@@ -119,7 +119,7 @@ export function SettingsSharing() {
     return <Navigate to="/settings" replace />;
   }
 
-  const submit = (e: React.FormEvent) => {
+  const submit = (e: React.SubmitEvent) => {
     e.preventDefault();
     setError(null);
     invite.mutate(

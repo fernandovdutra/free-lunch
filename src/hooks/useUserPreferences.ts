@@ -60,7 +60,10 @@ export async function resolvePostLoginPath(uid: string): Promise<string> {
     if (!snap.exists()) return '/';
     const data = snap.data() as { preferences?: Partial<UserPreferences> };
     const tab = mergeDefaults(data.preferences).display.defaultTab;
-    return DEFAULT_TAB_PATHS[tab] ?? '/';
+    // A stored defaultTab from a newer/older client may not be a known tab at
+    // runtime, so treat the lookup as fallible despite the narrow static type.
+    const path = (DEFAULT_TAB_PATHS as Record<string, string | undefined>)[tab];
+    return path ?? '/';
   } catch {
     return '/';
   }
@@ -109,7 +112,7 @@ export function useUpdateUserPreferences() {
         ...Object.fromEntries(
           Object.entries(patch).map(([k, v]) => [
             k,
-            { ...(prev?.[k as keyof UserPreferences] ?? {}), ...(v ?? {}) },
+            { ...(prev?.[k as keyof UserPreferences] ?? {}), ...v },
           ])
         ),
       } as Partial<UserPreferences>);

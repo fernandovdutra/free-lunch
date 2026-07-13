@@ -61,7 +61,6 @@ export async function timed<T>(label: string, fn: () => Promise<T>): Promise<T> 
     return await fn();
   } finally {
     const ms = Math.round(now() - start);
-    // eslint-disable-next-line no-console
     console.info(`[perf] ${label}: ${ms}ms`);
     record({ label, ms, at: Date.now() });
   }

@@ -43,17 +43,17 @@ describe('matchMerchant', () => {
     });
   });
 
-  describe('entertainment matching', () => {
+  describe('streaming subscription matching', () => {
     it('matches NETFLIX', () => {
       const result = matchMerchant('NETFLIX.COM');
       expect(result).not.toBeNull();
-      expect(result?.categorySlug).toBe('entertainment');
+      expect(result?.categorySlug).toBe('subscriptions.streaming');
     });
 
     it('matches SPOTIFY', () => {
       const result = matchMerchant('SPOTIFY AB');
       expect(result).not.toBeNull();
-      expect(result?.categorySlug).toBe('entertainment');
+      expect(result?.categorySlug).toBe('subscriptions.streaming');
     });
   });
 
@@ -67,7 +67,7 @@ describe('matchMerchant', () => {
     it('matches ZIGGO', () => {
       const result = matchMerchant('ZIGGO BV INTERNET');
       expect(result).not.toBeNull();
-      expect(result?.categorySlug).toBe('housing.utilities');
+      expect(result?.categorySlug).toBe('housing.communications');
     });
   });
 

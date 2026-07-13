@@ -6,8 +6,12 @@ export function OfflineBanner() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
-    const goOffline = () => setIsOffline(true);
-    const goOnline = () => setIsOffline(false);
+    const goOffline = () => {
+      setIsOffline(true);
+    };
+    const goOnline = () => {
+      setIsOffline(false);
+    };
 
     window.addEventListener('offline', goOffline);
     window.addEventListener('online', goOnline);
@@ -28,7 +32,13 @@ export function OfflineBanner() {
         <p className="mb-6 text-sm text-muted-foreground">
           Check your internet connection and try again.
         </p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
+        <Button
+          onClick={() => {
+            window.location.reload();
+          }}
+        >
+          Retry
+        </Button>
       </div>
     </div>
   );

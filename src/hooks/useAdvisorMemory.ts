@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, type Timestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -55,14 +55,24 @@ export function useAdvisorMemoryMeta() {
         };
       }
 
-      const data = snap.data();
+      // Firestore returns loosely-typed DocumentData; cast to the shape we
+      // expect but keep the timestamp accessors optional so a malformed
+      // field degrades to null instead of throwing inside the queryFn.
+      const data = snap.data() as {
+        updatedAt?: Partial<Timestamp>;
+        consolidatedAt?: Partial<Timestamp>;
+        spendingBaselines?: unknown[];
+        knownMerchants?: unknown[];
+        behavioralPatterns?: unknown[];
+        temporalPatterns?: unknown[];
+      };
       return {
-        updatedAt: data['updatedAt']?.toDate?.() ?? null,
-        consolidatedAt: data['consolidatedAt']?.toDate?.() ?? null,
-        baselinesCount: (data['spendingBaselines'] as unknown[])?.length ?? 0,
-        merchantsCount: (data['knownMerchants'] as unknown[])?.length ?? 0,
-        behavioralPatternsCount: (data['behavioralPatterns'] as unknown[])?.length ?? 0,
-        temporalPatternsCount: (data['temporalPatterns'] as unknown[])?.length ?? 0,
+        updatedAt: data.updatedAt?.toDate?.() ?? null,
+        consolidatedAt: data.consolidatedAt?.toDate?.() ?? null,
+        baselinesCount: data.spendingBaselines?.length ?? 0,
+        merchantsCount: data.knownMerchants?.length ?? 0,
+        behavioralPatternsCount: data.behavioralPatterns?.length ?? 0,
+        temporalPatternsCount: data.temporalPatterns?.length ?? 0,
       };
     },
     enabled: !!dataOwnerId,

@@ -98,9 +98,6 @@ type DialogId = 'resetCategories' | 'resetData' | null;
  */
 export function SettingsDanger() {
   const { user, currentRole } = useAuth();
-  if (currentRole && currentRole !== 'owner') {
-    return <Navigate to="/settings" replace />;
-  }
   const { data: transactions = [] } = useTransactions({});
   const resetData = useResetTransactionData();
   const resetCategories = useResetCategories();
@@ -108,6 +105,10 @@ export function SettingsDanger() {
   const [openDialog, setOpenDialog] = useState<DialogId>(null);
 
   const transactionCount = transactions.length;
+
+  if (currentRole && currentRole !== 'owner') {
+    return <Navigate to="/settings" replace />;
+  }
 
   const handleResetCategories = async () => {
     try {

@@ -56,7 +56,7 @@ export function Home() {
   const { data: budgets = [] } = useBudgets();
   const { data: budgetProgress } = useBudgetProgress(homeRange);
   const { data: categories = [] } = useCategories();
-  const { data: pendingReimbursements = [] } = usePendingReimbursements();
+  const { data: pendingReimbursements } = usePendingReimbursements();
   const { data: connections = [] } = useBankConnections();
   const { data: fixedSchedule = [] } = useFixedSchedule();
   const monthKey = format(selectedMonth, 'yyyy-MM');
@@ -178,7 +178,7 @@ export function Home() {
   const topCategories = categorySpending.slice(0, 4);
   const moreCategoryCount = Math.max(0, categorySpending.length - topCategories.length);
 
-  const progressByCategory = new Map((budgetProgress ?? []).map((p) => [p.budget.categoryId, p]));
+  const progressByCategory = new Map(budgetProgress.map((p) => [p.budget.categoryId, p]));
 
   const categoryEntries: HomeCategoryEntry[] = topCategories.map((c) => {
     const bp = progressByCategory.get(c.categoryId);

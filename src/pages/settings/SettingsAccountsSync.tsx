@@ -21,12 +21,13 @@ import { ToggleRow } from './_shared/ToggleRow';
  */
 export function SettingsAccountsSync() {
   const { currentRole } = useAuth();
-  if (currentRole && currentRole !== 'owner') {
-    return <Navigate to="/settings" replace />;
-  }
   const [autoSyncOnOpen, setAutoSyncOnOpen] = useState(true);
   const [backgroundRefresh, setBackgroundRefresh] = useState(true);
   const [syncNotifications, setSyncNotifications] = useState(false);
+
+  if (currentRole && currentRole !== 'owner') {
+    return <Navigate to="/settings" replace />;
+  }
 
   return (
     <SettingsScreen title="ACCOUNTS & SYNC">
