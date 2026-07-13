@@ -3,6 +3,7 @@ import { doc, getDoc, type Timestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 
 // ---- Types ----
 
@@ -28,7 +29,7 @@ export function useAdvisorMemoryMeta() {
   const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: ['advisorMemory', dataOwnerId, 'meta'],
+    queryKey: queryKeys.advisorMemory.meta(dataOwnerId ?? ''),
     queryFn: async (): Promise<AdvisorMemoryMeta> => {
       if (!dataOwnerId) {
         return {
@@ -96,7 +97,7 @@ export function useRefreshAdvisorMemory() {
       return result.data;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['advisorMemory', dataOwnerId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.advisorMemory.all(dataOwnerId ?? '') });
     },
   });
 }

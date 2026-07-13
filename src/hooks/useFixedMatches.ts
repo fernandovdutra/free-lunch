@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   monthMarkedKeys,
   markPosted,
@@ -34,7 +35,7 @@ export function useFixedMatches(monthKey: string) {
   const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: ['fixedMatches', dataOwnerId ?? '', monthKey],
+    queryKey: queryKeys.fixedMatches.month(dataOwnerId ?? '', monthKey),
     enabled: !!dataOwnerId,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<Set<string>> => {
@@ -65,7 +66,7 @@ function useToggleMark(
       await setDoc(matchesRef(dataOwnerId), apply(current, monthKey, key));
     },
     onMutate: async ({ monthKey, key }: MarkVars) => {
-      const qk = ['fixedMatches', dataOwnerId ?? '', monthKey];
+      const qk = queryKeys.fixedMatches.month(dataOwnerId ?? '', monthKey);
       await queryClient.cancelQueries({ queryKey: qk });
       const prev = queryClient.getQueryData<Set<string>>(qk);
       queryClient.setQueryData<Set<string>>(qk, mutate(prev ?? new Set(), key));
@@ -75,8 +76,8 @@ function useToggleMark(
       if (context) queryClient.setQueryData(context.qk, context.prev);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['fixedMatches'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.fixedMatches.root });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root });
     },
   });
 }
