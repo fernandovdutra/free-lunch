@@ -28,9 +28,9 @@ This file is the durable state — update status here after every unit.
 
 | Unit | Branch | Scope (assessment items) | Status | PR |
 |---|---|---|---|---|
-| U1 | `claude/assess-u01-ci-gates` | Green all gates + CI workflow: tsconfig baseUrl, rules-of-hooks fixes (1.6), stale merchant tests, lint errors → 0; add PR-triggered quality workflow; gate deploy on it (1.12, 2.1, P0.3) | PR-open, in review | #86 |
+| U1 | `claude/assess-u01-ci-gates` | Green all gates + CI workflow: tsconfig baseUrl, rules-of-hooks fixes (1.6), stale merchant tests, lint errors → 0; add PR-triggered quality workflow; gate deploy on it (1.12, 2.1, P0.3) | **merged** | #86 |
 | U2 | `claude/assess-u02-query-keys` | Query-key factory + shared invalidation helper (2.4); fix 1.4, 1.5, 1.8, 1.17; month-aware budget progress + month persistence in MonthContext (P0.2, P2.12) | in-progress (based on U1 tip) | — |
-| U3 | `claude/assess-u03-sync-idempotency` | Deterministic transaction doc IDs from `externalId`, stable synthetic IDs, per-account error surfacing (1.1–1.3), bulk dedup lookup (1.9), ICS match date constraint (1.11) | in-progress (based on U1 tip) | — |
+| U3 | `claude/assess-u03-sync-idempotency` | Deterministic transaction doc IDs from `externalId`, stable synthetic IDs, per-account error surfacing (1.1–1.3), bulk dedup lookup (1.9), ICS match date constraint (1.11) | pushed, in review | — |
 | U4 | `claude/assess-u04-security` | MCP token → Authorization header, backward-compatible with path token (1.7); constant-time agent-token compare (1.14); `bankConnections` reads owner-only (1.15); role-check `getLiveQuote` (1.13); per-user FX/quote throttle (1.16) (P0.4, P1.8) | in-progress (based on U1 tip) | — |
 | U5 | `claude/assess-u05-timezones` | Canonical Europe/Amsterdam date helpers on functions + client; fix remittance-time parsing and sync date windows (1.10); month-boundary skew (1.19) | pending | — |
 | U6 | `claude/assess-u06-resilience` | Root + route error boundaries (2.2); route-level `React.lazy` code splitting incl. recharts (2.3) (P1.6) | pending | — |
@@ -73,3 +73,5 @@ Every unit must pass before PR-open: `npm run typecheck` · `npm run lint` (0 er
 
 | Unit | typecheck | lint | tests | extra verification |
 |---|---|---|---|---|
+| U1 | ✅ | ✅ 0 err / 65 warn | ✅ 460/460 | `npm run build` ✅; functions `tsc` ✅; independent review: merge-ready (3 minor findings fixed pre-merge: `/` fallback restored, non-throwing advisor timestamps, functions typecheck added to CI); quality workflow green on PR #86 |
+| U3 | ✅ | ✅ 0 err | ✅ 483/483 (agent-reported) | new race/idempotency/error-surfacing/ICS tests; independent review in progress |
