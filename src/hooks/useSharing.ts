@@ -3,6 +3,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   inviteMemberFn,
   removeMemberFn,
@@ -56,7 +57,7 @@ export function useSharing() {
   }, [isOwner, dataOwnerId, queryClient]);
 
   const query = useQuery<SharingState>({
-    queryKey: ['sharing', dataOwnerId],
+    queryKey: queryKeys.sharing.state(dataOwnerId ?? ''),
     enabled: isOwner,
     queryFn: async () => {
       if (!dataOwnerId) return EMPTY;

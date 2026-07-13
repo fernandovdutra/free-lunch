@@ -11,6 +11,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   format,
   startOfMonth,
@@ -18,11 +19,14 @@ import {
   eachMonthOfInterval,
 } from 'date-fns';
 
-// Query keys
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
+// The month key is part of the analytics key because the queryFn computes
+// current-month figures and a rolling 12-month window relative to the
+// selected month; switching month must refetch.
 export const counterpartyKeys = {
-  all: (userId: string) => ['counterparty', userId] as const,
-  analytics: (userId: string, counterparty: string) =>
-    ['counterparty', userId, counterparty, 'analytics'] as const,
+  all: (userId: string) => queryKeys.counterparty.all(userId),
+  analytics: (userId: string, counterparty: string, monthKey: string) =>
+    queryKeys.counterparty.analytics(userId, counterparty, monthKey),
 };
 
 export interface MonthlySpending {
@@ -64,9 +68,11 @@ function transformDoc(doc: QueryDocumentSnapshot): { date: Date; amount: number 
 export function useCounterpartyAnalytics(counterparty: string | null) {
   const { dataOwnerId } = useAuth();
   const { selectedMonth } = useMonth();
+  // Local-time format → TZ-stable yyyy-MM (same convention as useSpendingExplorer).
+  const monthKey = format(selectedMonth, 'yyyy-MM');
 
   return useQuery({
-    queryKey: counterpartyKeys.analytics(dataOwnerId ?? '', counterparty ?? ''),
+    queryKey: counterpartyKeys.analytics(dataOwnerId ?? '', counterparty ?? '', monthKey),
     queryFn: async (): Promise<CounterpartyAnalytics | null> => {
       if (!dataOwnerId || !counterparty) return null;
 

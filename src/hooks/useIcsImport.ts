@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { invalidateFinancialData, queryKeys } from '@/lib/queryKeys';
 import {
   importIcsStatementFn,
   type ImportIcsRequest,
@@ -14,9 +15,10 @@ export function useIcsImport() {
       return result.data;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['icsStatements'] });
+      // Import writes transactions → refresh every money surface, plus the
+      // statement list itself.
+      invalidateFinancialData(queryClient);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.icsStatements.root });
     },
   });
 }
