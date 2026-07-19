@@ -145,7 +145,12 @@ export function useRecentIncomeTransactions(searchText?: string) {
       const transactionsRef = collection(db, 'users', dataOwnerId, 'transactions');
       const q = query(transactionsRef, orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
-      const transactions = snapshot.docs.map(transformTransaction);
+      // Re-sort after normalizing dates: Firestore's orderBy groups Timestamp
+      // and string values separately, so documents with mixed `date` types
+      // come back out of chronological order.
+      const transactions = snapshot.docs
+        .map(transformTransaction)
+        .sort((a, b) => b.date.getTime() - a.date.getTime());
 
       // Filter for income transactions not already used for clearing
       let income = transactions.filter(
