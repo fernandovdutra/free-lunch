@@ -95,7 +95,11 @@ export default defineConfig(({ mode }) => {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-          charts: ['recharts'],
+          // NOTE: no manual 'charts' chunk. recharts is only reachable from
+          // the lazy CounterpartyDetail route, so Rollup already splits it
+          // into a lazy chunk. Forcing it into a manual chunk hoisted shared
+          // deps (e.g. clsx) into that chunk, making the entry preload
+          // recharts on first paint.
           pdf: ['pdfjs-dist'],
           ui: [
             '@radix-ui/react-dialog',
