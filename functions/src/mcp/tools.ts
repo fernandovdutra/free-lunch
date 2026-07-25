@@ -330,6 +330,7 @@ async function getSpendingSummary(
     const data = doc.data();
     if (data.excludeFromTotals) continue;
     if (data.reimbursement?.status === 'pending') continue;
+    if (data.reimbursement?.status === 'cleared') continue;
 
     if (data.amount > 0) {
       totalIncome += data.amount;

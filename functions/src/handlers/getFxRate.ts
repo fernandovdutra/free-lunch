@@ -1,5 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { getFirestore } from 'firebase-admin/firestore';
 import { TwelveDataClient, twelveDataApiKey } from '../marketData/twelveData.js';
+import { enforceApiThrottle, FX_CALLS_PER_HOUR } from '../shared/apiThrottle.js';
 
 /** Supported currency codes — mirror `CurrencyCode` in the app's wealth types. */
 const SUPPORTED = new Set(['EUR', 'USD', 'BRL', 'GBP']);
@@ -36,6 +38,10 @@ export const getFxRate = onCall(
     if (!apiKey) {
       throw new HttpsError('failed-precondition', 'FX rates not configured');
     }
+
+    // Per-caller throttle protecting the shared Twelve Data free tier. Applied
+    // after the same-currency short-circuit so free lookups don't count.
+    await enforceApiThrottle(getFirestore(), request.auth.uid, 'fx', FX_CALLS_PER_HOUR);
 
     const symbol = `${f}/${t}`;
     const client = new TwelveDataClient(apiKey);

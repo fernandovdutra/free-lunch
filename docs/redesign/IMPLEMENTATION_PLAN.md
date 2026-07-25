@@ -1,6 +1,13 @@
 # Free Lunch UI Redesign — Implementation Plan
 
-**Aesthetic:** Calm Terminal (see [README.md](design_handoff_freelunch_redesign/README.md)).
+> **Note (2026-07):** This is a historical plan. The design handoff bundle it
+> references (`design_handoff_freelunch_redesign/`, including
+> `designs/Free Lunch v8.html`) has been removed from the repository — the
+> redesign shipped and the live source of truth is
+> `.claude/reference/free-lunch-design-system.md` plus the implemented
+> `src/components/redesign/` primitives.
+
+**Aesthetic:** Calm Terminal (see the removed handoff bundle's README, per the note above).
 **Branch:** `ui-redesign` (based on `origin/main` @ `b886cd5`).
 **Delivery:** phased commits on `ui-redesign`, single PR to `main` at the end.
 **Form factor:** mobile mocks are literal; desktop adapts by turning the TabBar into a side rail.

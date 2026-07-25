@@ -12,7 +12,7 @@ test.describe('Authentication', () => {
   });
 
   test('should expose dev-only email/password fallback in dev builds', async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login?dev=1');
 
     // The dev fallback renders only when import.meta.env.DEV is true.
     // The Playwright dev server is a dev build, so the fields must be present.
@@ -22,7 +22,7 @@ test.describe('Authentication', () => {
   });
 
   test('should show error for invalid login', async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login?dev=1');
 
     await page.getByLabel(/email/i).fill('invalid@test.com');
     await page.getByLabel(/password/i).fill('wrongpassword');

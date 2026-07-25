@@ -1,21 +1,19 @@
 import { test as base, expect } from '@playwright/test';
-import { login, register, TEST_USER } from './fixtures/auth';
+import { login, canAuthenticate } from './fixtures/auth';
+import { STAGED, stageCategorizationData } from './fixtures/emulator';
 
 const test = base.extend({});
 
-// Helper to check if we can authenticate
-async function canAuthenticate(page: ReturnType<typeof base.extend>['page']) {
-  try {
-    const registered = await register(page as any);
-    if (registered) return true;
-    const loggedIn = await login(page as any);
-    return loggedIn;
-  } catch {
-    return false;
-  }
-}
+// The app is mobile-first and edit sheets animate from the bottom; the
+// stable, production-representative way to drive them is an iPhone viewport.
+test.use({ viewport: { width: 390, height: 844 } });
 
-test.describe('Auto-Categorization', () => {
+/**
+ * Manual categorization journey: open a transaction's edit sheet, change
+ * its category via the nested CategoryPicker, verify the list reflects it.
+ * The staged transaction is reset to Coffee & Bars on every run.
+ */
+test.describe('Categorization', () => {
   test.describe.configure({ mode: 'serial' });
 
   let authAvailable = false;
@@ -24,141 +22,52 @@ test.describe('Auto-Categorization', () => {
     const page = await browser.newPage();
     authAvailable = await canAuthenticate(page);
     await page.close();
-
-    if (!authAvailable) {
-      console.warn(
-        '\n⚠️  Skipping authenticated tests - Firebase emulators not running.\n' +
-          '   To run: npm run firebase:emulators && npm run e2e\n'
-      );
-    }
+    if (authAvailable) await stageCategorizationData();
   });
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!authAvailable, 'Authentication not available - run Firebase emulators');
-    await login(page, TEST_USER.email, TEST_USER.password);
+    test.skip(!authAvailable, 'Emulator stack not available');
+    await login(page);
+    await page.goto('/transactions');
+    await expect(page.getByText(/· \d+ TXN/).first()).toBeVisible({ timeout: 20000 });
   });
 
-  test('should display transactions page with category column', async ({ page }) => {
-    await page.goto('/transactions');
-    await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({
-      timeout: 10000,
-    });
+  test('recategorizes a transaction via the category picker', async ({ page }) => {
+    // The list is virtualized — search to bring the staged row into view.
+    await page.getByPlaceholder(/search description or payee/i).fill(STAGED.categorizeMerchant);
+    // Staged txn starts as Coffee & Bars.
+    const row = page.getByRole('button').filter({ hasText: STAGED.categorizeMerchant }).first();
+    await expect(row).toContainText('COFFEE & BARS');
+    await row.click();
 
-    // The transaction list header should include category-related info
-    await expect(page.getByText(/category/i).first()).toBeVisible();
-  });
+    // Scope to the edit sheet — hasText is case-insensitive, so unscoped
+    // locators would also match the list row behind the sheet overlay.
+    const editSheet = page
+      .getByRole('dialog')
+      .filter({ hasText: STAGED.categorizeMerchant })
+      .first();
+    await editSheet.getByRole('button').filter({ hasText: 'Coffee & Bars' }).first().click();
 
-  test('should allow category selection for a transaction', async ({ page }) => {
-    await page.goto('/transactions');
-    await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({
-      timeout: 10000,
-    });
+    const picker = page.getByRole('dialog').filter({ hasText: 'SELECT CATEGORY' }).first();
+    await expect(picker.getByText('SELECT CATEGORY')).toBeVisible({ timeout: 10000 });
 
-    // Create a transaction first
-    await page.getByRole('button', { name: /add transaction/i }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
+    // Search narrows the tree; pick Restaurants.
+    await picker.getByPlaceholder(/search categories/i).fill('restaur');
+    await picker.getByRole('button').filter({ hasText: 'Restaurants' }).first().click();
 
-    await page.getByLabel(/description/i).fill('Categorization Test');
-    await page.getByLabel(/amount/i).fill('-30');
-    await page
-      .getByRole('button', { name: /add transaction/i })
-      .last()
-      .click();
-    await expect(page.getByRole('dialog')).not.toBeVisible();
+    // Edit sheet reflects the change.
+    await expect(
+      editSheet.getByRole('button').filter({ hasText: 'Restaurants' }).first()
+    ).toBeVisible({ timeout: 10000 });
 
-    // Wait for transaction to appear (use first() as there may be multiple from previous runs)
-    await expect(page.getByText('Categorization Test').first()).toBeVisible({ timeout: 10000 });
-  });
-
-  test('should show rule creation dialog when manually categorizing', async ({ page }) => {
-    // Seeded user already has categories — no precondition step needed.
-    await page.goto('/transactions');
-    await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Create a transaction
-    await page.getByRole('button', { name: /add transaction/i }).click();
-    await page.getByLabel(/description/i).fill('Rule Test Transaction');
-    await page.getByLabel(/amount/i).fill('-40');
-    await page
-      .getByRole('button', { name: /add transaction/i })
-      .last()
-      .click();
-    await expect(page.getByRole('dialog')).not.toBeVisible();
-
-    await expect(page.getByText('Rule Test Transaction').first()).toBeVisible({ timeout: 10000 });
-  });
-
-  test('should have category filter in transactions view', async ({ page }) => {
-    await page.goto('/transactions');
-    await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Check for category filter dropdown
+    // And so does the list row after closing the sheet.
+    await page.keyboard.press('Escape');
     await expect(
       page
-        .getByRole('combobox')
-        .filter({ hasText: /all categories|uncategorized/i })
+        .getByRole('button')
+        .filter({ hasText: STAGED.categorizeMerchant })
+        .filter({ hasText: 'RESTAURANTS' })
         .first()
-    ).toBeVisible();
-  });
-
-  test('should filter transactions by uncategorized', async ({ page }) => {
-    await page.goto('/transactions');
-    await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Find and click the category filter
-    const categoryFilter = page
-      .getByRole('combobox')
-      .filter({ hasText: /all categories|category/i })
-      .first();
-
-    if (await categoryFilter.isVisible()) {
-      await categoryFilter.click();
-      // Look for uncategorized option
-      const uncategorizedOption = page.getByText(/uncategorized/i, { exact: false });
-      if (await uncategorizedOption.isVisible()) {
-        await uncategorizedOption.click();
-      }
-    }
-  });
-
-  test('should display re-categorize button on settings page', async ({ page }) => {
-    await page.goto('/settings');
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Look for the re-categorize section
-    await expect(page.getByText(/auto-categorization/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /re-categorize/i })).toBeVisible();
-  });
-
-  test('should display re-categorize description', async ({ page }) => {
-    await page.goto('/settings');
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Check for the description text
-    await expect(page.getByText(/re-apply auto-categorization to all transactions/i)).toBeVisible();
-  });
-
-  test('should show apply to similar dialog when changing category', async ({ page }) => {
-    // Seeded user already has categories — no precondition step needed.
-    await page.goto('/transactions');
-    await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Find any transaction row and check for category select elements
-    // The apply to similar dialog should appear when a category is changed
-    // For this test, we just verify the transactions page loads correctly
-    // since testing the full flow requires specific bank data
-    await expect(page.getByText(/transaction/i).first()).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
   });
 });
