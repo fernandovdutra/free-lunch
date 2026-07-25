@@ -84,6 +84,12 @@ export const queryKeys = {
     matchingCountRoot: ['matchingTransactionsCount'] as const,
     matchingCount: (uid: string, counterparty: string | null) =>
       ['matchingTransactionsCount', uid, counterparty] as const,
+    /** Count of transactions whose LLM categorization failed
+     * (`categorizationStatus == 'failed'`). Lives under the `transactions`
+     * prefix so {@link invalidateFinancialData} refreshes it after any
+     * (re)categorization mutation. */
+    failedCategorizationCount: (uid: string) =>
+      ['transactions', uid, 'failedCategorizationCount'] as const,
   },
 
   dashboard: {

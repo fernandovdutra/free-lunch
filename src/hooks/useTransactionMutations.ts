@@ -7,6 +7,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   serverTimestamp,
   Timestamp,
   where,
@@ -121,6 +122,16 @@ export function useUpdateTransaction() {
         updateData.date = Timestamp.fromDate(data.date);
       }
 
+      // A user-chosen category resolves any recorded AI-categorization
+      // failure, so drop the marker the backend left behind (see
+      // `categorizationStatus` in functions/src/shared/categorizationPipeline.ts).
+      // Otherwise the transaction keeps showing up in the "retry failed AI
+      // categorization" count and a retry would overwrite this manual choice.
+      if ('categoryId' in data || data.categorySource === 'manual') {
+        updateData.categorizationStatus = deleteField();
+        updateData.categorizationError = deleteField();
+      }
+
       await updateDoc(transactionRef, updateData);
       return id;
     },
@@ -142,6 +153,11 @@ export function useUpdateTransactionCategory() {
         categoryId,
         categorySource: 'manual',
         categoryConfidence: 1,
+        // The user has resolved this transaction by hand: clear any
+        // AI-categorization failure marker so it leaves the "retry failed AI
+        // categorization" surface and a retry cannot overwrite this choice.
+        categorizationStatus: deleteField(),
+        categorizationError: deleteField(),
         updatedAt: serverTimestamp(),
       });
       return id;
@@ -319,6 +335,10 @@ export function useBulkUpdateCategory() {
             categoryId,
             categorySource: 'manual',
             categoryConfidence: 1,
+            // Same as the single-transaction path: a manual category clears
+            // any AI-categorization failure marker.
+            categorizationStatus: deleteField(),
+            categorizationError: deleteField(),
             updatedAt: serverTimestamp(),
           });
         });

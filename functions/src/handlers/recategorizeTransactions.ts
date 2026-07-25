@@ -1,14 +1,24 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { getFirestore, FieldValue, WriteBatch } from 'firebase-admin/firestore';
+import { getFirestore, WriteBatch } from 'firebase-admin/firestore';
 import { Categorizer } from '../categorization/index.js';
 import { z } from 'zod';
 import { resolveDataOwner, requireRole } from '../shared/dataOwner.js';
+import {
+  CATEGORIZATION_BATCH_SIZE,
+  categorizationSuccessFields,
+  runLlmCategorization,
+  writeLlmCategorizationOutcome,
+  type LlmWorkItem,
+} from '../shared/categorizationPipeline.js';
 
 interface RecategorizeResult {
   processed: number;
   updated: number;
   skipped: number;
   llmCategorized: number;
+  /** Transactions the LLM pass could not categorize this run — they carry
+   * `categorizationStatus: 'failed'` and can be retried from Settings. */
+  llmFailed: number;
   errors: string[];
 }
 
@@ -16,7 +26,7 @@ const recategorizeSchema = z
   .object({
     useLLM: z.boolean().optional().default(false),
     mode: z
-      .enum(['all', 'uncategorized'])
+      .enum(['all', 'uncategorized', 'failed'])
       .optional()
       .default('all'),
     transactionIds: z.array(z.string()).optional(),
@@ -24,9 +34,6 @@ const recategorizeSchema = z
   .nullable()
   .optional()
   .transform((val) => val ?? { useLLM: false, mode: 'all' as const });
-
-// Firestore batch limit
-const BATCH_SIZE = 500;
 
 export const recategorizeTransactions = onCall(
   {
@@ -49,8 +56,11 @@ export const recategorizeTransactions = onCall(
     }
     const { useLLM, mode, transactionIds } = parseResult.data;
 
-    // When targeting specific transactions, always use LLM
-    const effectiveUseLLM = useLLM || (transactionIds && transactionIds.length > 0);
+    // When targeting specific transactions, always use LLM. The 'failed' mode
+    // exists to retry transactions a previous LLM pass failed on, so it
+    // implies LLM too.
+    const effectiveUseLLM =
+      useLLM || (transactionIds && transactionIds.length > 0) || mode === 'failed';
     const isExplicitAICategorize = transactionIds && transactionIds.length > 0;
 
     const userId = await resolveDataOwner(request.auth.uid);
@@ -70,13 +80,21 @@ export const recategorizeTransactions = onCall(
       const docSnaps = await db.getAll(...docRefs);
       docs = docSnaps.filter((d) => d.exists) as FirebaseFirestore.QueryDocumentSnapshot[];
     } else {
-      let snapshot;
       if (mode === 'uncategorized') {
-        snapshot = await transactionsRef.where('categorySource', '==', 'none').get();
+        docs = (await transactionsRef.where('categorySource', '==', 'none').get()).docs;
+      } else if (mode === 'failed') {
+        const snapshot = await transactionsRef.where('categorizationStatus', '==', 'failed').get();
+        // Never re-categorize a doc the user has since categorized by hand:
+        // the failure marker survives until *some* categorization succeeds, so
+        // a manually fixed transaction can still match this query. The 'all'
+        // mode expresses the same intent in its query; here the filter runs in
+        // memory because Firestore cannot combine the `categorizationStatus`
+        // equality with a `categorySource != 'manual'` inequality without also
+        // dropping docs that carry no `categorySource` field at all.
+        docs = snapshot.docs.filter((d) => d.data().categorySource !== 'manual');
       } else {
-        snapshot = await transactionsRef.where('categorySource', '!=', 'manual').get();
+        docs = (await transactionsRef.where('categorySource', '!=', 'manual').get()).docs;
       }
-      docs = snapshot.docs;
     }
 
     const result: RecategorizeResult = {
@@ -84,22 +102,17 @@ export const recategorizeTransactions = onCall(
       updated: 0,
       skipped: 0,
       llmCategorized: 0,
+      llmFailed: 0,
       errors: [],
     };
 
     // Collect transactions still uncategorized after pattern matching for LLM pass
-    const uncategorizedForLLM: Array<{
-      docRef: FirebaseFirestore.DocumentReference;
-      description: string;
-      counterparty: string | null;
-      amount: number;
-      index: number;
-    }> = [];
+    const uncategorizedForLLM: Array<LlmWorkItem<FirebaseFirestore.DocumentReference>> = [];
 
     // Process in batches — pattern matching pass
-    for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+    for (let i = 0; i < docs.length; i += CATEGORIZATION_BATCH_SIZE) {
       const batch: WriteBatch = db.batch();
-      const batchDocs = docs.slice(i, i + BATCH_SIZE);
+      const batchDocs = docs.slice(i, i + CATEGORIZATION_BATCH_SIZE);
       let batchUpdates = 0;
 
       for (const doc of batchDocs) {
@@ -119,22 +132,24 @@ export const recategorizeTransactions = onCall(
             !isExplicitAICategorize
           ) {
             // Pattern matching found a different (better) category — apply it
-            batch.update(doc.ref, {
-              categoryId: categorizationResult.categoryId,
-              categoryConfidence: categorizationResult.confidence,
-              categorySource: categorizationResult.source,
-              updatedAt: FieldValue.serverTimestamp(),
-            });
+            // (and clear any failure marker from an earlier LLM pass).
+            batch.update(
+              doc.ref,
+              categorizationSuccessFields({
+                categoryId: categorizationResult.categoryId,
+                confidence: categorizationResult.confidence,
+                source: categorizationResult.source,
+              })
+            );
             batchUpdates++;
             result.updated++;
           } else if (effectiveUseLLM) {
             // Send to LLM: either no pattern match, or explicit AI categorize request
             uncategorizedForLLM.push({
-              docRef: doc.ref,
+              payload: doc.ref,
               description,
               counterparty,
               amount: data.amount || 0,
-              index: uncategorizedForLLM.length,
             });
           } else {
             result.skipped++;
@@ -150,53 +165,50 @@ export const recategorizeTransactions = onCall(
       }
     }
 
-    // LLM categorization pass
+    // LLM categorization pass (shared pipeline: LLM fallback + batched writes
+    // + failure recording — same engine the bank sync uses)
     if (effectiveUseLLM && uncategorizedForLLM.length > 0) {
       const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
       if (!anthropicApiKey) {
         result.errors.push('ANTHROPIC_API_KEY not configured — LLM categorization skipped');
       } else {
-        try {
-          const llmResults = await categorizer.categorizeBatchWithLLM(
-            uncategorizedForLLM.map((t) => ({
-              index: t.index,
-              description: t.description,
-              counterparty: t.counterparty,
-              amount: t.amount,
-            })),
-            anthropicApiKey
-          );
+        const outcome = await runLlmCategorization(
+          categorizer,
+          uncategorizedForLLM,
+          anthropicApiKey
+        );
 
-          // Write LLM results in batches
-          const llmItems = Array.from(llmResults.entries());
-          for (let i = 0; i < llmItems.length; i += BATCH_SIZE) {
-            const batch: WriteBatch = db.batch();
-            const batchItems = llmItems.slice(i, i + BATCH_SIZE);
+        // Do not stamp a failure marker on a transaction the user categorized
+        // manually: the marker would put an already-resolved transaction back
+        // in the "needs AI retry" surface.
+        //
+        // Accepted residual race: this test uses the snapshot read at the top
+        // of the run, so a doc the user edits *during* the (long) LLM pass is
+        // still seen as non-manual and can be marked failed. That is now
+        // harmless — the failed-mode retry skips manual docs, and the manual
+        // client mutations clear the marker themselves — so the worst case is
+        // a transiently inflated failed count until the next write to the doc.
+        const manualAtSnapshot = new Set(
+          docs.filter((d) => d.data().categorySource === 'manual').map((d) => d.ref.path)
+        );
+        const markable =
+          manualAtSnapshot.size === 0
+            ? outcome
+            : {
+                ...outcome,
+                failed: outcome.failed.filter((f) => !manualAtSnapshot.has(f.payload.path)),
+              };
 
-            for (const [index, llmResult] of batchItems) {
-              if (llmResult.categoryId) {
-                const txn = uncategorizedForLLM[index];
-                batch.update(txn.docRef, {
-                  categoryId: llmResult.categoryId,
-                  categoryConfidence: llmResult.confidence,
-                  categorySource: 'llm',
-                  updatedAt: FieldValue.serverTimestamp(),
-                });
-                result.llmCategorized++;
-                result.updated++;
-              }
-            }
+        const written = await writeLlmCategorizationOutcome(db, markable);
+        result.llmCategorized += written.categorized;
+        result.updated += written.categorized;
+        result.llmFailed += written.failed;
 
-            await batch.commit();
-          }
-
-          console.log(
-            `LLM categorized ${result.llmCategorized}/${uncategorizedForLLM.length} transactions`
-          );
-        } catch (err) {
-          const error = err instanceof Error ? err.message : 'LLM error';
-          result.errors.push(`LLM categorization failed: ${error}`);
-          console.error('LLM categorization error:', err);
+        // Response-shape parity with the pre-pipeline handler: a hard LLM
+        // failure (the whole pass threw) also surfaces in `errors`, not only in
+        // `llmFailed` and the per-document markers.
+        if (outcome.hardFailure) {
+          result.errors.push(`LLM categorization failed: ${outcome.hardFailure}`);
         }
       }
     }

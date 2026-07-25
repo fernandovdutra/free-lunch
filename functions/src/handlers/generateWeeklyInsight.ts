@@ -16,6 +16,8 @@ import { buildWeeklyEmailHtml } from '../shared/emailTemplates.js';
 import { loadAdvisorMemory, updateAdvisorMemory, formatMemoryForPrompt, consolidateAdvisorMemory } from '../shared/memoryManager.js';
 import { config } from '../config.js';
 
+// Insights are single-user by design (household app) — see
+// functions/src/ARCHITECTURE.md for the boundary and its rationale.
 const SINGLE_USER_ID = process.env.SINGLE_USER_ID ?? '';
 
 /**

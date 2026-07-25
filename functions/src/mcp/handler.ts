@@ -25,6 +25,8 @@ export const mcp = onRequest(
   },
   async (request, response) => {
     const secret = process.env.MCP_SECRET_TOKEN ?? '';
+    // The MCP server is single-user by design (household app) — see
+    // functions/src/ARCHITECTURE.md for the boundary and its rationale.
     const userId = process.env.SINGLE_USER_ID ?? '';
     if (!secret || !userId) {
       response.status(500).json({ error: 'MCP server not configured' });

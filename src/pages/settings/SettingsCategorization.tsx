@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTransactions } from '@/hooks/useTransactions';
+import { useTransactions, useFailedCategorizationCount } from '@/hooks/useTransactions';
 import { useRules } from '@/hooks/useRules';
 import { useRecategorizeTransactions } from '@/hooks/useBankConnection';
 import { CategorizationRulesCard } from '@/components/settings/CategorizationRulesCard';
@@ -31,6 +31,7 @@ export function SettingsCategorization() {
   const { data: rules = [] } = useRules();
   const { data: transactions = [] } = useTransactions({});
   const { data: categories = [] } = useCategories();
+  const { data: failedCount = 0 } = useFailedCategorizationCount();
   const recategorize = useRecategorizeTransactions();
   const { toast } = useToast();
 
@@ -74,6 +75,21 @@ export function SettingsCategorization() {
           toast({
             title: 'AI categorize · uncategorized only',
             description: `${r.llmCategorized} by AI · ${r.updated} updated`,
+          });
+        },
+        onError: onRecatError,
+      }
+    );
+  };
+
+  const runRetryFailed = () => {
+    recategorize.mutate(
+      { useLLM: true, mode: 'failed' },
+      {
+        onSuccess: (r) => {
+          toast({
+            title: 'Retried failed categorizations',
+            description: `${r.llmCategorized} categorized · ${r.llmFailed ?? 0} still failing`,
           });
         },
         onError: onRecatError,
@@ -133,6 +149,17 @@ export function SettingsCategorization() {
         accent="accent"
         disabled={!hasTransactions || isPending}
       />
+      {failedCount > 0 ? (
+        <SettingsRoomRow
+          glyph="△"
+          label="Retry failed AI categorization"
+          meta={`${failedCount} transaction${failedCount === 1 ? '' : 's'} failed last AI pass`}
+          onClick={runRetryFailed}
+          accent="warn"
+          badge={failedCount}
+          disabled={isPending}
+        />
+      ) : null}
 
       <SectionHeader>BROWSE</SectionHeader>
       <SettingsRoomRow

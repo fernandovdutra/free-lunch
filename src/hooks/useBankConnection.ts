@@ -346,7 +346,10 @@ export function useRecategorizeTransactions() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (options?: { useLLM?: boolean; mode?: 'all' | 'uncategorized' }) => {
+    mutationFn: async (options?: {
+      useLLM?: boolean;
+      mode?: 'all' | 'uncategorized' | 'failed';
+    }) => {
       const result = await recategorizeTransactions(options);
       return result.data;
     },
