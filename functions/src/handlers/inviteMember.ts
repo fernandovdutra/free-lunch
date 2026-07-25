@@ -2,6 +2,9 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import { requireRole } from '../shared/dataOwner.js';
+import { sendInsightEmail } from '../shared/emailSender.js';
+import { buildInvitationEmailHtml } from '../shared/emailTemplates.js';
+import { config } from '../config.js';
 
 const schema = z.object({
   email: z.string().trim().email().toLowerCase(),
@@ -89,7 +92,29 @@ export const inviteMember = onCall(
       });
     });
 
-    // TODO: send invitation email via Resend (`shared/emailSender.ts`).
+    // Best-effort notification: the invitation exists regardless — the invitee
+    // is matched by email when they sign in (`acceptInvitation`). A send
+    // failure must never fail the invite, and when email is unconfigured
+    // (e.g. emulator without RESEND_API_KEY) the sender skips with a log.
+    try {
+      const token = request.auth.token;
+      const inviterName = typeof token.name === 'string' ? token.name : undefined;
+      const inviterEmail = token.email ?? undefined;
+      const html = buildInvitationEmailHtml({
+        inviterName,
+        inviterEmail,
+        inviteeEmail: email,
+        role,
+        appUrl: config.appUrl,
+      });
+      await sendInsightEmail(
+        email,
+        `${inviterName ?? inviterEmail ?? 'Someone'} invited you to Free Lunch`,
+        html
+      );
+    } catch (err) {
+      console.error(`Invitation email to ${email} failed (invitation was still created):`, err);
+    }
 
     return { email, role, status: 'invited' };
   }
