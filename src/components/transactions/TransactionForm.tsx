@@ -7,11 +7,18 @@ import {
 } from '@/components/ui/sheet';
 import { CategoryPicker } from './CategoryPicker';
 import { ManualResolveSheet } from './ManualResolveSheet';
-import { useUpdateTransaction, useUpdateTransactionCategory, useDeleteTransaction, useBulkUpdateCategory } from '@/hooks/useTransactions';
+import { SplitEditorSheet } from './SplitEditorSheet';
+import {
+  useUpdateTransaction,
+  useUpdateTransactionCategory,
+  useSetTransactionSplit,
+  useDeleteTransaction,
+  useBulkUpdateCategory,
+} from '@/hooks/useTransactions';
 import { useMarkAsReimbursable, useClearReimbursement } from '@/hooks/useReimbursements';
 import { useToast } from '@/components/ui/toaster';
 import { formatAmount, cn } from '@/lib/utils';
-import type { Category, Transaction } from '@/types';
+import type { Category, Transaction, TransactionSplit } from '@/types';
 
 interface TransactionFormProps {
   open: boolean;
@@ -29,8 +36,8 @@ interface TransactionFormProps {
  *
  * Layout per README §09:
  *   [HEADLINE: merchant · amount · date]
- *   CATEGORY        ›  → nested CategoryPicker sheet
- *   FLAGS           [Reimbursable toggle]
+ *   CATEGORY        ›  → nested CategoryPicker sheet (or SplitEditorSheet when split)
+ *   FLAGS           [Reimbursable toggle · Split toggle]
  *   NOTE            <textarea>
  *   MERCHANT RULES  ›  → bulk-update similar txns
  *   MANUAL RESOLVE  ›  → nested ManualResolveSheet (only when reimbursement.status === 'pending')
@@ -41,8 +48,9 @@ interface TransactionFormProps {
  * backdrop tap or Esc with a dirty note shows an inline confirm strip
  * (`SAVE / DISCARD`) instead of closing.
  *
- * Split is deferred per resolved Q3 — the FLAGS section shows only the
- * Reimbursable toggle.
+ * Splitting (US-4): the FLAGS "Split transaction" toggle opens the nested
+ * SplitEditorSheet; while a transaction is split the CATEGORY row reads
+ * "Split (N)" and reopens the editor. Toggling off clears `isSplit`/`splits`.
  */
 export function TransactionForm({
   open,
@@ -54,6 +62,7 @@ export function TransactionForm({
 
   const updateMutation = useUpdateTransaction();
   const updateCategoryMutation = useUpdateTransactionCategory();
+  const setSplitMutation = useSetTransactionSplit();
   const markReimbursableMutation = useMarkAsReimbursable();
   const bulkUpdateMutation = useBulkUpdateCategory();
   const deleteMutation = useDeleteTransaction();
@@ -62,6 +71,7 @@ export function TransactionForm({
   const [note, setNote] = useState('');
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [splitOpen, setSplitOpen] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
   const initialNoteRef = useRef('');
 
@@ -77,6 +87,7 @@ export function TransactionForm({
     }
     if (!open) {
       setPickerOpen(false);
+      setSplitOpen(false);
       setResolveOpen(false);
     }
   }, [open, transaction]);
@@ -86,6 +97,8 @@ export function TransactionForm({
   const isExpense = transaction.amount < 0;
   const isReimbursable = !!transaction.reimbursement;
   const isPendingReimb = transaction.reimbursement?.status === 'pending';
+  const isSplitTxn = transaction.isSplit && !!transaction.splits && transaction.splits.length > 0;
+  const splitCount = transaction.splits?.length ?? 0;
   const currentCategory = transaction.categoryId
     ? categories.find((c) => c.id === transaction.categoryId)
     : null;
@@ -145,6 +158,50 @@ export function TransactionForm({
       }
     } catch {
       toast({ title: 'Failed to update reimbursable', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleSplit = async () => {
+    if (!isSplitTxn) {
+      // Turning splitting on just opens the editor — nothing is written until
+      // the user saves a valid 2+-row split there.
+      setSplitOpen(true);
+      return;
+    }
+    try {
+      await setSplitMutation.mutateAsync({ id: transaction.id, splits: null });
+      toast({ title: 'Split removed' });
+    } catch {
+      toast({ title: 'Failed to remove split', variant: 'destructive' });
+    }
+  };
+
+  const handleSplitSave = async (
+    splits: TransactionSplit[] | null,
+    singleRowCategoryId?: string | null
+  ) => {
+    // The editor stays open (with `isSaving` gating it) until the write lands —
+    // closing first would throw away the user's rows on a failed save.
+    try {
+      if (splits === null) {
+        await setSplitMutation.mutateAsync({
+          id: transaction.id,
+          splits: null,
+          ...(singleRowCategoryId !== undefined ? { categoryId: singleRowCategoryId } : {}),
+        });
+        setSplitOpen(false);
+        toast({ title: 'Split removed' });
+      } else {
+        await setSplitMutation.mutateAsync({
+          id: transaction.id,
+          splits,
+          transactionAmount: transaction.amount,
+        });
+        setSplitOpen(false);
+        toast({ title: `Split into ${splits.length} parts` });
+      }
+    } catch {
+      toast({ title: 'Failed to save split', variant: 'destructive' });
     }
   };
 
@@ -251,17 +308,32 @@ export function TransactionForm({
               </>
             )}
 
-            {/* CATEGORY */}
+            {/* CATEGORY — reads "Split (N)" and opens the split editor while split */}
             <SectionHeader>CATEGORY</SectionHeader>
             <RowButton
               onClick={() => {
-                setPickerOpen(true);
+                if (isSplitTxn) {
+                  setSplitOpen(true);
+                } else {
+                  setPickerOpen(true);
+                }
               }}
               right="›"
             >
-              <span className="font-sans text-[13.5px] text-textHi">
-                {currentCategory?.name ?? 'Uncategorized'}
-              </span>
+              {isSplitTxn ? (
+                <span className="font-sans text-[13.5px] text-textHi">
+                  Split ({splitCount})
+                  <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.06em] text-textLo">
+                    {(transaction.splits ?? [])
+                      .map((s) => categories.find((c) => c.id === s.categoryId)?.name ?? '?')
+                      .join(' + ')}
+                  </span>
+                </span>
+              ) : (
+                <span className="font-sans text-[13.5px] text-textHi">
+                  {currentCategory?.name ?? 'Uncategorized'}
+                </span>
+              )}
             </RowButton>
 
             {/* FLAGS */}
@@ -289,6 +361,17 @@ export function TransactionForm({
                   </span>
                 )}
               </div>
+            )}
+            {/* A €0 transaction cannot be split — two positive rows can never
+                sum to 0, so the editor would open onto a dead Save. The toggle
+                still shows for an already-split one, so it can be undone. */}
+            {(transaction.amount !== 0 || isSplitTxn) && (
+              <RowToggle
+                label="Split transaction"
+                active={isSplitTxn}
+                onToggle={() => void handleToggleSplit()}
+                disabled={setSplitMutation.isPending}
+              />
             )}
 
             {/* NOTE */}
@@ -386,6 +469,15 @@ export function TransactionForm({
         categories={categories}
         currentCategoryId={transaction.categoryId}
         onPick={(id) => void handleCategoryPick(id)}
+      />
+
+      <SplitEditorSheet
+        open={splitOpen}
+        onOpenChange={setSplitOpen}
+        transaction={transaction}
+        categories={categories}
+        onSave={(splits, singleRowCategoryId) => void handleSplitSave(splits, singleRowCategoryId)}
+        isSaving={setSplitMutation.isPending}
       />
 
       <ManualResolveSheet
