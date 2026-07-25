@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 
 export type DefaultTab =
   | 'home'
@@ -74,7 +75,7 @@ export function useUserPreferences() {
   const uid = user?.id;
 
   return useQuery({
-    queryKey: ['userPreferences', uid],
+    queryKey: queryKeys.userPreferences.forUser(uid ?? ''),
     queryFn: async (): Promise<UserPreferences> => {
       if (!uid) return DEFAULT_PREFERENCES;
       const ref = doc(db, ...USER_DOC_PATH(uid));
@@ -105,7 +106,7 @@ export function useUpdateUserPreferences() {
     },
     onMutate: async (patch) => {
       if (!uid) return;
-      await queryClient.cancelQueries({ queryKey: ['userPreferences', uid] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.userPreferences.forUser(uid) });
       const prev = queryClient.getQueryData<UserPreferences>(['userPreferences', uid]);
       const next = mergeDefaults({
         ...(prev ?? DEFAULT_PREFERENCES),
@@ -126,7 +127,7 @@ export function useUpdateUserPreferences() {
     },
     onSettled: () => {
       if (uid) {
-        void queryClient.invalidateQueries({ queryKey: ['userPreferences', uid] });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.userPreferences.forUser(uid) });
       }
     },
   });

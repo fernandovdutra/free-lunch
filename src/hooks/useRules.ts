@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import type { CategorizationRule } from '@/types';
 import { generateId } from '@/lib/utils';
 
@@ -28,9 +29,9 @@ interface RuleDocument {
   updatedAt?: Timestamp;
 }
 
-// Query keys
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
 export const ruleKeys = {
-  all: (userId: string) => ['rules', userId] as const,
+  all: (userId: string) => queryKeys.rules.all(userId),
 };
 
 // Transform Firestore data to CategorizationRule type

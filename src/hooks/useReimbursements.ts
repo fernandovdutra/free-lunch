@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { invalidateFinancialData, queryKeys } from '@/lib/queryKeys';
 import { getReimbursementSummaryFn, deserializeTransaction } from '@/lib/bankingFunctions';
 import type { Transaction, ReimbursementInfo } from '@/types';
 
@@ -72,10 +73,12 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
   };
 }
 
-// Query keys
+// Query keys — delegated to the central factory (src/lib/queryKeys.ts).
 export const reimbursementKeys = {
-  all: (userId: string) => ['reimbursements', 'all', userId] as const,
-  incomeForClearing: (userId: string) => ['reimbursements', 'income-for-clearing', userId] as const,
+  summary: (userId: string, clearedLimit: number | undefined) =>
+    queryKeys.reimbursements.summary(userId, clearedLimit),
+  incomeForClearing: (userId: string, searchText: string) =>
+    queryKeys.reimbursements.incomeForClearing(userId, searchText),
 };
 
 /**
@@ -85,7 +88,7 @@ function useReimbursementData(clearedLimit?: number) {
   const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: [...reimbursementKeys.all(dataOwnerId ?? ''), clearedLimit],
+    queryKey: reimbursementKeys.summary(dataOwnerId ?? '', clearedLimit),
     queryFn: async () => {
       if (!dataOwnerId) return { summary: null, pending: [] as Transaction[], cleared: [] as Transaction[] };
 
@@ -138,7 +141,7 @@ export function useRecentIncomeTransactions(searchText?: string) {
   const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: [...reimbursementKeys.incomeForClearing(dataOwnerId ?? ''), searchText ?? ''],
+    queryKey: reimbursementKeys.incomeForClearing(dataOwnerId ?? '', searchText ?? ''),
     queryFn: async () => {
       if (!dataOwnerId) return [];
 
@@ -210,10 +213,7 @@ export function useMarkAsReimbursable() {
       return id;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
+      invalidateFinancialData(queryClient);
     },
   });
 }
@@ -264,10 +264,7 @@ export function useClearReimbursement() {
       return { incomeTransactionId, expenseTransactionIds };
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
+      invalidateFinancialData(queryClient);
     },
   });
 }
@@ -292,10 +289,7 @@ export function useUnmarkReimbursement() {
       return id;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
+      invalidateFinancialData(queryClient);
     },
   });
 }

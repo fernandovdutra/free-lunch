@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { queryKeys } from '@/lib/queryKeys';
 import type { FixedCost } from '@/lib/burnUp.types';
 import {
   sortItems,
@@ -25,7 +26,7 @@ export function useFixedSchedule() {
   const { dataOwnerId } = useAuth();
 
   return useQuery({
-    queryKey: ['fixedSchedule', dataOwnerId ?? ''],
+    queryKey: queryKeys.fixedSchedule.all(dataOwnerId ?? ''),
     enabled: !!dataOwnerId,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<FixedCost[]> => {
