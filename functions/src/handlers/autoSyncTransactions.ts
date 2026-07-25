@@ -6,7 +6,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase-admin/firestore';
-import { syncBankConnection } from '../shared/syncConnection.js';
+import { syncBankConnection, summarizeSyncErrors } from '../shared/syncConnection.js';
 import { sendInsightEmail } from '../shared/emailSender.js';
 import { buildConsentExpiryEmailHtml } from '../shared/emailTemplates.js';
 import { config } from '../config.js';
@@ -97,10 +97,22 @@ export async function runAutoSync(): Promise<void> {
       console.log(
         `Auto-sync ${userId}/${doc.id}: +${result.totalNew} new, ${result.totalUpdated} updated`
       );
-      await doc.ref.update({
-        lastAutoSyncAt: FieldValue.serverTimestamp(),
-        lastAutoSyncError: FieldValue.delete(),
-      });
+      if (result.success) {
+        await doc.ref.update({
+          lastAutoSyncAt: FieldValue.serverTimestamp(),
+          lastAutoSyncError: FieldValue.delete(),
+        });
+      } else {
+        // Partial failure: some account(s) reported errors even though the
+        // sync call itself resolved. Surface it — the settings UI renders
+        // `lastAutoSyncError` verbatim. Only a fully clean run clears it.
+        const message = summarizeSyncErrors(result.results);
+        console.error(`Auto-sync partial failure for ${userId}/${doc.id}:`, message);
+        await doc.ref.update({
+          lastAutoSyncAt: FieldValue.serverTimestamp(),
+          lastAutoSyncError: message,
+        });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       console.error(`Auto-sync failed for ${userId}/${doc.id}:`, message);

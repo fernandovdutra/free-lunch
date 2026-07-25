@@ -289,7 +289,11 @@ function buildMetaLine(t: Transaction, categoriesById: Map<string, Category>): s
 
   if (t.reimbursement?.status === 'pending') {
     const owed = formatAmount(Math.abs(t.amount), { showSign: false });
-    return `${categoryLabel}· REIMB ${owed}`;
+    return `${categoryLabel} · REIMB ${owed}`;
+  }
+
+  if (t.reimbursement?.status === 'cleared') {
+    return `${categoryLabel} · REIMBURSED ✓`;
   }
 
   return categoryLabel;

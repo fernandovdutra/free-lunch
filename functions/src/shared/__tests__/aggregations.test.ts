@@ -110,15 +110,22 @@ describe('calculateSummary', () => {
     expect(result.netBalance).toBe(800);
   });
 
-  it('includes cleared reimbursements in expenses', () => {
+  it('excludes cleared reimbursements from income and expenses', () => {
     const transactions = [
+      createTx({ amount: -200 }),
       createTx({
         amount: -100,
         reimbursement: { type: 'work', status: 'cleared', note: null, linkedTransactionId: 'x', clearedAt: mockTimestamp('2024-01-20') },
       }),
+      // Incoming reimbursement payment — not real income
+      createTx({
+        amount: 100,
+        reimbursement: { type: 'work', status: 'cleared', note: null, linkedTransactionId: 'y', clearedAt: mockTimestamp('2024-01-20') },
+      }),
     ];
     const result = calculateSummary(transactions);
-    expect(result.totalExpenses).toBe(100);
+    expect(result.totalExpenses).toBe(200);
+    expect(result.totalIncome).toBe(0);
     expect(result.pendingReimbursements).toBe(0);
   });
 });
@@ -187,6 +194,20 @@ describe('calculateCategorySpending', () => {
         amount: -100,
         categoryId: 'food',
         reimbursement: { type: 'work', status: 'pending', note: null, linkedTransactionId: null, clearedAt: null },
+      }),
+    ];
+    const result = calculateCategorySpending(transactions, categories);
+    expect(result).toHaveLength(1);
+    expect(result[0].amount).toBe(50);
+  });
+
+  it('excludes cleared reimbursements', () => {
+    const transactions = [
+      createTx({ amount: -50, categoryId: 'food' }),
+      createTx({
+        amount: -100,
+        categoryId: 'food',
+        reimbursement: { type: 'work', status: 'cleared', note: null, linkedTransactionId: 'x', clearedAt: mockTimestamp('2024-01-20') },
       }),
     ];
     const result = calculateCategorySpending(transactions, categories);
@@ -294,6 +315,27 @@ describe('calculateTimelineData', () => {
     expect(result[0].expenses).toBe(100);
   });
 
+  it('excludes cleared reimbursements from both sides', () => {
+    const start = new Date('2024-01-01');
+    const end = new Date('2024-01-01');
+    const transactions = [
+      createTx({ amount: -100, date: '2024-01-01' }),
+      createTx({
+        amount: -50,
+        date: '2024-01-01',
+        reimbursement: { type: 'work', status: 'cleared', note: null, linkedTransactionId: 'x', clearedAt: mockTimestamp('2024-01-20') },
+      }),
+      createTx({
+        amount: 50,
+        date: '2024-01-01',
+        reimbursement: { type: 'work', status: 'cleared', note: null, linkedTransactionId: 'y', clearedAt: mockTimestamp('2024-01-20') },
+      }),
+    ];
+    const result = calculateTimelineData(transactions, start, end);
+    expect(result[0].expenses).toBe(100);
+    expect(result[0].income).toBe(0);
+  });
+
   it('includes dateKey in yyyy-MM-dd format', () => {
     const start = new Date('2024-01-15');
     const end = new Date('2024-01-15');
@@ -376,6 +418,19 @@ describe('calculateSpendingByCategory', () => {
         amount: -50,
         categoryId: 'food',
         reimbursement: { type: 'work', status: 'pending', note: null, linkedTransactionId: null, clearedAt: null },
+      }),
+    ];
+    const result = calculateSpendingByCategory(transactions, categories);
+    expect(result.get('food')).toBe(100);
+  });
+
+  it('excludes cleared reimbursements so they do not eat the budget', () => {
+    const transactions = [
+      createTx({ amount: -100, categoryId: 'food' }),
+      createTx({
+        amount: -50,
+        categoryId: 'food',
+        reimbursement: { type: 'work', status: 'cleared', note: null, linkedTransactionId: 'x', clearedAt: mockTimestamp('2024-01-20') },
       }),
     ];
     const result = calculateSpendingByCategory(transactions, categories);
