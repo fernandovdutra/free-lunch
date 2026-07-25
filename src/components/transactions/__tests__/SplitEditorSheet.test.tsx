@@ -181,4 +181,46 @@ describe('SplitEditorSheet', () => {
     // Un-split falls back to the surviving row's category.
     expect(onSave).toHaveBeenCalledWith(null, 'groceries');
   });
+
+  it('hides the row remove control once a single row is left (no path to zero rows)', () => {
+    renderEditor(
+      txn({
+        isSplit: true,
+        splits: [
+          { amount: 65, categoryId: 'groceries', note: null },
+          { amount: 20.5, categoryId: 'household', note: null },
+        ],
+      })
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove split 2' }));
+
+    // The last row keeps no ✕ — removing it would leave zero rows and a save
+    // button that can never be re-enabled.
+    expect(screen.queryByRole('button', { name: 'Remove split 1' })).toBeNull();
+    expect(amountInput(0).value).toBe('65.00');
+  });
+
+  it('shows the saving state and gates save while the write is in flight', () => {
+    render(
+      <SplitEditorSheet
+        open
+        onOpenChange={vi.fn()}
+        transaction={txn({
+          isSplit: true,
+          splits: [
+            { amount: 65, categoryId: 'groceries', note: null },
+            { amount: 20.5, categoryId: 'household', note: null },
+          ],
+        })}
+        categories={categories}
+        onSave={vi.fn()}
+        isSaving
+      />
+    );
+
+    const button = saveButton();
+    expect(button.disabled).toBe(true);
+    expect(button.textContent).toMatch(/saving/i);
+  });
 });

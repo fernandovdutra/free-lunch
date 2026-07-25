@@ -179,16 +179,20 @@ export function SplitEditorSheet({
                       <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textLo">
                         Split {index + 1}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          remove(index);
-                        }}
-                        aria-label={`Remove split ${index + 1}`}
-                        className="press font-mono text-[13px] leading-none text-textLo"
-                      >
-                        ✕
-                      </button>
+                      {/* No ✕ on the last remaining row — removing it would
+                          leave zero rows and a permanently dead Save. */}
+                      {!singleRow && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            remove(index);
+                          }}
+                          aria-label={`Remove split ${index + 1}`}
+                          className="press font-mono text-[13px] leading-none text-textLo"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
 
                     <div className="mt-2 flex gap-2">
@@ -314,7 +318,7 @@ export function SplitEditorSheet({
                       : 'border-accent bg-accent-dim text-accent'
                   )}
                 >
-                  {singleRow ? 'Remove split' : 'Save split'}
+                  {isSaving ? 'Saving…' : singleRow ? 'Remove split' : 'Save split'}
                 </button>
               </div>
             </form>

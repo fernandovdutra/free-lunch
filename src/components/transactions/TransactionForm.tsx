@@ -180,7 +180,8 @@ export function TransactionForm({
     splits: TransactionSplit[] | null,
     singleRowCategoryId?: string | null
   ) => {
-    setSplitOpen(false);
+    // The editor stays open (with `isSaving` gating it) until the write lands —
+    // closing first would throw away the user's rows on a failed save.
     try {
       if (splits === null) {
         await setSplitMutation.mutateAsync({
@@ -188,9 +189,15 @@ export function TransactionForm({
           splits: null,
           ...(singleRowCategoryId !== undefined ? { categoryId: singleRowCategoryId } : {}),
         });
+        setSplitOpen(false);
         toast({ title: 'Split removed' });
       } else {
-        await setSplitMutation.mutateAsync({ id: transaction.id, splits });
+        await setSplitMutation.mutateAsync({
+          id: transaction.id,
+          splits,
+          transactionAmount: transaction.amount,
+        });
+        setSplitOpen(false);
         toast({ title: `Split into ${splits.length} parts` });
       }
     } catch {
@@ -355,7 +362,10 @@ export function TransactionForm({
                 )}
               </div>
             )}
-            {transaction.amount !== 0 && (
+            {/* A €0 transaction cannot be split — two positive rows can never
+                sum to 0, so the editor would open onto a dead Save. The toggle
+                still shows for an already-split one, so it can be undone. */}
+            {(transaction.amount !== 0 || isSplitTxn) && (
               <RowToggle
                 label="Split transaction"
                 active={isSplitTxn}
