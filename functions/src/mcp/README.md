@@ -40,14 +40,26 @@ Function — it ships with the rest of the backend, no separate service.
 There are no delete tools — the assistant can create and update data but never
 delete it.
 
-## Security model — "secret link"
+## Security model — shared secret
 
 There is **no OAuth**. The connector is authenticated by a long random token
-embedded in the URL path (`https://<function-url>/<MCP_SECRET_TOKEN>`). The URL
-itself is the credential — anyone who has it can read and modify the finance
-data, so keep it private. The token is rotatable: change the secret and
-redeploy. Note that the URL path is recorded in Cloud logging, so restrict log
-access and rotate the token if it is ever exposed.
+(`MCP_SECRET_TOKEN`), accepted in either of two forms:
+
+1. **Preferred — Authorization header.** Use the plain function URL and send
+   `Authorization: Bearer <MCP_SECRET_TOKEN>`. Headers are not written to
+   Cloud Run / load-balancer request logs, so the credential never lands in
+   Cloud Logging.
+2. **Legacy — token in the URL path.** `https://<function-url>/<MCP_SECRET_TOKEN>`.
+   Still accepted so existing connectors keep working, but the URL path **is
+   recorded in Cloud logging** on every request — migrate to the header form
+   and rotate the token afterwards.
+
+If an `Authorization` header is present it is authoritative: a wrong header is
+rejected even when the path token would match. The path is only checked when
+no header is sent. Both comparisons are constant-time.
+
+Whoever holds the token can read and modify the finance data, so keep it
+private. The token is rotatable: change the secret and redeploy.
 
 ## Deploy
 
@@ -75,12 +87,20 @@ access and rotate the token if it is ever exposed.
 
 1. Open the Claude app → **Settings → Connectors → Add custom connector**.
 2. Name: `Free Lunch Finance`.
-3. URL: the function URL followed by the secret token —
-   `https://<function-url>/<MCP_SECRET_TOKEN>`.
-4. Authentication: **None** (the secret is in the URL).
-5. Save. Claude runs the MCP handshake and the finance tools appear. In any
+3. **Preferred:** URL = the plain function URL (no token in the path), and
+   configure the connector to send `Authorization: Bearer <MCP_SECRET_TOKEN>`
+   (use the connector's bearer-token / API-key authentication option).
+   **Legacy fallback:** if your client cannot send an Authorization header, use
+   the function URL followed by the secret token —
+   `https://<function-url>/<MCP_SECRET_TOKEN>` with Authentication **None**
+   (note the logging caveat above).
+4. Save. Claude runs the MCP handshake and the finance tools appear. In any
    normal chat, enable the connector and ask e.g. "What did I spend on groceries
    last month?" or "Tag my last Albert Heijn transaction as 'work-lunch'".
+
+An existing connector configured with the token-in-URL form keeps working
+unchanged; switch it to the header form when convenient, then rotate the
+token.
 
 Chatting this way uses your Claude subscription — no Anthropic API tokens are
 billed. The only cost is the Google Cloud side (function invocations + Firestore
@@ -88,8 +108,9 @@ reads/writes), which scales to zero and is negligible for personal use.
 
 ## Implementation
 
-- `handler.ts` — Cloud Function HTTP entry point, token auth, Streamable HTTP
-  transport (stateless).
+- `handler.ts` — Cloud Function HTTP entry point, Streamable HTTP transport
+  (stateless).
+- `auth.ts` — token authorization (header-first, path fallback, constant-time).
 - `server.ts` — builds the MCP server instance per request.
 - `tools.ts` — read tool definitions, dispatch, and the combined tool list.
 - `writeTools.ts` — write tool definitions and dispatch.
