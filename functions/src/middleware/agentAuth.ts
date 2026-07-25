@@ -13,6 +13,8 @@ export function authenticateAgent(
 ): string | null {
   const token = request.headers.authorization?.replace('Bearer ', '') ?? '';
   const expectedToken = process.env.AGENT_API_TOKEN;
+  // Agent endpoints are single-user by design (household app) — see
+  // functions/src/ARCHITECTURE.md for the boundary and its rationale.
   const userId = process.env.SINGLE_USER_ID;
 
   if (!expectedToken || !userId) {

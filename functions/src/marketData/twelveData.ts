@@ -118,6 +118,21 @@ export function parseTimeSeries(json: unknown): HistoryPoint[] {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Upper bound on `/quote` batches per {@link TwelveDataClient.getQuotes} call.
+ *
+ * Honest tradeoff: the free-tier per-minute ceiling is respected with a
+ * BLOCKING 60s sleep between batches, and that sleep is billed Cloud
+ * Functions wall-time bounded by the invocation timeout. The scheduled
+ * refresh runs with `timeoutSeconds: 540`, so 8 batches (7 sleeps ≈ 420s +
+ * request time) is the most that reliably fits; symbols beyond
+ * 8 × 8 = 64 are skipped for the invocation, surface in `missingSymbols`,
+ * and get picked up on the next run. A queue-based design (Cloud Tasks)
+ * would remove the blocking sleeps entirely but is deliberately out of scope
+ * for a single-household portfolio — see functions/src/ARCHITECTURE.md.
+ */
+export const MAX_QUOTE_BATCHES_PER_CALL = 8;
+
 export class TwelveDataClient {
   constructor(
     private readonly apiKey: string,
@@ -133,7 +148,17 @@ export class TwelveDataClient {
   async getQuotes(symbols: string[]): Promise<Map<string, TwelveDataQuote>> {
     const unique = Array.from(new Set(symbols.filter((s) => s.trim().length > 0)));
     const merged = new Map<string, TwelveDataQuote>();
-    const batches = chunkSymbols(unique);
+    const allBatches = chunkSymbols(unique);
+    // Cap batches so blocking throttle sleeps stay inside the function
+    // timeout — see MAX_QUOTE_BATCHES_PER_CALL for the tradeoff.
+    const batches = allBatches.slice(0, MAX_QUOTE_BATCHES_PER_CALL);
+    if (allBatches.length > batches.length) {
+      const skipped = allBatches.slice(batches.length).reduce((n, b) => n + b.length, 0);
+      console.warn(
+        `Twelve Data: capping quote fetch at ${batches.length} batches; ` +
+          `${skipped} symbol(s) deferred to the next run`
+      );
+    }
 
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i]!;

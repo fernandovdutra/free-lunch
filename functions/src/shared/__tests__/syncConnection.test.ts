@@ -250,6 +250,94 @@ describe('transformTransaction', () => {
   });
 });
 
+describe('transformTransaction — Amsterdam wall-clock date handling', () => {
+  // A POS payment as ABN AMRO surfaces it; the remittance timestamp is Dutch
+  // local time (CET/CEST), not UTC.
+  function posTx(remittanceTime: string, bookingDate: string): EnableBankingTransaction {
+    return {
+      entry_reference: 'POS-REF-1',
+      transaction_amount: { amount: '12.50', currency: 'EUR' },
+      credit_debit_indicator: 'DBIT',
+      booking_date: bookingDate,
+      remittance_information: [
+        'BEA, Apple Pay',
+        'Albert Heijn 1657,PAS462',
+        `NR:BS158124, ${remittanceTime}`,
+        'EINDHOVEN',
+      ],
+      status: 'booked',
+    };
+  }
+
+  const transform = (tx: EnableBankingTransaction) =>
+    transformTransaction(tx, 'NL16ABNA0837885787', 'conn-1', 'ext-1');
+
+  it('parses a winter (CET) POS timestamp as Amsterdam time, not server time', () => {
+    const result = transform(posTx('31.01.26/15:33', '2026-01-31'));
+    // 15:33 CET = 14:33 UTC. Parsing with `new Date(y,m,d,h,min)` on a UTC
+    // server stored 15:33 UTC — one hour late.
+    expect(result.transactionDate?.toDate().toISOString()).toBe('2026-01-31T14:33:00.000Z');
+    expect(result.date.toDate().toISOString()).toBe('2026-01-31T14:33:00.000Z');
+  });
+
+  it('parses a summer (CEST) POS timestamp with the +2 h offset', () => {
+    const result = transform(posTx('15.07.26/15:33', '2026-07-15'));
+    expect(result.transactionDate?.toDate().toISOString()).toBe('2026-07-15T13:33:00.000Z');
+  });
+
+  it('keeps a late-evening CEST purchase on its own calendar day', () => {
+    // 23:45 CEST on July 15 = 21:45 UTC July 15. The old UTC parse stored
+    // 23:45 UTC, which an Amsterdam reader renders as July 16, 01:45 — the
+    // wrong day.
+    const result = transform(posTx('15.07.26/23:45', '2026-07-15'));
+    expect(result.date.toDate().toISOString()).toBe('2026-07-15T21:45:00.000Z');
+  });
+
+  it('parses POS timestamps on the DST transition days correctly', () => {
+    // Spring forward (2026-03-29): 15:33 is already CEST.
+    expect(
+      transform(posTx('29.03.26/15:33', '2026-03-29')).transactionDate?.toDate().toISOString()
+    ).toBe('2026-03-29T13:33:00.000Z');
+    // Just before the jump: 01:59 is still CET.
+    expect(
+      transform(posTx('29.03.26/01:59', '2026-03-29')).transactionDate?.toDate().toISOString()
+    ).toBe('2026-03-29T00:59:00.000Z');
+    // Fall back (2026-10-25): 15:33 is already CET again.
+    expect(
+      transform(posTx('25.10.26/15:33', '2026-10-25')).transactionDate?.toDate().toISOString()
+    ).toBe('2026-10-25T14:33:00.000Z');
+  });
+
+  it('parses the SEPA "dd-MM-yyyy HH:mm" remittance format as Amsterdam time', () => {
+    const tx = sepaTransfer({
+      remittance_information: [
+        'SEPA iDEAL',
+        'IBAN: NL07RABO0358406781',
+        'Naam: Bol.com',
+        'Omschrijving: order 123',
+        'Kenmerk: 31-01-2026 18:24 714056',
+      ],
+    });
+    const result = transform(tx);
+    expect(result.transactionDate?.toDate().toISOString()).toBe('2026-01-31T17:24:00.000Z');
+  });
+
+  it('stamps bookingDate at Amsterdam noon (same calendar day in any zone)', () => {
+    expect(transform(posTx('15.07.26/15:33', '2026-07-15')).bookingDate.toDate().toISOString()).toBe(
+      '2026-07-15T10:00:00.000Z' // CEST noon
+    );
+    expect(transform(posTx('31.01.26/15:33', '2026-01-31')).bookingDate.toDate().toISOString()).toBe(
+      '2026-01-31T11:00:00.000Z' // CET noon
+    );
+  });
+
+  it('falls back to booking date at Amsterdam noon when no remittance time exists', () => {
+    const result = transformTransaction(sepaTransfer(), 'NL16ABNA0837885787', 'conn-1', 'ext-2');
+    expect(result.transactionDate).toBeNull();
+    expect(result.date.toDate().toISOString()).toBe('2026-05-18T10:00:00.000Z'); // May = CEST
+  });
+});
+
 describe('extractBankDescription', () => {
   it('joins a multi-line remittance_information array with newlines', () => {
     expect(extractBankDescription(sepaTransfer())).toBe(

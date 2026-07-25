@@ -13,6 +13,15 @@ import { EnableBankingClient } from '../enableBanking/client.js';
 import type { EnableBankingTransaction } from '../enableBanking/types.js';
 import { config } from '../config.js';
 import { Categorizer } from '../categorization/index.js';
+import { runLlmCategorization } from './categorizationPipeline.js';
+import {
+  amsterdamDayKey,
+  amsterdamNoon,
+  amsterdamStartOfDay,
+  amsterdamToday,
+  fromAmsterdamWallClock,
+  shiftDayKey,
+} from './amsterdamTime.js';
 import { balanceToCashHolding, todayIso, upsertHistoryPoint } from './holdings.js';
 import type { HistoryPoint } from './holdings.js';
 
@@ -214,22 +223,12 @@ function isoToTimestamp(iso: string): Timestamp {
   return Timestamp.fromDate(new Date(`${iso}T00:00:00.000Z`));
 }
 
-/** Format a Date as local `YYYY-MM-DD` (avoids UTC shift). */
-function formatLocalDate(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-/** Local-midnight Date for an ISO `YYYY-MM-DD`, optionally shifted by days. */
-function localDateFromIso(iso: string, dayOffset = 0): Date {
-  const [year, month, day] = iso.split('-').map(Number);
-  return new Date(year, month - 1, day + dayOffset, 0, 0, 0);
-}
-
-/** Local-noon Timestamp for a bank `YYYY-MM-DD` booking date — the same
- * convention `transformTransaction` uses for the stored `bookingDate`. */
+/** Amsterdam-noon Timestamp for a bank `YYYY-MM-DD` booking date — the same
+ * convention `transformTransaction` uses for the stored `bookingDate`.
+ * (Amsterdam, not server-local: Cloud Functions run in UTC, and noon keeps
+ * the instant on the same calendar day in both zones.) */
 function bookingDateToTimestamp(iso: string): Timestamp {
-  const [year, month, day] = iso.split('-').map(Number);
-  return Timestamp.fromDate(new Date(year, month - 1, day, 12, 0, 0));
+  return Timestamp.fromDate(amsterdamNoon(iso));
 }
 
 /**
@@ -240,7 +239,7 @@ function bookingDateToTimestamp(iso: string): Timestamp {
  * write shape mirrors the client holding mutations (history points stamped as
  * Timestamps, denormalized `value`/`lastValueAt`).
  */
-async function upsertBankCashHolding(
+export async function upsertBankCashHolding(
   db: Firestore,
   userId: string,
   params: {
@@ -255,63 +254,81 @@ async function upsertBankCashHolding(
   const ref = db.collection('users').doc(userId).collection('holdings').doc(`bank-${accountUid}`);
 
   const date = todayIso();
-  const existing = await ref.get();
 
-  if (!existing.exists) {
-    const seed = balanceToCashHolding(amount, { name, platform, date });
-    const ts = isoToTimestamp(date);
-    await ref.set({
-      name: seed.name,
-      platform: seed.platform,
-      type: seed.type,
-      kind: seed.kind,
-      value: seed.value,
-      cost: seed.cost,
-      units: seed.units,
-      liquidity: seed.liquidity,
-      updateSource: seed.updateSource,
-      notes: seed.notes,
-      symbol: seed.symbol,
+  // The read-merge-write of the history array must be atomic: a plain
+  // get-then-set races concurrent syncs and client edits (both read the same
+  // snapshot, the loser's history merge is silently overwritten). A Firestore
+  // transaction re-runs the merge on contention instead.
+  await db.runTransaction(async (txn) => {
+    const existing = await txn.get(ref);
+
+    if (!existing.exists) {
+      const seed = balanceToCashHolding(amount, { name, platform, date });
+      const ts = isoToTimestamp(date);
+      txn.set(ref, {
+        name: seed.name,
+        platform: seed.platform,
+        type: seed.type,
+        kind: seed.kind,
+        value: seed.value,
+        cost: seed.cost,
+        units: seed.units,
+        liquidity: seed.liquidity,
+        updateSource: seed.updateSource,
+        notes: seed.notes,
+        symbol: seed.symbol,
+        bankConnectionId: connectionId,
+        bankAccountUid: accountUid,
+        history: seed.history.map((p) => ({ date: isoToTimestamp(p.date), value: p.value })),
+        lastValueAt: ts,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    // Upsert today's point into the existing history (one point per day) so the
+    // 4×/day auto-sync doesn't bloat the series with intraday duplicates.
+    const stored =
+      (existing.data()?.history as Array<{ date: Timestamp | string; value: number }>) ?? [];
+    const isoHistory: HistoryPoint[] = stored.map((p) => ({
+      date: pointDateToIso(p.date),
+      value: p.value,
+    }));
+    const nextHistory = upsertHistoryPoint(isoHistory, { date, value: amount }).map((p) => ({
+      date: isoToTimestamp(p.date),
+      value: p.value,
+    }));
+
+    txn.update(ref, {
+      value: amount,
+      history: nextHistory,
+      updateSource: 'bank',
       bankConnectionId: connectionId,
       bankAccountUid: accountUid,
-      history: seed.history.map((p) => ({ date: isoToTimestamp(p.date), value: p.value })),
-      lastValueAt: ts,
-      createdAt: FieldValue.serverTimestamp(),
+      lastValueAt: isoToTimestamp(date),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    return;
-  }
-
-  // Upsert today's point into the existing history (one point per day) so the
-  // 4×/day auto-sync doesn't bloat the series with intraday duplicates.
-  const stored =
-    (existing.data()?.history as Array<{ date: Timestamp | string; value: number }>) ?? [];
-  const isoHistory: HistoryPoint[] = stored.map((p) => ({
-    date: pointDateToIso(p.date),
-    value: p.value,
-  }));
-  const nextHistory = upsertHistoryPoint(isoHistory, { date, value: amount }).map((p) => ({
-    date: isoToTimestamp(p.date),
-    value: p.value,
-  }));
-
-  await ref.update({
-    value: amount,
-    history: nextHistory,
-    updateSource: 'bank',
-    bankConnectionId: connectionId,
-    bankAccountUid: accountUid,
-    lastValueAt: isoToTimestamp(date),
-    updatedAt: FieldValue.serverTimestamp(),
   });
 }
 
-/** Resolve the date range to fetch from the bank for this sync. */
-function resolveSyncWindow(connection: FirebaseFirestore.DocumentData): {
+/**
+ * Resolve the date range to fetch from the bank for this sync.
+ *
+ * All dates are AMSTERDAM calendar dates: the bank's `date_from`/`date_to`
+ * params are day-granular and ABN AMRO books on the Dutch calendar, while the
+ * Functions runtime clock is UTC. Around Amsterdam midnight the UTC date is
+ * still "yesterday" (from 22:00/23:00 UTC), so deriving `dateTo` from the
+ * server-local date would briefly exclude same-day transactions.
+ */
+function resolveSyncWindow(
+  connection: FirebaseFirestore.DocumentData,
+  now: Date = new Date()
+): {
   dateFrom: string;
   dateTo: string;
 } {
-  const dateTo = formatLocalDate(new Date());
+  const dateTo = amsterdamToday(now);
 
   let dateFrom: string;
   if (connection.lastSync) {
@@ -319,21 +336,20 @@ function resolveSyncWindow(connection: FirebaseFirestore.DocumentData): {
       connection.lastSync instanceof Timestamp
         ? connection.lastSync.toDate()
         : new Date(connection.lastSync);
-    lastSync.setDate(lastSync.getDate() - 1); // Overlap by 1 day
+    // Overlap by 1 (Amsterdam) day.
+    const overlapFrom = shiftDayKey(amsterdamDayKey(lastSync), -1);
 
     // Clamp the lookback: lastSync is frozen while syncs fail, and Enable
     // Banking rejects date_from older than ~90 days outside the initial auth
     // window — without a clamp, one persistently-failing account would grow
     // the window until the fetch itself starts failing for every account on
     // the connection.
-    const maxLookback = new Date();
-    maxLookback.setDate(maxLookback.getDate() - MAX_SYNC_LOOKBACK_DAYS);
-    dateFrom = formatLocalDate(lastSync > maxLookback ? lastSync : maxLookback);
+    const maxLookback = shiftDayKey(dateTo, -MAX_SYNC_LOOKBACK_DAYS);
+    // ISO day keys compare chronologically as strings.
+    dateFrom = overlapFrom > maxLookback ? overlapFrom : maxLookback;
   } else {
     // Fetch up to 1 year of history on initial sync (banks typically support this during auth window)
-    const oneYearAgo = new Date();
-    oneYearAgo.setDate(oneYearAgo.getDate() - 365);
-    dateFrom = formatLocalDate(oneYearAgo);
+    dateFrom = shiftDayKey(dateTo, -365);
   }
 
   return { dateFrom, dateTo };
@@ -388,18 +404,22 @@ async function loadExistingTransactionsByExternalId(
   dateFrom: string,
   dateTo: string
 ): Promise<Map<string, ExistingTransactionInfo>> {
-  const startDate = localDateFromIso(dateFrom, -DEDUP_WINDOW_BUFFER_DAYS);
-  const endDate = localDateFromIso(dateTo, DEDUP_WINDOW_BUFFER_DAYS + 1);
+  // Buffered Amsterdam day keys bounding the window. The Timestamp bounds are
+  // Amsterdam midnights of those days; with `bookingDate` stored at Amsterdam
+  // noon, the ±2-day buffer keeps every stored variant inside the range —
+  // including legacy documents written as server-local (UTC) noon.
+  const startKey = shiftDayKey(dateFrom, -DEDUP_WINDOW_BUFFER_DAYS);
+  const endKey = shiftDayKey(dateTo, DEDUP_WINDOW_BUFFER_DAYS + 1);
 
   const [timestampSnapshot, stringSnapshot] = await Promise.all([
     transactionsRef
-      .where('bookingDate', '>=', Timestamp.fromDate(startDate))
-      .where('bookingDate', '<=', Timestamp.fromDate(endDate))
+      .where('bookingDate', '>=', Timestamp.fromDate(amsterdamStartOfDay(startKey)))
+      .where('bookingDate', '<=', Timestamp.fromDate(amsterdamStartOfDay(endKey)))
       .select('externalId', 'status')
       .get(),
     transactionsRef
-      .where('bookingDate', '>=', formatLocalDate(startDate))
-      .where('bookingDate', '<=', formatLocalDate(endDate))
+      .where('bookingDate', '>=', startKey)
+      .where('bookingDate', '<=', endKey)
       .select('externalId', 'status')
       .get(),
   ]);
@@ -415,11 +435,16 @@ async function loadExistingTransactionsByExternalId(
   return byExternalId;
 }
 
-interface PendingTransaction {
+export interface PendingTransaction {
   tx: EnableBankingTransaction;
   externalId: string;
   docId: string;
-  transactionData: ReturnType<typeof transformTransaction>;
+  transactionData: ReturnType<typeof transformTransaction> & {
+    /** Set when the LLM fallback was attempted for this transaction and
+     * ultimately failed — surfaced in Settings → Categorization for retry. */
+    categorizationStatus?: 'failed';
+    categorizationError?: string;
+  };
 }
 
 /** Firestore surfaces failed create-preconditions as gRPC 6 / ALREADY_EXISTS. */
@@ -503,44 +528,43 @@ async function commitNewTransactions(
 
 /**
  * LLM categorization pass: batch-categorize transactions no rule/merchant
- * matched. Best-effort — failures are logged and the sync continues.
+ * matched, via the shared pipeline. Best-effort for the sync itself — the
+ * sync always continues — but transactions the LLM ultimately failed to
+ * categorize are stamped `categorizationStatus: 'failed'` on the document
+ * they are about to be created as, so the failure is visible and retryable
+ * instead of silently leaving them uncategorized.
+ *
+ * Exported for unit tests; not part of the module's public sync API.
  */
-async function applyLlmCategorization(
+export async function applyLlmCategorization(
   categorizer: Categorizer,
   items: PendingTransaction[]
 ): Promise<void> {
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicApiKey) return;
 
-  const uncategorized = items
-    .map((item, idx) => ({ item, idx }))
-    .filter(({ item }) => item.transactionData.categorySource === 'none');
+  const uncategorized = items.filter((item) => item.transactionData.categorySource === 'none');
   if (uncategorized.length === 0) return;
 
-  try {
-    const llmResults = await categorizer.categorizeBatchWithLLM(
-      uncategorized.map(({ item, idx }) => ({
-        index: idx,
-        description: item.transactionData.description,
-        counterparty: item.transactionData.counterparty,
-        amount: item.transactionData.amount,
-      })),
-      anthropicApiKey
-    );
+  const outcome = await runLlmCategorization(
+    categorizer,
+    uncategorized.map((item) => ({
+      payload: item,
+      description: item.transactionData.description,
+      counterparty: item.transactionData.counterparty,
+      amount: item.transactionData.amount,
+    })),
+    anthropicApiKey
+  );
 
-    for (const [idx, llmResult] of llmResults) {
-      if (llmResult.categoryId) {
-        items[idx].transactionData.categoryId = llmResult.categoryId;
-        items[idx].transactionData.categoryConfidence = llmResult.confidence;
-        items[idx].transactionData.categorySource = 'llm';
-      }
-    }
-
-    console.log(
-      `LLM categorized ${llmResults.size}/${uncategorized.length} uncategorized transactions`
-    );
-  } catch (err) {
-    console.warn('LLM categorization failed, continuing without:', err);
+  for (const { payload, categoryId, confidence } of outcome.categorized) {
+    payload.transactionData.categoryId = categoryId;
+    payload.transactionData.categoryConfidence = confidence;
+    payload.transactionData.categorySource = 'llm';
+  }
+  for (const { payload, error } of outcome.failed) {
+    payload.transactionData.categorizationStatus = 'failed';
+    payload.transactionData.categorizationError = error;
   }
 }
 
@@ -1024,14 +1048,18 @@ export function transformTransaction(
     throw new Error('Transaction has no date');
   }
 
-  // Parse booking date as local date
-  const [bookYear, bookMonth, bookDay] = bookingDateStr.split('-').map(Number);
-  const bookingDateObj = new Date(bookYear, bookMonth - 1, bookDay, 12, 0, 0);
+  // Parse booking date at Amsterdam noon (date-only field; noon keeps the
+  // instant on the same calendar day in any nearby zone).
+  const bookingDateObj = amsterdamNoon(bookingDateStr);
 
   // 7. Try to extract actual transaction date/time from remittance_information
   // Formats seen in the data:
   // - "NR:BS158124, 31.01.26/15:33" (POS transactions)
   // - "Kenmerk: 31-01-2026 18:24 714056" (SEPA transactions)
+  // These are AMSTERDAM wall-clock times (ABN AMRO prints Dutch local time),
+  // so they must be converted DST-aware — parsing them in the server's zone
+  // (UTC on Cloud Functions) would store instants 1–2 h late and could push a
+  // late-evening purchase onto the next calendar day.
   let transactionDateObj: Date | null = null;
 
   for (const line of remittanceInfo) {
@@ -1040,9 +1068,9 @@ export function transformTransaction(
     if (posMatch) {
       const [, d, m, y, hour, min] = posMatch;
       const fullYear = y.length === 2 ? 2000 + parseInt(y) : parseInt(y);
-      transactionDateObj = new Date(
+      transactionDateObj = fromAmsterdamWallClock(
         fullYear,
-        parseInt(m) - 1,
+        parseInt(m),
         parseInt(d),
         parseInt(hour),
         parseInt(min)
@@ -1054,9 +1082,9 @@ export function transformTransaction(
     const sepaMatch = line.match(/(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2})/);
     if (sepaMatch) {
       const [, d, m, y, hour, min] = sepaMatch;
-      transactionDateObj = new Date(
+      transactionDateObj = fromAmsterdamWallClock(
         parseInt(y),
-        parseInt(m) - 1,
+        parseInt(m),
         parseInt(d),
         parseInt(hour),
         parseInt(min)

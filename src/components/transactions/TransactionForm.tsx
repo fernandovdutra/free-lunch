@@ -190,7 +190,8 @@ export function TransactionForm({
     splits: TransactionSplit[] | null,
     singleRowCategoryId?: string | null
   ) => {
-    setSplitOpen(false);
+    // The editor stays open (with `isSaving` gating it) until the write lands —
+    // closing first would throw away the user's rows on a failed save.
     try {
       if (splits === null) {
         await setSplitMutation.mutateAsync({
@@ -198,9 +199,15 @@ export function TransactionForm({
           splits: null,
           ...(singleRowCategoryId !== undefined ? { categoryId: singleRowCategoryId } : {}),
         });
+        setSplitOpen(false);
         toast({ title: 'Split removed' });
       } else {
-        await setSplitMutation.mutateAsync({ id: transaction.id, splits });
+        await setSplitMutation.mutateAsync({
+          id: transaction.id,
+          splits,
+          transactionAmount: transaction.amount,
+        });
+        setSplitOpen(false);
         toast({ title: `Split into ${splits.length} parts` });
       }
     } catch {
@@ -355,12 +362,6 @@ export function TransactionForm({
               onToggle={() => void handleToggleReimbursable()}
               disabled={markReimbursableMutation.isPending || updateMutation.isPending}
             />
-            <RowToggle
-              label="Split transaction"
-              active={isSplitTxn}
-              onToggle={() => void handleToggleSplit()}
-              disabled={setSplitMutation.isPending}
-            />
             {isReimbursable && (
               <div className="hairline-b flex items-center justify-between px-4 py-2.5">
                 <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-textLo">
@@ -378,6 +379,17 @@ export function TransactionForm({
                   </span>
                 )}
               </div>
+            )}
+            {/* A €0 transaction cannot be split — two positive rows can never
+                sum to 0, so the editor would open onto a dead Save. The toggle
+                still shows for an already-split one, so it can be undone. */}
+            {(transaction.amount !== 0 || isSplitTxn) && (
+              <RowToggle
+                label="Split transaction"
+                active={isSplitTxn}
+                onToggle={() => void handleToggleSplit()}
+                disabled={setSplitMutation.isPending}
+              />
             )}
 
             {/* TAGS — chips write immediately (like the toggles), no submit.

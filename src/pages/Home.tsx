@@ -112,14 +112,9 @@ export function Home() {
   const isFutureMonth = isAfter(selectedMonth, today);
 
   // Cumulative spend per day, anchored to whichever day "today" is in the
-  // visible month. For past months, today === daysInMonth. The month key
-  // scopes the timeline to the visible month so a spurious adjacent-month
-  // day (from local/UTC month-boundary skew) can't shift the cumulative.
-  const dailyActual = buildDailyActual(
-    current?.timeline ?? [],
-    dayOfMonth,
-    format(selectedMonth, 'yyyy-MM')
-  );
+  // visible month. For past months, today === daysInMonth. The timeline
+  // covers exactly the visible (Amsterdam) month — see buildDailyActual.
+  const dailyActual = buildDailyActual(current?.timeline ?? [], dayOfMonth);
 
   // Burn-up projection. Both the chart's central dashed line and the
   // bottom-summary "PROJECTED €X" use this number, so the line and

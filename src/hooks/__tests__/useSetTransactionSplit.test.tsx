@@ -49,7 +49,7 @@ describe('useSetTransactionSplit', () => {
     const { result } = renderHook(() => useSetTransactionSplit(), { wrapper });
 
     await act(async () => {
-      await result.current.mutateAsync({ id: 'txn-1', splits });
+      await result.current.mutateAsync({ id: 'txn-1', splits, transactionAmount: -85.5 });
     });
 
     expect(docMock).toHaveBeenCalledWith({}, 'users', 'user-1', 'transactions', 'txn-1');
@@ -109,6 +109,7 @@ describe('useSetTransactionSplit', () => {
         result.current.mutateAsync({
           id: 'txn-1',
           splits: [{ amount: 85.5, categoryId: 'groceries', note: null }],
+          transactionAmount: -85.5,
         })
       ).rejects.toThrow('at least two rows');
     });
@@ -126,8 +127,69 @@ describe('useSetTransactionSplit', () => {
             { amount: 90.5, categoryId: 'groceries', note: null },
             { amount: -5, categoryId: 'household', note: null },
           ],
+          transactionAmount: -85.5,
         })
       ).rejects.toThrow('positive');
+    });
+    expect(updateDocMock).not.toHaveBeenCalled();
+  });
+
+  // The money invariant: rows that do not add up silently distort every
+  // category total that reads them, and no Firestore rule catches it — so the
+  // mutation itself must refuse, not just the editor's form schema.
+  it.each([
+    ['under-allocated', [60, 20]],
+    ['over-allocated', [60, 30]],
+    ['off by one cent', [65.51, 20]],
+  ])('rejects splits that do not sum to abs(transaction amount) (%s)', async (_label, amounts) => {
+    const { result } = renderHook(() => useSetTransactionSplit(), { wrapper });
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          id: 'txn-1',
+          splits: amounts.map((amount, i) => ({
+            amount,
+            categoryId: i === 0 ? 'groceries' : 'household',
+            note: null,
+          })),
+          transactionAmount: -85.5,
+        })
+      ).rejects.toThrow('add up to the transaction amount');
+    });
+    expect(updateDocMock).not.toHaveBeenCalled();
+  });
+
+  it('accepts a cent-exact split of a positive (income) amount', async () => {
+    const { result } = renderHook(() => useSetTransactionSplit(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        id: 'txn-1',
+        splits: [
+          { amount: 33.33, categoryId: 'groceries', note: null },
+          { amount: 33.34, categoryId: 'household', note: null },
+        ],
+        transactionAmount: 66.67,
+      });
+    });
+
+    expect(updateDocMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses to save a split when no transaction amount is supplied', async () => {
+    const { result } = renderHook(() => useSetTransactionSplit(), { wrapper });
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          id: 'txn-1',
+          splits: [
+            { amount: 65, categoryId: 'groceries', note: null },
+            { amount: 20.5, categoryId: 'household', note: null },
+          ],
+        })
+      ).rejects.toThrow('transaction amount is required');
     });
     expect(updateDocMock).not.toHaveBeenCalled();
   });

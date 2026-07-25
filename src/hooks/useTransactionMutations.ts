@@ -7,6 +7,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   serverTimestamp,
   Timestamp,
   where,
@@ -17,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { invalidateFinancialData } from '@/lib/queryKeys';
 import { normalizeTags } from '@/lib/tags';
 import { recategorizeTransactions } from '@/lib/bankingFunctions';
+import { validateSplits } from '@/lib/splits';
 import type { Transaction, TransactionFormData, TransactionSplit } from '@/types';
 import { generateId } from '@/lib/utils';
 
@@ -121,6 +123,16 @@ export function useUpdateTransaction() {
         updateData.date = Timestamp.fromDate(data.date);
       }
 
+      // A user-chosen category resolves any recorded AI-categorization
+      // failure, so drop the marker the backend left behind (see
+      // `categorizationStatus` in functions/src/shared/categorizationPipeline.ts).
+      // Otherwise the transaction keeps showing up in the "retry failed AI
+      // categorization" count and a retry would overwrite this manual choice.
+      if ('categoryId' in data || data.categorySource === 'manual') {
+        updateData.categorizationStatus = deleteField();
+        updateData.categorizationError = deleteField();
+      }
+
       await updateDoc(transactionRef, updateData);
       return id;
     },
@@ -142,6 +154,11 @@ export function useUpdateTransactionCategory() {
         categoryId,
         categorySource: 'manual',
         categoryConfidence: 1,
+        // The user has resolved this transaction by hand: clear any
+        // AI-categorization failure marker so it leaves the "retry failed AI
+        // categorization" surface and a retry cannot overwrite this choice.
+        categorizationStatus: deleteField(),
+        categorizationError: deleteField(),
         updatedAt: serverTimestamp(),
       });
       return id;
@@ -237,6 +254,12 @@ export interface SetTransactionSplitInput {
   /** 2+ rows to store a split, or `null` to remove an existing one. */
   splits: TransactionSplit[] | null;
   /**
+   * The transaction's own signed `amount` (euros). Required whenever `splits`
+   * is non-null: the rows must sum cent-exactly to `Math.abs(amount)`, and
+   * nothing downstream (Firestore rules included) re-checks that invariant.
+   */
+  transactionAmount?: number;
+  /**
    * Only meaningful when removing a split (`splits: null`): category the
    * transaction falls back to (e.g. the surviving editor row's category).
    * Omit to leave `categoryId` untouched.
@@ -252,18 +275,29 @@ export interface SetTransactionSplitInput {
  * (functions/src/shared/aggregations.ts `TransactionDoc`): split amounts are
  * POSITIVE euros summing to `abs(transaction.amount)` — backend aggregation
  * skips `amount <= 0` rows, so those are rejected here.
+ *
+ * The money invariant (rows sum to the transaction total) is enforced here
+ * rather than only in the editor's form schema: a split that does not add up
+ * silently distorts every category total that reads it, and no Firestore rule
+ * catches it.
  */
 export function useSetTransactionSplit() {
   const queryClient = useQueryClient();
   const { dataOwnerId } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ id, splits, categoryId }: SetTransactionSplitInput) => {
+    mutationFn: async ({ id, splits, transactionAmount, categoryId }: SetTransactionSplitInput) => {
       if (!dataOwnerId) throw new Error('Not authenticated');
       if (splits !== null) {
         if (splits.length < 2) throw new Error('A split needs at least two rows');
         if (splits.some((s) => s.amount <= 0)) {
           throw new Error('Split amounts must be positive');
+        }
+        if (typeof transactionAmount !== 'number' || !Number.isFinite(transactionAmount)) {
+          throw new Error('The transaction amount is required to save a split');
+        }
+        if (!validateSplits(Math.abs(transactionAmount), splits)) {
+          throw new Error('Split amounts must add up to the transaction amount');
         }
       }
       const transactionRef = doc(db, 'users', dataOwnerId, 'transactions', id);
@@ -350,6 +384,10 @@ export function useBulkUpdateCategory() {
             categoryId,
             categorySource: 'manual',
             categoryConfidence: 1,
+            // Same as the single-transaction path: a manual category clears
+            // any AI-categorization failure marker.
+            categorizationStatus: deleteField(),
+            categorizationError: deleteField(),
             updatedAt: serverTimestamp(),
           });
         });
