@@ -221,6 +221,10 @@ export function calculateSummary(
     }
     if (doc.reimbursement?.status === 'pending') {
       pendingReimbursements += Math.abs(doc.amount);
+    } else if (doc.reimbursement?.status === 'cleared') {
+      // Reimbursed: the expense was paid back and the incoming payment is
+      // not real income — the pair nets to zero, so exclude both sides.
+      continue;
     } else if (doc.amount > 0) {
       totalIncome += doc.amount;
     } else {
@@ -246,10 +250,12 @@ export function calculateCategorySpending(
   transactions: TransactionWithId[],
   categories: Map<string, CategoryDoc>
 ): CategorySpendingResult[] {
-  // Only count expenses (negative amounts), exclude pending reimbursements, excluded, and Transfer category
+  // Only count expenses (negative amounts), exclude reimbursements (pending
+  // or already paid back), excluded, and Transfer category
   const expenses = transactions.filter(({ doc }) => {
     if (doc.amount >= 0) return false;
     if (doc.reimbursement?.status === 'pending') return false;
+    if (doc.reimbursement?.status === 'cleared') return false;
     if (doc.excludeFromTotals) return false;
     const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
     if (topLevel === 'transfer') return false;
@@ -340,6 +346,7 @@ export function calculateTimelineData(
   for (const { doc } of transactions) {
     if (doc.excludeFromTotals) continue;
     if (doc.reimbursement?.status === 'pending') continue; // Skip pending reimbursements
+    if (doc.reimbursement?.status === 'cleared') continue; // Reimbursed pair nets to zero
     if (categories && doc.categoryId) {
       const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
       if (topLevel === 'transfer') continue;
@@ -379,10 +386,11 @@ export function calculateSpendingByCategory(
   const spending = new Map<string, number>();
 
   for (const { doc } of transactions) {
-    // Skip income, pending reimbursements, excluded, and Transfer category
+    // Skip income, reimbursements (pending or paid back), excluded, and Transfer category
     if (doc.excludeFromTotals) continue;
     if (doc.amount >= 0) continue;
     if (doc.reimbursement?.status === 'pending') continue;
+    if (doc.reimbursement?.status === 'cleared') continue;
     const topLevelId = getTopLevelCategoryId(doc.categoryId, categories);
     if (topLevelId === 'transfer') continue;
 

@@ -61,8 +61,10 @@ function filterByDirection(
   return transactions.filter(({ doc }) => {
     // Exclude transactions marked for exclusion (e.g. ABN AMRO ICS lump sums)
     if (doc.excludeFromTotals) return false;
-    // Exclude pending reimbursements
+    // Exclude reimbursements — pending (money coming back) and cleared
+    // (already paid back; the expense/payment pair nets to zero)
     if (doc.reimbursement?.status === 'pending') return false;
+    if (doc.reimbursement?.status === 'cleared') return false;
     // Exclude Transfer category from both expenses and income views
     if (doc.categoryId) {
       const topLevel = getTopLevelCategoryId(doc.categoryId, categories);

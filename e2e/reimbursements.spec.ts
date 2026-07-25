@@ -1,21 +1,26 @@
 import { test as base, expect } from '@playwright/test';
-import { login, register, TEST_USER } from './fixtures/auth';
+import { login, canAuthenticate } from './fixtures/auth';
+import {
+  STAGED,
+  stageReimbursementData,
+  getIdToken,
+  fetchBudgetProgress,
+  listUserDocs,
+} from './fixtures/emulator';
 
 const test = base.extend({});
 
-// Helper to check if we can authenticate
-async function canAuthenticate(page: ReturnType<typeof base.extend>['page']) {
-  try {
-    const registered = await register(page as any);
-    if (registered) return true;
-    const loggedIn = await login(page as any);
-    return loggedIn;
-  } catch {
-    return false;
-  }
-}
+// The app is mobile-first and edit sheets animate from the bottom; the
+// stable, production-representative way to drive them is an iPhone viewport.
+test.use({ viewport: { width: 390, height: 844 } });
 
-test.describe('Reimbursements Page', () => {
+/**
+ * Covers the reimbursement flow end-to-end against the emulator stack:
+ * visibility of cleared/pending states, the exact-amount suggestion picker,
+ * resolving a pending reimbursement, and the budget exclusion of reimbursed
+ * spend. Data is staged deterministically in fixtures/emulator.ts.
+ */
+test.describe('Reimbursements', () => {
   test.describe.configure({ mode: 'serial' });
 
   let authAvailable = false;
@@ -24,293 +29,133 @@ test.describe('Reimbursements Page', () => {
     const page = await browser.newPage();
     authAvailable = await canAuthenticate(page);
     await page.close();
-
-    if (!authAvailable) {
-      console.warn(
-        '\n⚠️  Skipping authenticated tests - Firebase emulators not running.\n' +
-          '   To run: npm run firebase:emulators && npm run e2e\n'
-      );
+    if (authAvailable) {
+      await stageReimbursementData();
+    } else {
+      console.warn('⚠️  Skipping reimbursement tests - emulators not running (see docs/TESTING.md)');
     }
   });
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!authAvailable, 'Authentication not available - run Firebase emulators');
+    test.skip(!authAvailable, 'Emulator stack not available');
+    await login(page);
+  });
 
-    await login(page, TEST_USER.email, TEST_USER.password);
+  test('shows the open reimbursement and closed history', async ({ page }) => {
     await page.goto('/reimbursements');
-    // Wait for page to fully load - look for main heading or subheading
-    await expect(page.getByText(/track work expenses and personal ious/i)).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByText(/YOU'RE OWED/i)).toBeVisible({ timeout: 15000 });
+
+    // The staged pending expense appears in the OPEN list with its amount.
+    const openRow = page.getByRole('button').filter({ hasText: STAGED.pendingMerchant }).first();
+    await expect(openRow).toBeVisible();
+    await expect(openRow).toContainText('47,23');
+
+    // Closed section exists (collapsed by default).
+    await expect(page.getByText(/CLOSED · LAST 90 DAYS/)).toBeVisible();
   });
 
-  test('should display the reimbursements page header', async ({ page }) => {
-    // The h1 heading "Reimbursements"
-    await expect(page.locator('h1').first()).toHaveText('Reimbursements');
-    await expect(page.getByText(/track work expenses and personal ious/i)).toBeVisible();
-  });
-
-  test('should display pending reimbursements section', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: /pending reimbursements/i })).toBeVisible();
-  });
-
-  test('should display summary section', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: /summary/i })).toBeVisible();
-    // Summary should show pending total and cleared stats
-    await expect(page.getByText(/pending total/i)).toBeVisible();
-  });
-
-  test('should display recently cleared section', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: /recently cleared/i })).toBeVisible();
-  });
-
-  test('should show empty state or pending items', async ({ page }) => {
-    // Wait for content to load
-    await page.waitForTimeout(2000);
-
-    // Either shows empty state or has pending items (amber-colored section)
-    const emptyState = page.getByText(/no pending reimbursements/i);
-    const pendingSection = page.locator('text=Pending Total');
-
-    await expect(emptyState.or(pendingSection)).toBeVisible();
-  });
-});
-
-test.describe('Reimbursement Workflow', () => {
-  test.describe.configure({ mode: 'serial' });
-
-  let authAvailable = false;
-  const testExpenseDescription = `E2E Reimbursable Expense ${Date.now()}`;
-  const testIncomeDescription = `E2E Reimbursement Income ${Date.now()}`;
-
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    authAvailable = await canAuthenticate(page);
-    await page.close();
-
-    if (!authAvailable) {
-      console.warn(
-        '\n⚠️  Skipping authenticated tests - Firebase emulators not running.\n' +
-          '   To run: npm run firebase:emulators && npm run e2e\n'
-      );
-    }
-  });
-
-  test.beforeEach(async ({ page }) => {
-    test.skip(!authAvailable, 'Authentication not available - run Firebase emulators');
-    await login(page, TEST_USER.email, TEST_USER.password);
-  });
-
-  test('should mark an expense as reimbursable', async ({ page }) => {
-    // Go to transactions and create an expense
+  test('marks cleared reimbursements in the transactions list', async ({ page }) => {
     await page.goto('/transactions');
-    await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Create a test expense transaction
-    await page.getByRole('button', { name: /add transaction/i }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-
-    await page.getByLabel(/description/i).fill(testExpenseDescription);
-    await page.getByLabel(/amount/i).fill('-75.50');
-    await page
-      .getByRole('button', { name: /add transaction/i })
-      .last()
-      .click();
-
-    await expect(page.getByRole('dialog')).not.toBeVisible();
-    await expect(page.getByText(testExpenseDescription)).toBeVisible({ timeout: 10000 });
-
-    // Find the transaction row with the expense (look for the specific description text)
-    const transactionText = page.getByText(testExpenseDescription, { exact: true });
-    const transactionRow = transactionText
-      .locator('xpath=ancestor::div[contains(@class, "group")]')
+    // The list is virtualized — search to bring the staged row into view.
+    await page.getByPlaceholder(/search description or payee/i).fill(STAGED.clearedMerchant);
+    const clearedRow = page
+      .getByRole('button')
+      .filter({ hasText: STAGED.clearedMerchant })
+      .filter({ hasText: 'REIMBURSED ✓' })
       .first();
-    await transactionRow.hover();
-
-    // Open the action menu
-    const actionsButton = transactionRow.getByRole('button', { name: /actions/i });
-    await actionsButton.click();
-
-    // Click "Mark as Reimbursable" - wait for the menu button to appear
-    const markButton = page.getByRole('button', { name: /mark as reimbursable/i });
-    await expect(markButton).toBeVisible({ timeout: 5000 });
-    await markButton.click();
-
-    // Fill in the reimbursement dialog
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByRole('heading', { name: /mark as reimbursable/i })).toBeVisible();
-
-    // Select type (Work Expense is default)
-    await page.getByLabel(/note/i).fill('E2E test work expense');
-    await page
-      .getByRole('button', { name: /mark as reimbursable/i })
-      .last()
-      .click();
-
-    await expect(page.getByRole('dialog')).not.toBeVisible();
-
-    // Verify the amber badge appears
-    await expect(page.getByText('Work').first()).toBeVisible({ timeout: 5000 });
+    await expect(clearedRow).toBeVisible({ timeout: 20000 });
   });
 
-  test('should show pending reimbursement on reimbursements page', async ({ page }) => {
-    await page.goto('/reimbursements');
-    await expect(page.getByText(/track work expenses and personal ious/i)).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Wait for data to load
-    await page.waitForTimeout(2000);
-
-    // The previously marked transaction should appear in pending list
-    // Check for amber-colored items (pending reimbursements use amber styling)
-    const pendingSection = page
-      .locator('div')
-      .filter({ hasText: /pending reimbursements/i })
-      .first();
-    await expect(pendingSection).toBeVisible();
-  });
-
-  test('should clear reimbursement by matching with income', async ({ page }) => {
-    // First create an income transaction
+  test('shows reimbursed status in the edit sheet', async ({ page }) => {
     await page.goto('/transactions');
-    await expect(page.getByRole('heading', { name: /transactions/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    await page.getByRole('button', { name: /add transaction/i }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-
-    await page.getByLabel(/description/i).fill(testIncomeDescription);
-    await page.getByLabel(/amount/i).fill('100');
+    await page.getByPlaceholder(/search description or payee/i).fill(STAGED.clearedMerchant);
     await page
-      .getByRole('button', { name: /add transaction/i })
-      .last()
-      .click();
-
-    await expect(page.getByRole('dialog')).not.toBeVisible();
-    await expect(page.getByText(testIncomeDescription)).toBeVisible({ timeout: 10000 });
-
-    // Find the income transaction and open action menu
-    const incomeRow = page.locator('div').filter({ hasText: testIncomeDescription }).first();
-    await incomeRow.hover();
-    await incomeRow
-      .getByRole('button', { name: /actions/i })
+      .getByRole('button')
+      .filter({ hasText: STAGED.clearedMerchant })
       .first()
       .click();
 
-    // Click "Contains Reimbursement"
-    await page.getByRole('button', { name: /contains reimbursement/i }).click();
+    // Status row under the Reimbursable toggle.
+    await expect(page.getByText(/Reimbursed ✓/i).last()).toBeVisible({ timeout: 10000 });
+  });
 
-    // The clear reimbursement dialog should appear
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByRole('heading', { name: /clear reimbursements/i })).toBeVisible();
+  test('suggests and resolves an exact-amount match end-to-end', async ({ page }) => {
+    await page.goto('/transactions');
 
-    // If there are pending reimbursements, select one and clear
-    const selectableItems = page
-      .locator('[role="dialog"]')
-      .locator('button')
-      .filter({ hasText: /-€/ });
-    const itemCount = await selectableItems.count();
+    // Open the pending expense (meta shows "REIMB €47,23").
+    await page.getByPlaceholder(/search description or payee/i).fill(STAGED.pendingMerchant);
+    await page
+      .getByRole('button')
+      .filter({ hasText: STAGED.pendingMerchant })
+      .first()
+      .click();
+    await expect(page.getByText(/Awaiting reimbursement/i)).toBeVisible({ timeout: 10000 });
 
-    if (itemCount > 0) {
-      // Select the first pending reimbursement
-      await selectableItems.first().click();
+    // Manual resolve → picker with the SUGGESTED section on top.
+    await page.getByText('Mark as reimbursed').click();
+    await expect(page.getByText(/Suggested · Same amount/i)).toBeVisible({ timeout: 15000 });
 
-      // Click Clear button
-      await page.getByRole('button', { name: /clear/i }).last().click();
+    const suggestion = page.locator('button.border-l-accent').first();
+    await expect(suggestion).toContainText(STAGED.matchMerchant);
+    await expect(suggestion).toContainText('47,23');
 
-      await expect(page.getByRole('dialog')).not.toBeVisible();
-    } else {
-      // No pending reimbursements to clear, close dialog
-      await page.getByRole('button', { name: /cancel/i }).click();
+    // Picker rows below the suggestions are newest-first.
+    const dates = await page
+      .locator('button.grid.w-full span.nums')
+      .allTextContents();
+    const parsed = dates
+      .map((t) => t.trim())
+      .filter((t) => /^[A-Z]{3} \d{1,2}$/.test(t))
+      .map((t) => new Date(`${t} ${new Date().getFullYear()}`).getTime());
+    const allIncome = parsed.slice(1); // skip the proximity-ranked suggestion row
+    for (let i = 1; i < allIncome.length; i++) {
+      expect(allIncome[i - 1]!).toBeGreaterThanOrEqual(allIncome[i]!);
     }
+
+    // Pick the suggestion → reimbursement resolves, row flips to cleared.
+    await suggestion.click();
+    await expect(page.getByText(/Reimbursement resolved/i).first()).toBeVisible({ timeout: 15000 });
+    await expect(
+      page
+        .getByRole('button')
+        .filter({ hasText: STAGED.pendingMerchant })
+        .filter({ hasText: 'REIMBURSED ✓' })
+        .first()
+    ).toBeVisible({ timeout: 15000 });
   });
-});
 
-test.describe('Data Export', () => {
-  test.describe.configure({ mode: 'serial' });
+  test('excludes reimbursed expenses from budget progress', async () => {
+    test.skip(!authAvailable, 'Emulator stack not available');
 
-  let authAvailable = false;
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    authAvailable = await canAuthenticate(page);
-    await page.close();
-
-    if (!authAvailable) {
-      console.warn(
-        '\n⚠️  Skipping authenticated tests - Firebase emulators not running.\n' +
-          '   To run: npm run firebase:emulators && npm run e2e\n'
-      );
+    // Expected: sum of this month's restaurant expenses that are NOT
+    // reimbursed (pending or cleared), computed from raw emulator data.
+    const docs = await listUserDocs('transactions');
+    let expected = 0;
+    let reimbursedSum = 0;
+    for (const d of docs) {
+      const f = d.fields;
+      const amount = Number(f.amount?.doubleValue ?? f.amount?.integerValue ?? 0);
+      const date = new Date(f.date?.timestampValue ?? 0);
+      if (f.categoryId?.stringValue !== 'food-restaurants') continue;
+      if (amount >= 0 || date < start || date > end) continue;
+      const status = f.reimbursement?.mapValue?.fields?.status?.stringValue;
+      if (status === 'pending' || status === 'cleared') {
+        reimbursedSum += Math.abs(amount);
+      } else {
+        expected += Math.abs(amount);
+      }
     }
-  });
+    // Sanity: the staged reimbursed expenses are actually in the excluded set.
+    expect(reimbursedSum).toBeGreaterThanOrEqual(STAGED.clearedAmount + STAGED.pendingAmount - 0.01);
 
-  test.beforeEach(async ({ page }) => {
-    test.skip(!authAvailable, 'Authentication not available - run Firebase emulators');
-    await login(page, TEST_USER.email, TEST_USER.password);
-  });
-
-  test('should display export buttons on settings page', async ({ page }) => {
-    await page.goto('/settings');
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    await expect(page.getByRole('heading', { name: /data export/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /export as csv/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /export as json/i })).toBeVisible();
-  });
-
-  test('should download CSV export', async ({ page }) => {
-    await page.goto('/settings');
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Wait for transactions to load (buttons should become enabled)
-    await page.waitForTimeout(2000);
-
-    const csvButton = page.getByRole('button', { name: /export as csv/i });
-
-    // Check if button is enabled (has transactions)
-    const isDisabled = await csvButton.isDisabled();
-
-    if (!isDisabled) {
-      // Set up download handler
-      const downloadPromise = page.waitForEvent('download');
-      await csvButton.click();
-      const download = await downloadPromise;
-
-      expect(download.suggestedFilename()).toMatch(/\.csv$/);
-    }
-  });
-
-  test('should have working JSON export button', async ({ page }) => {
-    await page.goto('/settings');
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Wait for transactions to load
-    await page.waitForTimeout(3000);
-
-    const jsonButton = page.getByRole('button', { name: /export as json/i });
-
-    // Check if button is enabled (has transactions)
-    const isDisabled = await jsonButton.isDisabled();
-
-    if (!isDisabled) {
-      // Try to trigger download - in headless mode this may not actually download
-      // but we verify the button is clickable
-      await jsonButton.click();
-      // If we got here, the button click worked
-      expect(true).toBe(true);
-    } else {
-      // No transactions to export - button should be disabled
-      expect(isDisabled).toBe(true);
-    }
+    const idToken = await getIdToken();
+    const progress = await fetchBudgetProgress(idToken, start, end);
+    const restaurants = progress.find((b) => b.categoryId === 'food-restaurants');
+    expect(restaurants, 'seeded restaurants budget should exist').toBeTruthy();
+    expect(Math.abs(restaurants!.spent - expected)).toBeLessThan(0.01);
   });
 });

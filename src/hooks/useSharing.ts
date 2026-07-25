@@ -8,9 +8,7 @@ import {
   inviteMemberFn,
   removeMemberFn,
   cancelInvitationFn,
-  repairSharingFn,
   type SharedMemberRole,
-  type RepairSharingResult,
 } from '@/lib/bankingFunctions';
 import { useGuardedMutation } from './useGuardedMutation';
 
@@ -145,29 +143,6 @@ export function useCancelInvitation() {
     {
       mutationFn: async (email: string) => {
         const result = await cancelInvitationFn({ email });
-        return result.data;
-      },
-      onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: ['sharing', dataOwnerId] });
-      },
-    },
-    { ownerOnly: true }
-  );
-}
-
-/**
- * One-shot repair for accounts whose sharing data was written by the buggy
- * dotted-key set+merge calls. Owner-only. The CF is idempotent: a healthy
- * account returns `{ literalFieldsRemoved: 0 }` and writes nothing.
- */
-export function useRepairSharing() {
-  const queryClient = useQueryClient();
-  const { dataOwnerId } = useAuth();
-
-  return useGuardedMutation(
-    {
-      mutationFn: async (): Promise<RepairSharingResult> => {
-        const result = await repairSharingFn();
         return result.data;
       },
       onSuccess: () => {

@@ -272,6 +272,24 @@ export function TransactionForm({
               onToggle={() => void handleToggleReimbursable()}
               disabled={markReimbursableMutation.isPending || updateMutation.isPending}
             />
+            {isReimbursable && (
+              <div className="hairline-b flex items-center justify-between px-4 py-2.5">
+                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-textLo">
+                  Status
+                </span>
+                {transaction.reimbursement?.status === 'cleared' ? (
+                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-accent">
+                    Reimbursed ✓
+                    {transaction.reimbursement.clearedAt &&
+                      ` · ${format(transaction.reimbursement.clearedAt, 'MMM d, yyyy').toUpperCase()}`}
+                  </span>
+                ) : (
+                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-textMid">
+                    Awaiting reimbursement
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* NOTE */}
             <SectionHeader>NOTE</SectionHeader>
@@ -373,6 +391,7 @@ export function TransactionForm({
       <ManualResolveSheet
         open={resolveOpen}
         onOpenChange={setResolveOpen}
+        expense={transaction}
         onPick={(id) => void handleResolvePicked(id)}
       />
     </>

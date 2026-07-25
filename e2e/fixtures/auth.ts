@@ -1,12 +1,13 @@
 import { test as base, expect, type Page } from '@playwright/test';
 
-// Test user credentials for E2E tests (use with Firebase emulators).
-// The seeded test user is created by scripts/seed-emulator.mjs;
-// e2e tests rely on that seed and only exercise login (registration UI removed in Phase 3).
+// Credentials of the seeded emulator user created by scripts/seed-emulator.mjs.
+// The E2E suite runs exclusively against the Firebase emulators (see
+// docs/TESTING.md) — it never talks to production. Registration UI was
+// removed in Phase 3, so login with the seeded user is the only auth path.
 export const TEST_USER = {
-  email: 'e2e-test@freelunch.test',
-  password: 'TestPassword123!',
-  displayName: 'E2E Test User',
+  email: 'test@freelunch.local',
+  password: 'test1234',
+  displayName: 'Test User',
 };
 
 let authAvailable: boolean | null = null;
@@ -34,7 +35,7 @@ export async function login(page: Page, email = TEST_USER.email, password = TEST
   await page.getByLabel(/password/i).fill(password);
 
   await Promise.all([
-    page.waitForURL(/\/(dashboard|categories|transactions)?$/, { timeout: 15000 }),
+    page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 15000 }),
     page.getByRole('button', { name: /dev login/i }).click(),
   ]);
 
@@ -44,6 +45,19 @@ export async function login(page: Page, email = TEST_USER.email, password = TEST
     return await isAuthenticated(page);
   }
   return true;
+}
+
+/**
+ * Shared beforeAll probe: true when the emulator stack is up and the seeded
+ * user can log in. Specs skip their authenticated tests when this is false
+ * so the suite degrades gracefully instead of erroring without emulators.
+ */
+export async function canAuthenticate(page: Page): Promise<boolean> {
+  try {
+    return await login(page);
+  } catch {
+    return false;
+  }
 }
 
 export const test = base.extend<{
@@ -63,7 +77,7 @@ export const test = base.extend<{
           '\n⚠️  Authentication not available - Firebase emulators may not be running.\n' +
             '   To run authenticated tests:\n' +
             '   1. Start emulators: npm run firebase:emulators\n' +
-            '   2. Seed test user: npm run seed:emulator (or ensure scripts/seed-emulator.mjs ran)\n' +
+            '   2. Seed test user: FIREBASE_PROJECT_ID=<project> node scripts/seed-emulator.mjs\n' +
             '   3. Enable emulators in .env.local: VITE_USE_EMULATORS=true\n' +
             '   4. Run tests: npm run e2e\n'
         );
