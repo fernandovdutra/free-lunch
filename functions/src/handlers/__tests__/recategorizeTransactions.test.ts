@@ -9,6 +9,8 @@
  *    uncategorized
  *  - `mode: 'failed'` selects exactly the failed docs, implies LLM, and a
  *    successful retry clears the failure marker
+ *  - manual categorizations are never overwritten by a retry, and never
+ *    (re)stamped with a failure marker
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -295,6 +297,77 @@ describe('recategorizeTransactions', () => {
     expect(doc.categorizationStatus).toBeUndefined();
     expect(doc.categorizationError).toBeUndefined();
     expect(categorizeBatchWithLLMMock).not.toHaveBeenCalled();
+  });
+
+  it("mode 'failed' leaves a manually categorized transaction completely untouched", async () => {
+    // The user fixed this transaction by hand after the AI failed on it; the
+    // stale marker must not let a retry overwrite their choice.
+    seedTxn('t-manual', {
+      categorizationStatus: 'failed',
+      categorizationError: 'LLM response unusable: truncated',
+      categorySource: 'manual',
+      categoryId: 'user-picked',
+      categoryConfidence: 1,
+    });
+    seedTxn('t-failed', { categorizationStatus: 'failed', categorizationError: 'boom' });
+    categorizeBatchWithLLMMock.mockResolvedValue({
+      results: new Map([[0, { categoryId: 'llm-cat', confidence: 0.7, source: 'llm' }]]),
+      failures: new Map(),
+    });
+
+    const result = await run({ mode: 'failed' });
+
+    expect(result.processed).toBe(1); // the manual doc was not even selected
+    expect(db.store.get(`${TX_PATH}/t-manual`)).toMatchObject({
+      categoryId: 'user-picked',
+      categorySource: 'manual',
+      categoryConfidence: 1,
+    });
+    // Only the genuinely-failed doc was sent to the LLM.
+    expect(categorizeBatchWithLLMMock).toHaveBeenCalledTimes(1);
+    expect(categorizeBatchWithLLMMock.mock.calls[0][0]).toHaveLength(1);
+    expect(db.store.get(`${TX_PATH}/t-failed`)!.categorySource).toBe('llm');
+  });
+
+  it('never stamps a failure marker on a doc the snapshot shows as manual', async () => {
+    // Explicit "AI categorize this one" on a manually categorized transaction:
+    // the LLM may run, but a failure must not push it into the retry surface.
+    seedTxn('t-manual', { categorySource: 'manual', categoryId: 'user-picked' });
+    categorizeBatchWithLLMMock.mockRejectedValue(new Error('Anthropic 529 overloaded'));
+
+    const result = await run({ transactionIds: ['t-manual'] });
+
+    expect(result.llmFailed).toBe(0);
+    const doc = db.store.get(`${TX_PATH}/t-manual`)!;
+    expect(doc.categorizationStatus).toBeUndefined();
+    expect(doc.categorizationError).toBeUndefined();
+    expect(doc.categoryId).toBe('user-picked');
+  });
+
+  it('reports a hard LLM failure in errors as well as on the documents', async () => {
+    seedTxn('t1');
+    categorizeBatchWithLLMMock.mockRejectedValue(new Error('Anthropic 529 overloaded'));
+
+    const result = await run({ useLLM: true, mode: 'uncategorized' });
+
+    expect(result.errors).toContainEqual(
+      expect.stringMatching(/^LLM categorization failed: .*529 overloaded/)
+    );
+    expect(result.llmFailed).toBe(1);
+  });
+
+  it('does not add a run-level error when only some transactions fail', async () => {
+    seedTxn('t1');
+    seedTxn('t2');
+    categorizeBatchWithLLMMock.mockResolvedValue({
+      results: new Map([[0, { categoryId: 'llm-cat', confidence: 0.8, source: 'llm' }]]),
+      failures: new Map([[1, 'model returned no valid category for this transaction']]),
+    });
+
+    const result = await run({ useLLM: true, mode: 'uncategorized' });
+
+    expect(result.errors).toEqual([]);
+    expect(result.llmFailed).toBe(1);
   });
 
   it('keeps the missing-API-key behavior: error reported, docs NOT marked failed', async () => {

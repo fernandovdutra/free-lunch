@@ -66,6 +66,19 @@ describe('runLlmCategorization', () => {
     expect(outcome.failed).toHaveLength(2);
     expect(outcome.failed[0].error.length).toBeLessThanOrEqual(200);
     expect(outcome.failed[0].error).toMatch(/^boom/);
+    // Run-level reason, so callers can report one error instead of N.
+    expect(outcome.hardFailure).toBe(outcome.failed[0].error);
+  });
+
+  it('leaves hardFailure unset when individual items fail', async () => {
+    const categorizer = stubCategorizer(async () => ({
+      results: new Map([[0, { categoryId: 'groceries', confidence: 0.9, source: 'llm' as const }]]),
+      failures: new Map([[1, 'model returned no valid category for this transaction']]),
+    }));
+
+    const outcome = await runLlmCategorization(categorizer, [item('a'), item('b')], 'key');
+
+    expect(outcome.hardFailure).toBeUndefined();
   });
 
   it('returns an empty outcome for no items without calling the LLM', async () => {

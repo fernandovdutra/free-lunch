@@ -1,10 +1,39 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createElement, type ReactNode } from 'react';
 
 // The module transitively imports the Firebase client (initializes Auth/Firestore
-// at load). We only exercise the pure cache helper, so stub the client.
+// at load) — stub it, per project convention.
 vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, functions: {} }));
+vi.mock('@/lib/bankingFunctions', () => ({ recategorizeTransactions: vi.fn() }));
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ dataOwnerId: 'user-1' }) }));
 
-import { patchTransactionInCache } from '../useTransactionMutations';
+const updateDocMock = vi.hoisted(() => vi.fn());
+vi.mock('firebase/firestore', () => ({
+  collection: vi.fn(),
+  query: vi.fn(),
+  getDocs: vi.fn(),
+  doc: (_db: unknown, ...segments: string[]) => ({ path: segments.join('/') }),
+  setDoc: vi.fn(),
+  updateDoc: (ref: unknown, data: Record<string, unknown>): Promise<void> => {
+    updateDocMock(ref, data);
+    return Promise.resolve();
+  },
+  deleteDoc: vi.fn(),
+  // Sentinels, so a write payload can be asserted structurally.
+  deleteField: () => 'DELETE_FIELD',
+  serverTimestamp: () => 'SERVER_TS',
+  Timestamp: { fromDate: (d: Date) => ({ toDate: () => d }) },
+  where: vi.fn(),
+  writeBatch: vi.fn(),
+}));
+
+import {
+  patchTransactionInCache,
+  useUpdateTransaction,
+  useUpdateTransactionCategory,
+} from '../useTransactionMutations';
 import type { Transaction } from '@/types';
 
 function txn(id: string, overrides: Partial<Transaction> = {}): Transaction {
@@ -68,5 +97,71 @@ describe('patchTransactionInCache', () => {
   it('leaves unknown shapes untouched (defensive)', () => {
     const weird = { foo: 'bar' };
     expect(patchTransactionInCache(weird, 'a', patch)).toBe(weird);
+  });
+});
+
+function wrapper({ children }: { children: ReactNode }) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return createElement(QueryClientProvider, { client: queryClient }, children);
+}
+
+/**
+ * A manual categorization resolves any AI-categorization failure the backend
+ * recorded (`categorizationStatus: 'failed'`). If the marker survived, the
+ * transaction would keep inflating the "retry failed AI categorization" count
+ * and a retry could overwrite the user's own choice.
+ */
+describe('manual category writes clear the AI failure marker', () => {
+  beforeEach(() => {
+    updateDocMock.mockReset();
+  });
+
+  /** The data payload of the first `updateDoc` call. */
+  function writePayload(): Record<string, unknown> {
+    const call = updateDocMock.mock.calls[0] as [unknown, Record<string, unknown>] | undefined;
+    if (!call) throw new Error('updateDoc was never called');
+    return call[1];
+  }
+
+  it('useUpdateTransactionCategory deletes both marker fields', async () => {
+    const { result } = renderHook(() => useUpdateTransactionCategory(), { wrapper });
+
+    await result.current.mutateAsync({ id: 't1', categoryId: 'food-groceries' });
+
+    await waitFor(() => { expect(updateDocMock).toHaveBeenCalledTimes(1); });
+    expect(writePayload()).toEqual({
+      categoryId: 'food-groceries',
+      categorySource: 'manual',
+      categoryConfidence: 1,
+      categorizationStatus: 'DELETE_FIELD',
+      categorizationError: 'DELETE_FIELD',
+      updatedAt: 'SERVER_TS',
+    });
+  });
+
+  it('useUpdateTransaction deletes the marker fields when the edit sets a category', async () => {
+    const { result } = renderHook(() => useUpdateTransaction(), { wrapper });
+
+    await result.current.mutateAsync({ id: 't1', data: { categoryId: 'food-groceries' } });
+
+    expect(writePayload()).toMatchObject({
+      categoryId: 'food-groceries',
+      categorizationStatus: 'DELETE_FIELD',
+      categorizationError: 'DELETE_FIELD',
+    });
+  });
+
+  it('useUpdateTransaction leaves the marker alone for unrelated edits (e.g. a note)', async () => {
+    const { result } = renderHook(() => useUpdateTransaction(), { wrapper });
+
+    await result.current.mutateAsync({
+      id: 't1',
+      data: { note: 'lunch with team' } as never,
+    });
+
+    expect(writePayload()).toEqual({
+      note: 'lunch with team',
+      updatedAt: 'SERVER_TS',
+    });
   });
 });

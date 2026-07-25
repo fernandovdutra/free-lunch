@@ -54,6 +54,12 @@ export interface LlmWorkItem<T> {
 export interface LlmPassOutcome<T> {
   categorized: Array<{ payload: T; categoryId: string; confidence: number }>;
   failed: Array<{ payload: T; error: string }>;
+  /**
+   * Set only when the LLM layer threw and the whole pass failed (every item is
+   * in `failed` carrying this same reason). Callers use it to report a single
+   * run-level error instead of one per transaction.
+   */
+  hardFailure?: string;
 }
 
 /**
@@ -84,6 +90,7 @@ export async function runLlmCategorization<T>(
     const msg = conciseError(err instanceof Error ? err.message : 'LLM categorization failed');
     console.error(`LLM categorization pass failed for all ${items.length} item(s): ${msg}`);
     outcome.failed = items.map((item) => ({ payload: item.payload, error: msg }));
+    outcome.hardFailure = msg;
     return outcome;
   }
 

@@ -80,15 +80,21 @@ export const recategorizeTransactions = onCall(
       const docSnaps = await db.getAll(...docRefs);
       docs = docSnaps.filter((d) => d.exists) as FirebaseFirestore.QueryDocumentSnapshot[];
     } else {
-      let snapshot;
       if (mode === 'uncategorized') {
-        snapshot = await transactionsRef.where('categorySource', '==', 'none').get();
+        docs = (await transactionsRef.where('categorySource', '==', 'none').get()).docs;
       } else if (mode === 'failed') {
-        snapshot = await transactionsRef.where('categorizationStatus', '==', 'failed').get();
+        const snapshot = await transactionsRef.where('categorizationStatus', '==', 'failed').get();
+        // Never re-categorize a doc the user has since categorized by hand:
+        // the failure marker survives until *some* categorization succeeds, so
+        // a manually fixed transaction can still match this query. The 'all'
+        // mode expresses the same intent in its query; here the filter runs in
+        // memory because Firestore cannot combine the `categorizationStatus`
+        // equality with a `categorySource != 'manual'` inequality without also
+        // dropping docs that carry no `categorySource` field at all.
+        docs = snapshot.docs.filter((d) => d.data().categorySource !== 'manual');
       } else {
-        snapshot = await transactionsRef.where('categorySource', '!=', 'manual').get();
+        docs = (await transactionsRef.where('categorySource', '!=', 'manual').get()).docs;
       }
-      docs = snapshot.docs;
     }
 
     const result: RecategorizeResult = {
@@ -171,10 +177,39 @@ export const recategorizeTransactions = onCall(
           uncategorizedForLLM,
           anthropicApiKey
         );
-        const written = await writeLlmCategorizationOutcome(db, outcome);
+
+        // Do not stamp a failure marker on a transaction the user categorized
+        // manually: the marker would put an already-resolved transaction back
+        // in the "needs AI retry" surface.
+        //
+        // Accepted residual race: this test uses the snapshot read at the top
+        // of the run, so a doc the user edits *during* the (long) LLM pass is
+        // still seen as non-manual and can be marked failed. That is now
+        // harmless — the failed-mode retry skips manual docs, and the manual
+        // client mutations clear the marker themselves — so the worst case is
+        // a transiently inflated failed count until the next write to the doc.
+        const manualAtSnapshot = new Set(
+          docs.filter((d) => d.data().categorySource === 'manual').map((d) => d.ref.path)
+        );
+        const markable =
+          manualAtSnapshot.size === 0
+            ? outcome
+            : {
+                ...outcome,
+                failed: outcome.failed.filter((f) => !manualAtSnapshot.has(f.payload.path)),
+              };
+
+        const written = await writeLlmCategorizationOutcome(db, markable);
         result.llmCategorized += written.categorized;
         result.updated += written.categorized;
         result.llmFailed += written.failed;
+
+        // Response-shape parity with the pre-pipeline handler: a hard LLM
+        // failure (the whole pass threw) also surfaces in `errors`, not only in
+        // `llmFailed` and the per-document markers.
+        if (outcome.hardFailure) {
+          result.errors.push(`LLM categorization failed: ${outcome.hardFailure}`);
+        }
       }
     }
 
