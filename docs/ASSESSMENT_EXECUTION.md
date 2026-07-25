@@ -93,6 +93,7 @@ Every unit must pass before PR-open: `npm run typecheck` · `npm run lint` (0 er
 
 | Unit | typecheck | lint | tests | extra verification |
 |---|---|---|---|---|
+| U5 | ✅ | ✅ 0 err | ✅ 604/604 (after main merge) | DST-gap/ambiguous-hour instants hand-verified by reviewer; suite green under TZ=America/New_York and TZ=Asia/Tokyo; golden hash + dedup windows confirmed unaffected; build ✅ |
 | U1 | ✅ | ✅ 0 err / 65 warn | ✅ 460/460 | `npm run build` ✅; functions `tsc` ✅; independent review: merge-ready (3 minor findings fixed pre-merge: `/` fallback restored, non-throwing advisor timestamps, functions typecheck added to CI); quality workflow green on PR #86 |
 | U3 | ✅ | ✅ 0 err | ✅ 488/488 | race/idempotency/error-surfacing/ICS tests + golden-hash regression pinned to old implementation's output (independently re-validated); review found 2 blockers (hash-separator regression, legacy string bookingDate) — fixed and re-verified merge-ready. Extra hardening: dateFrom clamped to 85d lookback; lastSync frozen on failed runs |
 | U4 | ✅ | ✅ 0 err | ✅ 485/485 | MCP handler exercised end-to-end via compiled function + curl (both auth forms); review merge-ready; owner action eventually: switch connector to Bearer header + rotate token (old one is already in Cloud Logging) |
