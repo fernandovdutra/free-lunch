@@ -349,6 +349,72 @@ describe('calculateTimelineData', () => {
     const result = calculateTimelineData([], start, end);
     expect(result[0].date).toBe('Jan 15');
   });
+
+  it('produces exactly 31 rows for a 31-day CEST month queried at Amsterdam boundaries', () => {
+    // Amsterdam May 2026 as exact UTC instants (what the client's
+    // monthRange helper sends): 2026-04-30T22:00Z .. 2026-05-31T21:59:59.999Z.
+    // UTC-day enumeration used to add a spurious leading "2026-04-30" row —
+    // the off-by-one the burn-up chart had to work around.
+    const start = new Date('2026-04-30T22:00:00.000Z');
+    const end = new Date('2026-05-31T21:59:59.999Z');
+    const result = calculateTimelineData([], start, end);
+
+    expect(result).toHaveLength(31);
+    expect(result[0].dateKey).toBe('2026-05-01');
+    expect(result[30].dateKey).toBe('2026-05-31');
+  });
+
+  it('produces exactly 31 rows for a 31-day CET month (January)', () => {
+    const start = new Date('2025-12-31T23:00:00.000Z');
+    const end = new Date('2026-01-31T22:59:59.999Z');
+    const result = calculateTimelineData([], start, end);
+
+    expect(result).toHaveLength(31);
+    expect(result[0].dateKey).toBe('2026-01-01');
+    expect(result[30].dateKey).toBe('2026-01-31');
+  });
+
+  it('covers DST-transition months without gaps or extra days', () => {
+    // March 2026 contains the spring-forward Sunday (29th); October the
+    // fall-back one (25th). Both must still enumerate exactly 31 Amsterdam days.
+    const march = calculateTimelineData(
+      [],
+      new Date('2026-02-28T23:00:00.000Z'),
+      new Date('2026-03-31T21:59:59.999Z')
+    );
+    expect(march).toHaveLength(31);
+    expect(march[0].dateKey).toBe('2026-03-01');
+    expect(march[28].dateKey).toBe('2026-03-29');
+    expect(march[30].dateKey).toBe('2026-03-31');
+
+    const october = calculateTimelineData(
+      [],
+      new Date('2026-09-30T22:00:00.000Z'),
+      new Date('2026-10-31T22:59:59.999Z')
+    );
+    expect(october).toHaveLength(31);
+    expect(october[0].dateKey).toBe('2026-10-01');
+    expect(october[30].dateKey).toBe('2026-10-31');
+  });
+
+  it('buckets late-evening transactions on the Amsterdam day, not the UTC day', () => {
+    // 23:45 CEST on May 15 = 21:45Z May 15 (same day either way), but
+    // 00:15 CEST on May 16 = 22:15Z May 15 — UTC bucketing put it on the 15th.
+    const transactions = [
+      createTx({ amount: -10, date: '2026-05-15T21:45:00.000Z' }),
+      createTx({ amount: -20, date: '2026-05-15T22:15:00.000Z' }),
+    ];
+    const result = calculateTimelineData(
+      transactions,
+      new Date('2026-04-30T22:00:00.000Z'),
+      new Date('2026-05-31T21:59:59.999Z')
+    );
+
+    const may15 = result.find((d) => d.dateKey === '2026-05-15');
+    const may16 = result.find((d) => d.dateKey === '2026-05-16');
+    expect(may15?.expenses).toBe(10);
+    expect(may16?.expenses).toBe(20);
+  });
 });
 
 // ============================================================================

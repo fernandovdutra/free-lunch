@@ -1,12 +1,24 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { format, startOfMonth, subMonths, endOfMonth } from 'date-fns';
+import { getFirestore } from 'firebase-admin/firestore';
+import { format } from 'date-fns';
 import {
   serializeTransaction,
   type TransactionDoc,
   type CategoryDoc,
 } from '../shared/aggregations.js';
+import {
+  amsterdamMonthKey,
+  amsterdamMonthRangeUtc,
+  shiftMonthKey,
+} from '../shared/amsterdamTime.js';
 import { resolveDataOwner } from '../shared/dataOwner.js';
+
+/** Local Date carrying the calendar parts of a `yyyy-MM` key, for date-fns
+ * display formatting (TZ-safe: no UTC-midnight anchoring). */
+function monthKeyToDisplayDate(monthKey: string): Date {
+  const [year, month] = monthKey.split('-').map(Number);
+  return new Date(year, month - 1, 1);
+}
 
 // Reuse response types from spending explorer
 import type {
@@ -107,34 +119,31 @@ export const getIcsBreakdown = onCall(
     // ========================================================================
 
     // Determine the focal month and 6-month window. `monthKey` (yyyy-MM) is
-    // TZ-stable and is the source of truth when provided — anchor in UTC so
-    // date-fns format/subMonths bucket the same way on the Functions runtime
-    // as the client. Fall back to startDate/endDate, then to transaction
-    // history, then to today.
-    let referenceDate: Date;
-    let windowStart: Date;
-    let windowEnd: Date;
+    // TZ-stable and is the source of truth when provided. All month buckets
+    // and boundaries are AMSTERDAM calendar months (the app's canonical
+    // zone), not server-local (UTC) ones. Fall back to startDate/endDate,
+    // then to transaction history, then to today.
+    let referenceMonthKey: string;
+    let endMonthKey: string;
 
     if (monthKey) {
-      referenceDate = new Date(`${monthKey}-01T00:00:00.000Z`);
-      windowStart = startOfMonth(subMonths(referenceDate, 5));
-      windowEnd = endOfMonth(referenceDate);
+      referenceMonthKey = monthKey;
+      endMonthKey = monthKey;
     } else if (startDate && endDate) {
-      referenceDate = new Date(startDate);
-      const selectedEnd = new Date(endDate);
-      windowStart = startOfMonth(subMonths(referenceDate, 5));
-      windowEnd = endOfMonth(selectedEnd);
+      referenceMonthKey = amsterdamMonthKey(new Date(startDate));
+      endMonthKey = amsterdamMonthKey(new Date(endDate));
     } else if (allTransactions.length > 0) {
       // Use the most recent transaction's date as the reference point
-      referenceDate = allTransactions[0].doc.date.toDate();
-      windowStart = startOfMonth(subMonths(referenceDate, 5));
-      windowEnd = endOfMonth(referenceDate);
+      referenceMonthKey = amsterdamMonthKey(allTransactions[0].doc.date.toDate());
+      endMonthKey = referenceMonthKey;
     } else {
       // No transactions, use current date
-      referenceDate = new Date();
-      windowStart = startOfMonth(subMonths(referenceDate, 5));
-      windowEnd = endOfMonth(referenceDate);
+      referenceMonthKey = amsterdamMonthKey();
+      endMonthKey = referenceMonthKey;
     }
+
+    const windowStart = amsterdamMonthRangeUtc(shiftMonthKey(referenceMonthKey, -5)).start;
+    const windowEnd = amsterdamMonthRangeUtc(endMonthKey).end;
 
     // Fetch ALL ICS transactions for the chart
     // Query by source only (single-field) and filter by date in code
@@ -158,15 +167,13 @@ export const getIcsBreakdown = onCall(
     // Build monthly totals from ALL ICS transactions
     const monthlyMap = new Map<string, { amount: number; count: number }>();
 
-    // Initialize all 6 months from the (UTC-anchored) referenceDate
+    // Initialize all 6 months back from the reference month
     for (let i = 5; i >= 0; i--) {
-      const monthDate = subMonths(referenceDate, i);
-      const key = format(monthDate, 'yyyy-MM');
-      monthlyMap.set(key, { amount: 0, count: 0 });
+      monthlyMap.set(shiftMonthKey(referenceMonthKey, -i), { amount: 0, count: 0 });
     }
 
     for (const { doc } of allIcsTransactions) {
-      const txMonthKey = format(doc.date.toDate(), 'yyyy-MM');
+      const txMonthKey = amsterdamMonthKey(doc.date.toDate());
       const entry = monthlyMap.get(txMonthKey);
       if (entry) {
         entry.amount += Math.abs(doc.amount);
@@ -177,7 +184,7 @@ export const getIcsBreakdown = onCall(
     const monthlyTotals: MonthlyTotal[] = Array.from(monthlyMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, data]) => ({
-        month: format(new Date(key + '-01'), 'MMM yyyy'),
+        month: format(monthKeyToDisplayDate(key), 'MMM yyyy'),
         monthKey: key,
         amount: Math.round(data.amount * 100) / 100,
         transactionCount: data.count,
@@ -187,11 +194,9 @@ export const getIcsBreakdown = onCall(
     // Current month data (from this statement's transactions)
     // ========================================================================
 
-    const globalMonthKey = format(referenceDate, 'yyyy-MM');
-    const effectiveMonthKey = breakdownMonthKey ?? globalMonthKey;
-    const effectiveMonthStart = startOfMonth(new Date(effectiveMonthKey + '-01'));
+    const effectiveMonthKey = breakdownMonthKey ?? referenceMonthKey;
     const currentTotal = allTransactions.reduce((sum, { doc }) => sum + Math.abs(doc.amount), 0);
-    const currentMonth = format(effectiveMonthStart, 'MMMM yyyy');
+    const currentMonth = format(monthKeyToDisplayDate(effectiveMonthKey), 'MMMM yyyy');
 
     // ========================================================================
     // Level-specific response

@@ -9,30 +9,27 @@ export type { TimelineRow, FixedCost };
  * day-of-month d. Length = today + 1.
  *
  * Each day's expenses are bucketed by the day-of-month parsed from its
- * `dateKey`, NOT by the row's position in the array. The dashboard
- * `timeline` can carry a spurious leading (or trailing) day when the
- * month's local boundaries cross a UTC date — e.g. a "2026-04-30" row
- * for a CEST May, because the local-midnight start serializes to the
- * previous day in UTC. A position-based cumulative would let that extra
- * row shift everything back by a day, so `daily[today]` would land on
- * yesterday and miss today's spend. `monthKey` ("YYYY-MM") scopes the
- * rows to the visible month so adjacent-month days never interfere.
+ * `dateKey`, NOT by the row's position in the array, so a gap day can
+ * never shift later days back by one.
+ *
+ * The `timeline` rows are expected to cover exactly the visible month:
+ * month ranges are Amsterdam-boundary instants (src/lib/monthRange.ts)
+ * and the backend enumerates/buckets days on the Amsterdam calendar
+ * (functions/src/shared/aggregations.ts), so the spurious adjacent-month
+ * row this function once had to filter out (a leading "2026-04-30" for a
+ * CEST May, from local-midnight → UTC serialization skew) can no longer
+ * occur.
  *
  * Re-uses the dashboard `timeline` rows (already excludes transfers,
  * pending reimbursements, and excludeFromTotals — same exclusions as
  * the displayed `spent` total) so `daily[today]` matches the header
  * spent number.
  */
-export function buildDailyActual(
-  timeline: TimelineRow[],
-  today: number,
-  monthKey?: string
-): number[] {
+export function buildDailyActual(timeline: TimelineRow[], today: number): number[] {
   if (today < 0) return [0];
 
   const byDay: number[] = Array.from({ length: today + 1 }, () => 0);
   for (const row of timeline) {
-    if (monthKey && !row.dateKey.startsWith(monthKey)) continue;
     const dom = Number(row.dateKey.slice(8, 10));
     if (dom >= 1 && dom <= today) byDay[dom] = (byDay[dom] ?? 0) + row.expenses;
   }

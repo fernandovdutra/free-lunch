@@ -48,26 +48,16 @@ describe('buildDailyActual', () => {
     expect(buildDailyActual([], 0)).toEqual([0]);
   });
 
-  it('ignores a spurious leading previous-month day (UTC boundary skew)', () => {
-    // CEST: local "May 1 00:00" serializes to 2026-04-30T22:00Z, so the
-    // backend timeline gets a leading "2026-04-30" bucket. daily[today] must
-    // still be the cumulative through today, not yesterday.
-    const timeline = [
-      { dateKey: '2026-04-30', expenses: 0 },
-      { dateKey: '2026-05-01', expenses: 100 },
-      { dateKey: '2026-05-02', expenses: 50 },
-      { dateKey: '2026-05-03', expenses: 25 },
-    ];
-    expect(buildDailyActual(timeline, 3, '2026-05')).toEqual([0, 100, 150, 175]);
-  });
-
   it('indexes by day-of-month, not array position (gaps stay aligned)', () => {
     // Day 2 has no spend; day 3's cumulative must still sit at index 3.
+    // (The former spurious adjacent-month row from UTC boundary skew is now
+    // fixed at the source: Amsterdam month ranges + Amsterdam day bucketing
+    // in the backend timeline — see src/lib/__tests__/monthRange.test.ts.)
     const timeline = [
       { dateKey: '2026-05-01', expenses: 40 },
       { dateKey: '2026-05-03', expenses: 60 },
     ];
-    expect(buildDailyActual(timeline, 3, '2026-05')).toEqual([0, 40, 40, 100]);
+    expect(buildDailyActual(timeline, 3)).toEqual([0, 40, 40, 100]);
   });
 });
 
