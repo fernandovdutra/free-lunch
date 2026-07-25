@@ -52,9 +52,10 @@ service cloud.firestore {
       }
 
       match /bankConnections/{connectionId} {
-        // Members may see status, but only the owner can mutate connections.
-        allow read: if canRead(userId);
-        allow write: if isAuthenticated() && request.auth.uid == userId;
+        // Owner-only: these docs carry the Enable Banking sessionId and IBANs.
+        // Members see sanitized connection status via the getBankStatus
+        // callable (Admin SDK), never by reading these docs directly.
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
       }
 
       match /budgets/{budgetId} {

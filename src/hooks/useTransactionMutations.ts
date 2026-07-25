@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { invalidateFinancialData } from '@/lib/queryKeys';
 import { recategorizeTransactions } from '@/lib/bankingFunctions';
 import type { Transaction, TransactionFormData } from '@/types';
 import { generateId } from '@/lib/utils';
@@ -89,8 +90,7 @@ export function useCreateTransaction() {
       return id;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
+      invalidateFinancialData(queryClient);
     },
   });
 }
@@ -124,8 +124,7 @@ export function useUpdateTransaction() {
       return id;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
+      invalidateFinancialData(queryClient);
     },
   });
 }
@@ -155,8 +154,14 @@ export function useUpdateTransactionCategory() {
 
       // Optimistically update all transaction queries (flat arrays and the
       // paginated InfiniteData shape alike).
+      // Mirror the server write exactly (categoryConfidence: 1) so the
+      // optimistic row matches what the refetch will return.
       queryClient.setQueriesData({ queryKey: ['transactions'] }, (old: unknown) =>
-        patchTransactionInCache(old, id, { categoryId, categorySource: 'manual' })
+        patchTransactionInCache(old, id, {
+          categoryId,
+          categorySource: 'manual',
+          categoryConfidence: 1,
+        })
       );
 
       return { previousTransactions };
@@ -170,9 +175,10 @@ export function useUpdateTransactionCategory() {
       }
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
+      // Refetch every money-displaying surface. Invalidation (not cache
+      // patching) also removes the row from any server-filtered list it no
+      // longer belongs to (e.g. category changed while filtering by category).
+      invalidateFinancialData(queryClient);
     },
   });
 }
@@ -189,8 +195,7 @@ export function useDeleteTransaction() {
       return id;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
+      invalidateFinancialData(queryClient);
     },
   });
 }
@@ -251,9 +256,7 @@ export function useBulkUpdateCategory() {
       return { updatedCount };
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
+      invalidateFinancialData(queryClient);
     },
   });
 }
@@ -270,9 +273,7 @@ export function useAICategorizeTransaction() {
       return result.data;
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['spendingExplorer'] });
+      invalidateFinancialData(queryClient);
     },
   });
 }

@@ -9,6 +9,7 @@ Free Lunch is a personal finance management app for the Netherlands market. It c
 ## Key Documentation
 
 - **docs/PRD.md** - Full product requirements document with user stories, feature specs, data models, API specs, and implementation phases
+- **docs/TESTING.md** - How to test without touching prod: unit/functions/E2E layers, emulator-stack bootstrap (works in Claude's cloud sandbox too), and the verification policy Claude must follow before opening a PR
 - **docs/PHONE_DEV_WORKFLOW.md** - How to develop with Claude from an iPhone (LAN emulator stack + Vite proxy + seeded test data). Trigger phrases: "phone dev", "test on my phone", "start the emulator stack". Login that fails after idle = background processes got reaped; restart the stack per that doc.
 - **.claude/reference/free-lunch-design-system.md** - Comprehensive design system (colors, typography, components, accessibility)
 
@@ -80,8 +81,19 @@ Key transaction fields: `categoryId`, `categorySource` (auto/manual/rule), `isSp
 
 - **Unit tests**: Vitest with jsdom, test categorization logic and utilities
 - **Integration tests**: React Testing Library, mock Firebase with `vi.mock()`
-- **E2E tests**: Playwright, use Firebase emulators for isolated test data
-- Test fixtures in `src/test/fixtures/`
+- **E2E tests**: Playwright against the Firebase emulators (Auth + Firestore + Functions). Login uses the seeded user from `scripts/seed-emulator.mjs`; specs stage their own data through `e2e/fixtures/emulator.ts` (emulator REST APIs, `e2e-`-prefixed doc IDs). Full bootstrap + sandbox notes in **docs/TESTING.md**.
+- The transactions list is virtualized — E2E specs find rows via the search box, never by scrolling.
+
+### Verification policy (Claude: do this before every PR)
+
+The user's expectation is that reviewing/approving the PR is their **only**
+step — Claude runs all verification first, in the sandbox, against the
+emulator stack (never prod):
+
+1. `npm run typecheck` + `npm run lint` clean on touched files
+2. `npm run test -- --run` green (known env-dependent exception: `useCategories.test.ts` needs Firebase env config)
+3. UI or Cloud Functions changes: boot emulators (`--project demo-freelunch`), seed, run `npm run e2e` (in the sandbox: `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`, `--workers=2`), and drive the changed flow once in the browser — attach screenshots to the PR
+4. State in the PR body exactly what was run and what passed; ship new user-visible flows with an E2E spec and semantic fixes with a pinning unit test
 
 ## Code Style
 

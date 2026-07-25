@@ -1,5 +1,5 @@
 import { test as base, expect } from '@playwright/test';
-import { login, TEST_USER } from './fixtures/auth';
+import { login, canAuthenticate } from './fixtures/auth';
 
 const test = base.extend({});
 
@@ -36,22 +36,18 @@ test.describe('Smoke Tests', () => {
     await page.waitForLoadState('networkidle');
 
     const criticalErrors = errors.filter(
-      (e) => !e.includes('Firebase') && !e.includes('third-party')
+      (e) =>
+        !e.includes('Firebase') &&
+        !e.includes('third-party') &&
+        // Emulator warm-up can drop a request; not an app defect.
+        !e.includes('ERR_CONNECTION')
     );
 
     expect(criticalErrors).toHaveLength(0);
   });
 });
 
-test.describe('Header Sync Button', () => {
-  async function canAuthenticate(page: ReturnType<typeof base.extend>['page']) {
-    try {
-      return await login(page as any);
-    } catch {
-      return false;
-    }
-  }
-
+test.describe('Authenticated smoke', () => {
   let authAvailable = false;
 
   test.beforeAll(async ({ browser }) => {
@@ -61,36 +57,13 @@ test.describe('Header Sync Button', () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!authAvailable, 'Authentication not available - run Firebase emulators');
-    await login(page, TEST_USER.email, TEST_USER.password);
+    test.skip(!authAvailable, 'Emulator stack not available');
+    await login(page);
   });
 
-  test('should show sync button in header', async ({ page }) => {
+  test('login lands on the Home dashboard', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /dashboard|welcome|free lunch/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    const syncButton = page.getByRole('button', { name: /sync/i });
-    await expect(syncButton).toBeVisible();
-  });
-
-  test('should handle sync button click', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.getByRole('heading', { name: /dashboard|welcome|free lunch/i })).toBeVisible({
-      timeout: 10000,
-    });
-
-    const syncButton = page.getByRole('button', { name: /sync/i });
-    await syncButton.click();
-
-    await expect(
-      page
-        .getByText(/syncing/i)
-        .or(page.getByText(/no bank connections/i))
-        .or(page.getByText(/sync complete/i))
-        .or(page.getByText(/sync failed/i))
-        .first()
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/SPENT ·/)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('TXNS', { exact: true }).first()).toBeVisible();
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import {
   Sheet,
@@ -8,11 +8,15 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useRecentIncomeTransactions } from '@/hooks/useReimbursements';
+import { suggestIncomeMatches } from '@/lib/reimbursementSuggestions';
 import { formatAmount, cn } from '@/lib/utils';
+import type { Transaction } from '@/types';
 
 interface ManualResolveSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The pending expense being resolved — used to suggest matching income. */
+  expense?: Transaction | null;
   /** Called with the income transaction id when the user picks one. */
   onPick: (incomeTransactionId: string) => void;
 }
@@ -21,10 +25,12 @@ interface ManualResolveSheetProps {
  * Phase 6 nested sheet — opens on top of the Transaction Edit Sheet
  * when the user taps "Mark as reimbursed" on a pending reimbursable
  * txn. Lists candidate income transactions (uncleared, amount > 0)
- * with a search input. Tap a row → caller invokes
- * `useClearReimbursement` with `{ incomeTransactionId, expenseTransactionIds }`.
+ * with a search input, newest first. Income whose amount exactly
+ * matches the expense is surfaced in a SUGGESTED section on top.
+ * Tap a row → caller invokes `useClearReimbursement` with
+ * `{ incomeTransactionId, expenseTransactionIds }`.
  */
-export function ManualResolveSheet({ open, onOpenChange, onPick }: ManualResolveSheetProps) {
+export function ManualResolveSheet({ open, onOpenChange, expense, onPick }: ManualResolveSheetProps) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -47,6 +53,15 @@ export function ManualResolveSheet({ open, onOpenChange, onPick }: ManualResolve
       setDebouncedSearch('');
     }
   }, [open]);
+
+  // Exact-amount suggestions, hidden while the user is searching
+  const suggestions = useMemo(() => {
+    if (!expense || debouncedSearch) return [];
+    return suggestIncomeMatches(expense, incomeTxns);
+  }, [expense, debouncedSearch, incomeTxns]);
+
+  const suggestedIds = useMemo(() => new Set(suggestions.map((t) => t.id)), [suggestions]);
+  const otherTxns = incomeTxns.filter((t) => !suggestedIds.has(t.id));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -83,33 +98,64 @@ export function ManualResolveSheet({ open, onOpenChange, onPick }: ManualResolve
               </div>
             </div>
           ) : (
-            incomeTxns.map((t) => {
-              const dateLabel = format(t.date, 'MMM d').toUpperCase();
-              const counterparty = t.counterparty ?? t.description;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => {
-                    onPick(t.id);
-                  }}
-                  className="press hairline-b grid w-full grid-cols-[60px_1fr_auto] items-center gap-3 px-4 py-3 text-left"
-                >
-                  <span className="nums font-mono text-[10px] uppercase tracking-[0.04em] text-textLo">
-                    {dateLabel}
-                  </span>
-                  <span className="truncate font-sans text-[13.5px] text-textHi">
-                    {counterparty}
-                  </span>
-                  <span className="nums font-mono text-[13px] text-accent">
-                    +{formatAmount(t.amount, { showSign: false })}
-                  </span>
-                </button>
-              );
-            })
+            <>
+              {suggestions.length > 0 && (
+                <>
+                  <ListHeader>Suggested · Same amount</ListHeader>
+                  {suggestions.map((t) => (
+                    <IncomeRow key={t.id} txn={t} suggested onPick={onPick} />
+                  ))}
+                  <ListHeader>All income</ListHeader>
+                </>
+              )}
+              {otherTxns.map((t) => (
+                <IncomeRow key={t.id} txn={t} onPick={onPick} />
+              ))}
+            </>
           )}
         </SheetBody>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function ListHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="hairline-b bg-bg/40 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-textLo">
+      {children}
+    </div>
+  );
+}
+
+interface IncomeRowProps {
+  txn: Transaction;
+  suggested?: boolean;
+  onPick: (incomeTransactionId: string) => void;
+}
+
+function IncomeRow({ txn, suggested, onPick }: IncomeRowProps) {
+  const dateLabel = format(txn.date, 'MMM d').toUpperCase();
+  const counterparty = txn.counterparty ?? txn.description;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onPick(txn.id);
+      }}
+      className={cn(
+        'press hairline-b grid w-full grid-cols-[60px_1fr_auto] items-center gap-3 px-4 py-3 text-left',
+        suggested && 'border-l-2 border-l-accent bg-accent-dim/40'
+      )}
+    >
+      <span className="nums font-mono text-[10px] uppercase tracking-[0.04em] text-textLo">
+        {dateLabel}
+      </span>
+      <span className="truncate font-sans text-[13.5px] text-textHi">
+        {counterparty}
+      </span>
+      <span className="nums font-mono text-[13px] text-accent">
+        +{formatAmount(txn.amount, { showSign: false })}
+      </span>
+    </button>
   );
 }
