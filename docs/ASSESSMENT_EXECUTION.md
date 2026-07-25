@@ -32,10 +32,10 @@ This file is the durable state — update status here after every unit.
 | U2 | `claude/assess-u02-query-keys` | Query-key factory + shared invalidation helper (2.4); fix 1.4, 1.5, 1.8, 1.17; month-aware budget progress + month persistence in MonthContext (P0.2, P2.12) | **merged** | #89 |
 | U3 | `claude/assess-u03-sync-idempotency` | Deterministic transaction doc IDs from `externalId`, stable synthetic IDs, per-account error surfacing (1.1–1.3), bulk dedup lookup (1.9), ICS match date constraint (1.11) | **merged** | #90 |
 | U4 | `claude/assess-u04-security` | MCP token → Authorization header, backward-compatible with path token (1.7); constant-time agent-token compare (1.14); `bankConnections` reads owner-only (1.15); role-check `getLiveQuote` (1.13); per-user FX/quote throttle (1.16) (P0.4, P1.8) | **merged** | #91 |
-| U5 | `claude/assess-u05-timezones` | Canonical Europe/Amsterdam date helpers on functions + client; fix remittance-time parsing and sync date windows (1.10); month-boundary skew (1.19) | pushed, in review | — |
+| U5 | `claude/assess-u05-timezones` | Canonical Europe/Amsterdam date helpers on functions + client; fix remittance-time parsing and sync date windows (1.10); month-boundary skew (1.19) | PR-open | #95 |
 | U6 | `claude/assess-u06-resilience` | Root + route error boundaries (2.2); route-level `React.lazy` code splitting incl. recharts (2.3) (P1.6) | **merged** | #92 |
-| U7 | `claude/assess-u07-backend-robustness` | Robust LLM JSON parsing w/ retry (1.20); record categorization failures + "needs review" surface with retry (P1.7); extract shared categorization pipeline (2.5); transactional holding upsert (2.5); fix stale doc-comments (1.21); document single-user constraint decision (2.5) | in-progress (based on main+U2+U3) | — |
-| U8 | `claude/assess-u08-split-ui` | Restore transaction-split UI (P2.9, US-4) on existing `isSplit`/`splits[]` model | pushed, in review | — |
+| U7 | `claude/assess-u07-backend-robustness` | Robust LLM JSON parsing w/ retry (1.20); record categorization failures + "needs review" surface with retry (P1.7); extract shared categorization pipeline (2.5); transactional holding upsert (2.5); fix stale doc-comments (1.21); document single-user constraint decision (2.5) | fixing review findings (manual-overwrite guard in mode:'failed') | — |
+| U8 | `claude/assess-u08-split-ui` | Restore transaction-split UI (P2.9, US-4) on existing `isSplit`/`splits[]` model | fixing review findings (sum invariant in mutation + 3 UX) | — |
 | U9 | `claude/assess-u09-tags-ui` | First-class tags UI: add/remove/filter in transactions UI (P2.10) | in-progress (based on main+U2+U8) | — |
 | U10 | `claude/assess-u10-invite-email` | Sharing invitation email via existing email infra (P2.11, `inviteMember.ts:92`) | **merged** | #93 |
 | U11 | `claude/assess-u11-repo-slim` | Remove mockups + design-handoff binaries from working tree (NO history rewrite — owner decision), dead frontend code, one-off scripts, irrelevant reference docs (§3, P3.13) | **merged** | #94 |
@@ -75,6 +75,16 @@ Status values: `pending` → `in-progress` → `pushed` → `reviewed` → `PR-o
   the pending→booked update target (U3 review nit 7) — harmless, noted for awareness.
 - `npm run lint` gate passes with ~65 accepted warnings (non-null assertions etc.);
   no `--max-warnings` ratchet yet.
+- U5 review follow-ups: a few consumers still on UTC calendars (`holdings.todayIso`, MCP tools
+  month keys, memoryManager, yearly/monthly analysis, weekly insight); no backfill for legacy
+  `date` fields mis-encoded by the old UTC-parse bug (going forward they bucket consistently);
+  `en-CA` comment nit in amsterdamTime.ts.
+- U7 review follow-ups: extractJson can return an inner fragment when the outer block is invalid
+  JSON (low practical risk); weekly-insight + memoryManager still use bare JSON.parse (same
+  failure mode the daily path fixed); recategorize success-write race on user edits pre-existing.
+- U8 review follow-ups: NL thousands-separator heuristic (`1.234` parses as €1.23); uncategorized
+  filter still matches split-but-uncategorized rows; income splits allowed but inert; pre-existing
+  counterparty monthly totals ignore split amounts (getSpendingExplorer counterparty branch).
 
 ## Verification ledger
 
