@@ -30,7 +30,6 @@ export { inviteMember } from './handlers/inviteMember.js';
 export { acceptInvitation } from './handlers/acceptInvitation.js';
 export { removeMember } from './handlers/removeMember.js';
 export { cancelInvitation } from './handlers/cancelInvitation.js';
-export { repairSharing } from './handlers/repairSharing.js';
 export { refreshMarketData } from './handlers/refreshMarketData.js';
 export { getLiveQuote } from './handlers/getLiveQuote.js';
 export { getFxRate } from './handlers/getFxRate.js';

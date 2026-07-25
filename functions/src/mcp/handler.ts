@@ -1,22 +1,16 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
-import { timingSafeEqual } from 'node:crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from './server.js';
-
-/**
- * Constant-time comparison of the URL path token against the configured secret.
- */
-function tokenMatches(candidate: string, secret: string): boolean {
-  if (secret.length === 0 || candidate.length !== secret.length) return false;
-  return timingSafeEqual(Buffer.from(candidate), Buffer.from(secret));
-}
+import { isAuthorizedMcpRequest } from './auth.js';
 
 /**
  * Remote MCP endpoint reachable from the Claude apps (web/desktop/iPhone) as a
- * custom connector. Authentication is a secret token embedded in the URL path
- * (`/<MCP_SECRET_TOKEN>`) — there is no OAuth. The token is the only credential,
- * so the connector URL must be kept private.
+ * custom connector. Authentication is a shared secret (`MCP_SECRET_TOKEN`) —
+ * there is no OAuth. Preferred: `Authorization: Bearer <token>` header against
+ * the plain function URL. Legacy: token embedded in the URL path
+ * (`/<MCP_SECRET_TOKEN>`), still accepted for existing connectors. See
+ * `auth.ts` for the exact precedence rules.
  *
  * Uses the MCP Streamable HTTP transport in stateless mode: a fresh server +
  * transport is created per request, which is required because Cloud Functions
@@ -39,9 +33,10 @@ export const mcp = onRequest(
       return;
     }
 
-    // Never log request.path / request.url here — it contains the secret token.
-    const pathToken = request.path.replace(/^\/+/, '').replace(/\/+$/, '');
-    if (!tokenMatches(pathToken, secret)) {
+    // Never log request.path / request.url / the Authorization header here —
+    // they may contain the secret token.
+    const authHeader = request.headers.authorization;
+    if (!isAuthorizedMcpRequest(authHeader, request.path, secret)) {
       response.status(404).json({ error: 'Not found' });
       return;
     }
