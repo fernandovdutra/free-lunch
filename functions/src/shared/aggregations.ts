@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase-admin/firestore';
-import { eachDayOfInterval, format } from 'date-fns';
+import { format } from 'date-fns';
+import { amsterdamDayKey, shiftDayKey } from './amsterdamTime.js';
 
 // ============================================================================
 // Input types (from Firestore documents)
@@ -312,6 +313,15 @@ export function calculateCategorySpending(
 // calculateTimelineData
 // ============================================================================
 
+/** Local Date carrying the calendar parts of a `yyyy-MM-dd` key, for date-fns
+ * display formatting. (Parsing the key as an ISO string would anchor it at
+ * UTC midnight and `format` could then render the previous day in zones west
+ * of UTC.) */
+function dayKeyToDisplayDate(dayKey: string): Date {
+  const [year, month, day] = dayKey.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function calculateTimelineData(
   transactions: TransactionWithId[],
   startDate: Date,
@@ -321,10 +331,15 @@ export function calculateTimelineData(
   // Create a map of date -> amounts
   const dailyData = new Map<string, { income: number; expenses: number }>();
 
-  // Initialize all days in range
-  const days = eachDayOfInterval({ start: startDate, end: endDate });
-  for (const day of days) {
-    dailyData.set(format(day, 'yyyy-MM-dd'), { income: 0, expenses: 0 });
+  // Initialize all days in range, on the AMSTERDAM calendar. Enumerating in
+  // the server's zone (UTC) added a spurious adjacent-month day whenever the
+  // requested month boundaries crossed a UTC date (e.g. a leading "Apr 30"
+  // row for a CEST May), and bucketed 22:00–24:00 CEST transactions onto the
+  // previous day.
+  const startKey = amsterdamDayKey(startDate);
+  const endKey = amsterdamDayKey(endDate);
+  for (let key = startKey; key <= endKey; key = shiftDayKey(key, 1)) {
+    dailyData.set(key, { income: 0, expenses: 0 });
   }
 
   // Aggregate transactions by day
@@ -337,7 +352,7 @@ export function calculateTimelineData(
       if (topLevel === 'transfer') continue;
     }
 
-    const dateKey = format(toDate(doc.date), 'yyyy-MM-dd');
+    const dateKey = amsterdamDayKey(toDate(doc.date));
     const current = dailyData.get(dateKey) ?? { income: 0, expenses: 0 };
 
     if (doc.amount > 0) {
@@ -353,7 +368,7 @@ export function calculateTimelineData(
   return Array.from(dailyData.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([dateKey, data]) => ({
-      date: format(new Date(dateKey), 'MMM d'),
+      date: format(dayKeyToDisplayDate(dateKey), 'MMM d'),
       dateKey,
       income: data.income,
       expenses: data.expenses,

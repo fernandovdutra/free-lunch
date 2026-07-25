@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { endOfMonth, startOfMonth, subMonths } from 'date-fns';
+import { monthRangeSpanning } from '@/lib/monthRange';
 import { TransactionFilters } from '@/components/transactions/TransactionFilters';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { groupByMonthThenDay } from '@/components/transactions/groupTransactions';
@@ -50,11 +50,11 @@ export function Transactions() {
 
   // 6-month window ending at the selected month — drives the multi-month
   // scroll. selectedMonth still feeds the filter bar's anchor pill.
+  // Amsterdam month boundaries via the canonical helper (not local
+  // startOfMonth/endOfMonth), so the Firestore range matches the backend's
+  // month bucketing.
   const dateRange = useMemo(
-    () => ({
-      startDate: startOfMonth(subMonths(selectedMonth, TRANSACTIONS_MONTHS_WINDOW - 1)),
-      endDate: endOfMonth(selectedMonth),
-    }),
+    () => monthRangeSpanning(selectedMonth, TRANSACTIONS_MONTHS_WINDOW - 1),
     [selectedMonth]
   );
 

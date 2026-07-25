@@ -17,7 +17,8 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { invalidateFinancialData } from '@/lib/queryKeys';
 import { recategorizeTransactions } from '@/lib/bankingFunctions';
-import type { Transaction, TransactionFormData } from '@/types';
+import { validateSplits } from '@/lib/splits';
+import type { Transaction, TransactionFormData, TransactionSplit } from '@/types';
 import { generateId } from '@/lib/utils';
 
 /**
@@ -194,6 +195,79 @@ export function useUpdateTransactionCategory() {
       // Refetch every money-displaying surface. Invalidation (not cache
       // patching) also removes the row from any server-filtered list it no
       // longer belongs to (e.g. category changed while filtering by category).
+      invalidateFinancialData(queryClient);
+    },
+  });
+}
+
+export interface SetTransactionSplitInput {
+  id: string;
+  /** 2+ rows to store a split, or `null` to remove an existing one. */
+  splits: TransactionSplit[] | null;
+  /**
+   * The transaction's own signed `amount` (euros). Required whenever `splits`
+   * is non-null: the rows must sum cent-exactly to `Math.abs(amount)`, and
+   * nothing downstream (Firestore rules included) re-checks that invariant.
+   */
+  transactionAmount?: number;
+  /**
+   * Only meaningful when removing a split (`splits: null`): category the
+   * transaction falls back to (e.g. the surviving editor row's category).
+   * Omit to leave `categoryId` untouched.
+   */
+  categoryId?: string | null;
+}
+
+/**
+ * Write `isSplit` + `splits[]` (US-4) in a single `updateDoc`, so the split
+ * state and any category fallback change atomically with `updatedAt`.
+ *
+ * Stored shape must match the functions-side reader
+ * (functions/src/shared/aggregations.ts `TransactionDoc`): split amounts are
+ * POSITIVE euros summing to `abs(transaction.amount)` — backend aggregation
+ * skips `amount <= 0` rows, so those are rejected here.
+ *
+ * The money invariant (rows sum to the transaction total) is enforced here
+ * rather than only in the editor's form schema: a split that does not add up
+ * silently distorts every category total that reads it, and no Firestore rule
+ * catches it.
+ */
+export function useSetTransactionSplit() {
+  const queryClient = useQueryClient();
+  const { dataOwnerId } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ id, splits, transactionAmount, categoryId }: SetTransactionSplitInput) => {
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      if (splits !== null) {
+        if (splits.length < 2) throw new Error('A split needs at least two rows');
+        if (splits.some((s) => s.amount <= 0)) {
+          throw new Error('Split amounts must be positive');
+        }
+        if (typeof transactionAmount !== 'number' || !Number.isFinite(transactionAmount)) {
+          throw new Error('The transaction amount is required to save a split');
+        }
+        if (!validateSplits(Math.abs(transactionAmount), splits)) {
+          throw new Error('Split amounts must add up to the transaction amount');
+        }
+      }
+      const transactionRef = doc(db, 'users', dataOwnerId, 'transactions', id);
+
+      const updateData: Record<string, unknown> = {
+        isSplit: splits !== null,
+        splits,
+        updatedAt: serverTimestamp(),
+      };
+      if (splits === null && categoryId !== undefined) {
+        updateData.categoryId = categoryId;
+        updateData.categorySource = 'manual';
+        updateData.categoryConfidence = 1;
+      }
+
+      await updateDoc(transactionRef, updateData);
+      return id;
+    },
+    onSuccess: () => {
       invalidateFinancialData(queryClient);
     },
   });

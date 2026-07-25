@@ -8,6 +8,7 @@ import {
   parseStoredMonth,
   SELECTED_MONTH_STORAGE_KEY,
 } from '../MonthContext';
+import { monthRangeFor } from '@/lib/monthRange';
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <MonthProvider>{children}</MonthProvider>
@@ -85,6 +86,18 @@ describe('MonthProvider persistence', () => {
     window.localStorage.setItem(SELECTED_MONTH_STORAGE_KEY, '1234-99');
     const { result } = renderHook(() => useMonth(), { wrapper });
     expect(result.current.selectedMonth).toEqual(startOfMonth(new Date()));
+  });
+
+  it('exposes the canonical Amsterdam month range for the selected month', () => {
+    const { result } = renderHook(() => useMonth(), { wrapper });
+    act(() => { result.current.setSelectedMonth(new Date(2026, 4, 15)); }); // May 2026
+
+    // Exact Amsterdam boundary instants (CEST): NOT local startOfMonth /
+    // endOfMonth, whose toISOString() serialization skewed backend
+    // day-bucketing by a day.
+    expect(result.current.dateRange).toEqual(monthRangeFor(new Date(2026, 4, 1)));
+    expect(result.current.dateRange.startDate.toISOString()).toBe('2026-04-30T22:00:00.000Z');
+    expect(result.current.dateRange.endDate.toISOString()).toBe('2026-05-31T21:59:59.999Z');
   });
 
   it('goToCurrentMonth returns and persists the current month', () => {
