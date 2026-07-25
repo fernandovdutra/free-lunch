@@ -20,6 +20,8 @@ interface TransactionFiltersProps {
   onChange: (filters: Filters) => void;
   categories: Category[];
   selectedMonth: Date;
+  /** Distinct tags across the loaded window, for the tag filter sheet. */
+  availableTags?: string[];
 }
 
 /**
@@ -38,10 +40,12 @@ export function TransactionFilters({
   onChange,
   categories,
   selectedMonth,
+  availableTags = [],
 }: TransactionFiltersProps) {
   const { setSelectedMonth } = useMonth();
   const [catSheetOpen, setCatSheetOpen] = useState(false);
   const [monthSheetOpen, setMonthSheetOpen] = useState(false);
+  const [tagSheetOpen, setTagSheetOpen] = useState(false);
 
   // Search box: the input stays responsive locally while propagation to the
   // query filters is debounced — every keystroke otherwise mints a fresh
@@ -98,6 +102,9 @@ export function TransactionFilters({
     : null;
   const catLabel = selectedCategory ? selectedCategory.name.toUpperCase() : 'ALL CATS';
 
+  const selectedTag = filters.tag ?? null;
+  const tagLabel = selectedTag ? selectedTag.toUpperCase() : 'ALL TAGS';
+
   const toggleUncat = () => {
     if (isUncat) {
       const { categorizationStatus: _drop, ...rest } = filters;
@@ -127,6 +134,17 @@ export function TransactionFilters({
       onChange({ ...filters, categoryId });
     }
     setCatSheetOpen(false);
+  };
+
+  const setTag = (tag: string | null) => {
+    if (tag === null) {
+      const { tag: _drop, ...rest } = filters;
+      void _drop;
+      onChange(rest);
+    } else {
+      onChange({ ...filters, tag });
+    }
+    setTagSheetOpen(false);
   };
 
   return (
@@ -191,6 +209,14 @@ export function TransactionFilters({
           >
             ◱ {catLabel}
           </Pill>
+          <Pill
+            active={!!selectedTag}
+            onClick={() => {
+              setTagSheetOpen(true);
+            }}
+          >
+            # {tagLabel}
+          </Pill>
         </div>
       </div>
 
@@ -200,6 +226,14 @@ export function TransactionFilters({
         categories={categories}
         selectedId={filters.categoryId ?? null}
         onPick={setCategory}
+      />
+
+      <TagFilterSheet
+        open={tagSheetOpen}
+        onOpenChange={setTagSheetOpen}
+        tags={availableTags}
+        selectedTag={selectedTag}
+        onPick={setTag}
       />
 
       <MonthPickerSheet
@@ -284,6 +318,81 @@ function MonthPickerSheet({
               );
             })}
           </div>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+interface TagFilterSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Distinct tags across the loaded window (most frequent first). */
+  tags: string[];
+  selectedTag: string | null;
+  onPick: (tag: string | null) => void;
+}
+
+/**
+ * Single-select tag filter sheet, mirroring the category sheet's structure.
+ * Matching is exact and case-sensitive, same as the MCP server's tag filter.
+ */
+function TagFilterSheet({ open, onOpenChange, tags, selectedTag, onPick }: TagFilterSheetProps) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>FILTER · TAG</SheetTitle>
+        </SheetHeader>
+        <SheetBody>
+          {tags.length === 0 ? (
+            <div className="px-4 py-8 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-textLo">
+              No tags yet — add one from a transaction.
+            </div>
+          ) : (
+            <ul className="pb-2">
+              <li>
+                <button
+                  type="button"
+                  className={cn(
+                    'press hairline-b flex w-full items-center justify-between px-4 py-3 text-left',
+                    selectedTag === null && 'bg-surface'
+                  )}
+                  onClick={() => {
+                    onPick(null);
+                  }}
+                >
+                  <span className="font-sans text-[13.5px] text-textHi">All tags</span>
+                  {selectedTag === null && (
+                    <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-accent">
+                      ON
+                    </span>
+                  )}
+                </button>
+              </li>
+              {tags.map((tag) => (
+                <li key={tag}>
+                  <button
+                    type="button"
+                    className={cn(
+                      'press hairline-b flex w-full items-center justify-between px-4 py-3 text-left',
+                      selectedTag === tag && 'bg-surface'
+                    )}
+                    onClick={() => {
+                      onPick(tag);
+                    }}
+                  >
+                    <span className="font-mono text-[13px] text-textHi"># {tag}</span>
+                    {selectedTag === tag && (
+                      <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-accent">
+                        ON
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </SheetBody>
       </SheetContent>
     </Sheet>

@@ -8,9 +8,11 @@ import {
 import { CategoryPicker } from './CategoryPicker';
 import { ManualResolveSheet } from './ManualResolveSheet';
 import { SplitEditorSheet } from './SplitEditorSheet';
+import { TagInput } from './TagInput';
 import {
   useUpdateTransaction,
   useUpdateTransactionCategory,
+  useUpdateTransactionTags,
   useSetTransactionSplit,
   useDeleteTransaction,
   useBulkUpdateCategory,
@@ -25,6 +27,12 @@ interface TransactionFormProps {
   onOpenChange: (open: boolean) => void;
   transaction?: Transaction | null;
   categories: Category[];
+  /**
+   * The user's existing tags (derived from loaded transactions), offered as
+   * suggestion chips in the TAGS section. Optional — callers without a cheap
+   * source can omit it and only free-typing is available.
+   */
+  existingTags?: string[];
   /** Legacy prop kept so the page wiring doesn't break — Phase 6 ignores it. */
   onSubmit?: unknown;
   /** Legacy prop kept for the same reason. */
@@ -57,11 +65,13 @@ export function TransactionForm({
   onOpenChange,
   transaction,
   categories,
+  existingTags = [],
 }: TransactionFormProps) {
   const { toast } = useToast();
 
   const updateMutation = useUpdateTransaction();
   const updateCategoryMutation = useUpdateTransactionCategory();
+  const updateTagsMutation = useUpdateTransactionTags();
   const setSplitMutation = useSetTransactionSplit();
   const markReimbursableMutation = useMarkAsReimbursable();
   const bulkUpdateMutation = useBulkUpdateCategory();
@@ -195,6 +205,14 @@ export function TransactionForm({
       }
     } catch {
       toast({ title: 'Failed to save split', variant: 'destructive' });
+    }
+  };
+
+  const handleTagsChange = async (next: string[]) => {
+    try {
+      await updateTagsMutation.mutateAsync({ id: transaction.id, tags: next });
+    } catch {
+      toast({ title: 'Failed to update tags', variant: 'destructive' });
     }
   };
 
@@ -361,6 +379,19 @@ export function TransactionForm({
                 )}
               </div>
             )}
+
+            {/* TAGS — chips write immediately (like the toggles), no submit.
+                Not disabled while the write is in flight: the mutation patches
+                the cache optimistically, so `transaction.tags` is already the
+                next state and typing must not stall between adds. */}
+            <SectionHeader>TAGS</SectionHeader>
+            <div className="hairline-b px-4 py-3">
+              <TagInput
+                tags={transaction.tags ?? []}
+                onChange={(next) => void handleTagsChange(next)}
+                suggestions={existingTags}
+              />
+            </div>
 
             {/* NOTE */}
             <SectionHeader>NOTE</SectionHeader>

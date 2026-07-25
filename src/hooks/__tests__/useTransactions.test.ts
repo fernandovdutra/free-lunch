@@ -248,9 +248,9 @@ describe('applyClientFilters', () => {
   }
 
   const sample: Transaction[] = [
-    txn({ description: 'Albert Heijn groceries', counterparty: 'Albert Heijn', amount: -45.5, categorySource: 'manual' }),
+    txn({ description: 'Albert Heijn groceries', counterparty: 'Albert Heijn', amount: -45.5, categorySource: 'manual', tags: ['work', 'trip'] }),
     txn({ description: 'Salary payment', counterparty: 'Employer Inc', amount: 3500, categorySource: 'rule' }),
-    txn({ description: 'Restaurant dinner', counterparty: 'Restaurant XYZ', amount: -75, reimbursement: { type: 'work', status: 'pending' } as Transaction['reimbursement'] }),
+    txn({ description: 'Restaurant dinner', counterparty: 'Restaurant XYZ', amount: -75, reimbursement: { type: 'work', status: 'pending' } as Transaction['reimbursement'], tags: ['work'] }),
     txn({ description: 'Coffee shop', counterparty: null, amount: -4.5, categoryId: null, categorySource: 'none' }),
   ];
 
@@ -283,9 +283,34 @@ describe('applyClientFilters', () => {
     expect(applyClientFilters(sample, { categorizationStatus: 'auto' })).toHaveLength(2);
   });
 
+  it('filters by tag (exact, case-sensitive — same semantics as the MCP tag filter)', () => {
+    expect(applyClientFilters(sample, { tag: 'work' })).toHaveLength(2); // groceries, restaurant
+    expect(applyClientFilters(sample, { tag: 'trip' })).toHaveLength(1); // groceries
+    expect(applyClientFilters(sample, { tag: 'Work' })).toHaveLength(0); // case-sensitive
+    expect(applyClientFilters(sample, { tag: 'unknown' })).toHaveLength(0);
+  });
+
+  it('treats transactions without tags as non-matching', () => {
+    const untagged = applyClientFilters(sample, { tag: 'work' }).filter((t) => !t.tags?.length);
+    expect(untagged).toHaveLength(0);
+  });
+
   it('composes multiple client filters', () => {
     const result = applyClientFilters(sample, { direction: 'expense', maxAmount: 50 });
     expect(result).toHaveLength(2); // groceries (-45.5), coffee (-4.5)
+  });
+
+  it('composes the tag filter with search and the other client filters', () => {
+    // tag + search
+    expect(applyClientFilters(sample, { tag: 'work', searchText: 'heijn' })).toHaveLength(1);
+    // tag + search that excludes every tagged row
+    expect(applyClientFilters(sample, { tag: 'work', searchText: 'salary' })).toHaveLength(0);
+    // tag + amount range (category is a server-side filter, applied upstream)
+    expect(applyClientFilters(sample, { tag: 'work', maxAmount: 50 })).toHaveLength(1);
+    // tag + reimbursement status
+    expect(
+      applyClientFilters(sample, { tag: 'work', reimbursementStatus: 'pending' })
+    ).toHaveLength(1);
   });
 
   it('does not mutate the input array', () => {
