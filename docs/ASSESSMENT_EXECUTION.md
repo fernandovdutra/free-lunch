@@ -36,7 +36,7 @@ This file is the durable state — update status here after every unit.
 | U6 | `claude/assess-u06-resilience` | Root + route error boundaries (2.2); route-level `React.lazy` code splitting incl. recharts (2.3) (P1.6) | **merged** | #92 |
 | U7 | `claude/assess-u07-backend-robustness` | Robust LLM JSON parsing w/ retry (1.20); record categorization failures + "needs review" surface with retry (P1.7); extract shared categorization pipeline (2.5); transactional holding upsert (2.5); fix stale doc-comments (1.21); document single-user constraint decision (2.5) | **merged** | #97 |
 | U8 | `claude/assess-u08-split-ui` | Restore transaction-split UI (P2.9, US-4) on existing `isSplit`/`splits[]` model | **merged** | #96 |
-| U9 | `claude/assess-u09-tags-ui` | First-class tags UI: add/remove/filter in transactions UI (P2.10) | in-progress (based on main+U2+U8) | — |
+| U9 | `claude/assess-u09-tags-ui` | First-class tags UI: add/remove/filter in transactions UI (P2.10) | **merged** | #98 |
 | U10 | `claude/assess-u10-invite-email` | Sharing invitation email via existing email infra (P2.11, `inviteMember.ts:92`) | **merged** | #93 |
 | U11 | `claude/assess-u11-repo-slim` | Remove mockups + design-handoff binaries from working tree (NO history rewrite — owner decision), dead frontend code, one-off scripts, irrelevant reference docs (§3, P3.13) | **merged** | #94 |
 | U12 | `claude/assess-u12-docs` | Truthful docs: PRD/README rewrite to shipped scope, CLAUDE.md test-setup notes, archive redesign docs (2.7, P3.14) | pending | — |
@@ -93,6 +93,7 @@ Every unit must pass before PR-open: `npm run typecheck` · `npm run lint` (0 er
 
 | Unit | typecheck | lint | tests | extra verification |
 |---|---|---|---|---|
+| U9 | ✅ | ✅ 0 err | ✅ 735/735 (after main merge) | normalization pinned to MCP write-path parity with a shared fixture; tag filter composes with category/search/amount/status; no index change needed (tags CONTAINS + date DESC already existed) |
 | U7 | ✅ | ✅ 0 err | ✅ 696/696 (after main merge) | reviewer confirmed U3 insert-path parity byte-for-byte and caught a manual-categorization overwrite via mode:'failed' — fixed server+client pre-merge; holding-upsert race proven with an optimistic-concurrency fake |
 | U8 | ✅ | ✅ 0 err | ✅ 595/595 | reviewer confirmed no double-counting across all aggregation paths; 4 review findings fixed pre-merge (sum invariant enforced in mutation layer, last-row ✕ hidden, editor stays open on write failure, zero-amount toggle guarded) |
 | U5 | ✅ | ✅ 0 err | ✅ 604/604 (after main merge) | DST-gap/ambiguous-hour instants hand-verified by reviewer; suite green under TZ=America/New_York and TZ=Asia/Tokyo; golden hash + dedup windows confirmed unaffected; build ✅ |
