@@ -1,11 +1,17 @@
 # Free Lunch UI Redesign — Implementation Plan
 
-> **Note (2026-07):** This is a historical plan. The design handoff bundle it
-> references (`design_handoff_freelunch_redesign/`, including
-> `designs/Free Lunch v8.html`) has been removed from the repository — the
-> redesign shipped and the live source of truth is
+> **Note (2026-07):** This is a historical plan, kept for the design reasoning. The
+> redesign shipped: the live source of truth is
 > `.claude/reference/free-lunch-design-system.md` plus the implemented
-> `src/components/redesign/` primitives.
+> `src/components/redesign/` primitives, which are used across the app. The design
+> handoff bundle this plan references (`design_handoff_freelunch_redesign/`,
+> including `designs/Free Lunch v8.html`) has been removed from the repository.
+>
+> **The phase checkboxes below were not maintained after the migration and must not be
+> read as current status** — several phases they show as open have since shipped. For
+> what the app does today, see [`docs/FEATURES.md`](../FEATURES.md); for what it looks
+> like, read the design system reference and the primitives themselves. The
+> mid-migration session handoff has been moved to [`archive/`](./archive/).
 
 **Aesthetic:** Calm Terminal (see the removed handoff bundle's README, per the note above).
 **Branch:** `ui-redesign` (based on `origin/main` @ `b886cd5`).

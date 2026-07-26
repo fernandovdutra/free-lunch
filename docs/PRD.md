@@ -1,5 +1,19 @@
 # Free Lunch - Product Requirements Document
 
+> **⚠️ HISTORICAL DOCUMENT — DO NOT READ AS CURRENT STATE.**
+>
+> This is the original MVP planning document. The app has since grown well beyond it, and
+> several things this document lists as "future" or "out of scope" have shipped — wealth and
+> holdings tracking with live market data, savings goals, AI insights with advisor memory,
+> household sharing, fixed-cost detection, benchmarks, and a remote MCP server. Parts of the
+> CI/CD, environment and testing sections describe workflows that were never built as
+> written.
+>
+> **For what the application actually does today, read [`FEATURES.md`](./FEATURES.md).**
+>
+> This file is kept for the product reasoning, user stories and data-model rationale behind
+> the original design.
+
 A free, open-source personal finance management app inspired by the beloved Grip app, built initially for the Netherlands market with a focus on clarity, control, and user freedom.
 
 ---
