@@ -109,8 +109,9 @@ export interface Transaction {
   // factories / fixtures that pre-date this field don't need to be updated.
   note?: string | null;
 
-  // Free-form user tags. Managed via the MCP server; optional so transactions
-  // that pre-date the field read as untagged.
+  // Free-form user tags, editable in the transaction sheet and via the MCP
+  // server (both normalize identically — see src/lib/tags.ts). Optional so
+  // transactions that pre-date the field read as untagged.
   tags?: string[];
 
   // ICS Credit Card Import
