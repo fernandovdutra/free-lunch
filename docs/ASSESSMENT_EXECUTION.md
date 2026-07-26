@@ -39,7 +39,7 @@ This file is the durable state — update status here after every unit.
 | U9 | `claude/assess-u09-tags-ui` | First-class tags UI: add/remove/filter in transactions UI (P2.10) | **merged** | #98 |
 | U10 | `claude/assess-u10-invite-email` | Sharing invitation email via existing email infra (P2.11, `inviteMember.ts:92`) | **merged** | #93 |
 | U11 | `claude/assess-u11-repo-slim` | Remove mockups + design-handoff binaries from working tree (NO history rewrite — owner decision), dead frontend code, one-off scripts, irrelevant reference docs (§3, P3.13) | **merged** | #94 |
-| U12 | `claude/assess-u12-docs` | Truthful docs: PRD/README rewrite to shipped scope, CLAUDE.md test-setup notes, archive redesign docs (2.7, P3.14) | pending | — |
+| U12 | `claude/assess-u12-docs` | Truthful docs: PRD/README rewrite to shipped scope, CLAUDE.md test-setup notes, archive redesign docs (2.7, P3.14) | **merged** | #99 |
 
 Status values: `pending` → `in-progress` → `pushed` → `reviewed` → `PR-open` → `merged`.
 
@@ -65,6 +65,22 @@ Status values: `pending` → `in-progress` → `pushed` → `reviewed` → `PR-o
 - **U1 CI shape:** a quality workflow running typecheck+lint+tests on PRs and pushes to
   `main`, and the deploy workflow made to depend on it. E2E stays out of CI for now
   (needs emulators + secrets).
+
+## STATUS: COMPLETE — all 12 units merged to `main` (2026-07-26)
+
+Every P0–P3 item from `docs/ASSESSMENT.md` is implemented, reviewed and merged. Open items
+below are deliberate, logged follow-ups — none block anything.
+
+**Owner actions outstanding:**
+1. **MCP connector** — switch it from `https://<fn-url>/<token>` to the plain URL with an
+   `Authorization: Bearer <token>` header, then **rotate the token** (the old one was written
+   to Cloud request logs by the bug U4 fixed). The path form still works until you do.
+2. **History purge of the large binaries** — U11 removed ~61 MB from the working tree in a
+   normal commit, as instructed. Reclaiming `.git` size needs a history rewrite, which is
+   your call.
+3. **Invitation email sender** — U10 uses the existing Resend sandbox sender
+   (`onboarding@resend.dev`), which on the free tier typically only delivers to your own
+   address. Real invitees need a verified domain sender configured.
 
 ## Follow-ups accepted (not blocking any unit)
 
@@ -93,6 +109,7 @@ Every unit must pass before PR-open: `npm run typecheck` · `npm run lint` (0 er
 
 | Unit | typecheck | lint | tests | extra verification |
 |---|---|---|---|---|
+| U12 | ✅ | ✅ 0 err | ✅ 735/735 | every claim checked against code (routes, handlers, MCP tools, types, rules); no dangling refs to moved files. Decision: superseded the 2,400-line PRD with a new `docs/FEATURES.md` + historical banner rather than rewriting it |
 | U9 | ✅ | ✅ 0 err | ✅ 735/735 (after main merge) | normalization pinned to MCP write-path parity with a shared fixture; tag filter composes with category/search/amount/status; no index change needed (tags CONTAINS + date DESC already existed) |
 | U7 | ✅ | ✅ 0 err | ✅ 696/696 (after main merge) | reviewer confirmed U3 insert-path parity byte-for-byte and caught a manual-categorization overwrite via mode:'failed' — fixed server+client pre-merge; holding-upsert race proven with an optimistic-concurrency fake |
 | U8 | ✅ | ✅ 0 err | ✅ 595/595 | reviewer confirmed no double-counting across all aggregation paths; 4 review findings fixed pre-merge (sum invariant enforced in mutation layer, last-row ✕ hidden, editor stays open on write failure, zero-amount toggle guarded) |
