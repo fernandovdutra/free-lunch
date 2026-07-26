@@ -1,0 +1,123 @@
+# Assessment Execution Plan & Progress Tracker
+
+Implements `docs/ASSESSMENT.md` (merged in PR #84, assessed at `a75792a`). Code is unchanged
+since the assessed commit, so all file:line references in the assessment remain valid.
+
+**Owner branch (this tracker):** `claude/assessment-implementation-plan-f9ah1e`
+**Strategy:** one PR per coherent work unit, each on its own branch based off `main`.
+Each PR is opened as a draft, gets an independent review pass, must have all gates green,
+and is then merged in unit order — U1 (CI gate) lands first so every later merge to `main`
+is protected before it auto-deploys. Units are file-disjoint where possible; later branches
+rebase onto the updated `main` before merge.
+
+**Orchestration model:** the main session is a thin orchestration layer. Each unit is
+implemented by a subagent with a self-contained brief (assessment excerpt, target files,
+acceptance criteria); each diff gets an independent review pass before the PR is opened.
+This file is the durable state — update status here after every unit.
+
+## Environment gotchas (for every implementer)
+
+- `functions/` needs its own `npm install` (root install does not cover it).
+- Hook tests need `.env.test` — copy from `.env.test.example`.
+- Gates: `npm run typecheck`, `npm run lint`, `npm run test`. All three fail on a clean
+  checkout until U1 merges (tsconfig `baseUrl` TS5101, 32 lint errors, 3 stale merchant tests).
+  Until U1 lands, pre-existing failures unrelated to your diff are acceptable; your diff
+  must not add new ones.
+
+## Work units
+
+| Unit | Branch | Scope (assessment items) | Status | PR |
+|---|---|---|---|---|
+| U1 | `claude/assess-u01-ci-gates` | Green all gates + CI workflow: tsconfig baseUrl, rules-of-hooks fixes (1.6), stale merchant tests, lint errors → 0; add PR-triggered quality workflow; gate deploy on it (1.12, 2.1, P0.3) | **merged** | #86 |
+| U2 | `claude/assess-u02-query-keys` | Query-key factory + shared invalidation helper (2.4); fix 1.4, 1.5, 1.8, 1.17; month-aware budget progress + month persistence in MonthContext (P0.2, P2.12) | **merged** | #89 |
+| U3 | `claude/assess-u03-sync-idempotency` | Deterministic transaction doc IDs from `externalId`, stable synthetic IDs, per-account error surfacing (1.1–1.3), bulk dedup lookup (1.9), ICS match date constraint (1.11) | **merged** | #90 |
+| U4 | `claude/assess-u04-security` | MCP token → Authorization header, backward-compatible with path token (1.7); constant-time agent-token compare (1.14); `bankConnections` reads owner-only (1.15); role-check `getLiveQuote` (1.13); per-user FX/quote throttle (1.16) (P0.4, P1.8) | **merged** | #91 |
+| U5 | `claude/assess-u05-timezones` | Canonical Europe/Amsterdam date helpers on functions + client; fix remittance-time parsing and sync date windows (1.10); month-boundary skew (1.19) | **merged** | #95 |
+| U6 | `claude/assess-u06-resilience` | Root + route error boundaries (2.2); route-level `React.lazy` code splitting incl. recharts (2.3) (P1.6) | **merged** | #92 |
+| U7 | `claude/assess-u07-backend-robustness` | Robust LLM JSON parsing w/ retry (1.20); record categorization failures + "needs review" surface with retry (P1.7); extract shared categorization pipeline (2.5); transactional holding upsert (2.5); fix stale doc-comments (1.21); document single-user constraint decision (2.5) | **merged** | #97 |
+| U8 | `claude/assess-u08-split-ui` | Restore transaction-split UI (P2.9, US-4) on existing `isSplit`/`splits[]` model | **merged** | #96 |
+| U9 | `claude/assess-u09-tags-ui` | First-class tags UI: add/remove/filter in transactions UI (P2.10) | **merged** | #98 |
+| U10 | `claude/assess-u10-invite-email` | Sharing invitation email via existing email infra (P2.11, `inviteMember.ts:92`) | **merged** | #93 |
+| U11 | `claude/assess-u11-repo-slim` | Remove mockups + design-handoff binaries from working tree (NO history rewrite — owner decision), dead frontend code, one-off scripts, irrelevant reference docs (§3, P3.13) | **merged** | #94 |
+| U12 | `claude/assess-u12-docs` | Truthful docs: PRD/README rewrite to shipped scope, CLAUDE.md test-setup notes, archive redesign docs (2.7, P3.14) | **merged** | #99 |
+
+Status values: `pending` → `in-progress` → `pushed` → `reviewed` → `PR-open` → `merged`.
+
+## Decisions log (pre-made design decisions; update as implementation confirms or changes them)
+
+- **No history rewrite** for large binaries (explicit owner instruction): U11 removes them
+  from the working tree in a normal commit; purging history is a separate owner decision.
+- **Sync idempotency vs existing data (U3):** deterministic IDs apply to *new* writes only.
+  Existing random-ID docs are left in place and deduped via a bulk `externalId` lookup in
+  the sync window. No backfill/rename: doc IDs are referenced by `reimbursement.linkedTransactionId`
+  (and any external references); renaming risks breaking real data for zero user benefit.
+- **MCP auth (U4):** header (`Authorization: Bearer <token>`) becomes the primary; the
+  URL-path token keeps working (still constant-time compared) so the existing Claude
+  connector doesn't break. Owner should update the connector, then path support can be
+  dropped later.
+- **Single- vs multi-tenant (2.5):** pragmatic choice for a personal/household app — keep
+  `SINGLE_USER_ID` for insights/agent/MCP and document the constraint (U7), rather than
+  generalizing scheduled jobs further.
+- **Merge policy:** PRs are merged sequentially by the session after independent review +
+  green gates (per the owner's brief: "land CI first so everything after is protected",
+  "keep main deployable at every merge"). U1 merges first; every subsequent unit is
+  rebased/re-verified against the then-current `main` before its merge.
+- **U1 CI shape:** a quality workflow running typecheck+lint+tests on PRs and pushes to
+  `main`, and the deploy workflow made to depend on it. E2E stays out of CI for now
+  (needs emulators + secrets).
+
+## STATUS: COMPLETE — all 12 units merged to `main` (2026-07-26)
+
+Every P0–P3 item from `docs/ASSESSMENT.md` is implemented, reviewed and merged. Open items
+below are deliberate, logged follow-ups — none block anything.
+
+**Owner actions outstanding:**
+1. **MCP connector** — switch it from `https://<fn-url>/<token>` to the plain URL with an
+   `Authorization: Bearer <token>` header, then **rotate the token** (the old one was written
+   to Cloud request logs by the bug U4 fixed). The path form still works until you do.
+2. **History purge of the large binaries** — U11 removed ~61 MB from the working tree in a
+   normal commit, as instructed. Reclaiming `.git` size needs a history rewrite, which is
+   your call.
+3. **Invitation email sender** — U10 uses the existing Resend sandbox sender
+   (`onboarding@resend.dev`), which on the free tier typically only delivers to your own
+   address. Real invitees need a verified domain sender configured.
+
+## Follow-ups accepted (not blocking any unit)
+
+- Manual "Sync now" partial failures: callable returns `success: false` after U3 but
+  `useBankConnection.ts` doesn't surface it in the UI (parity with old behavior; auto-sync
+  failures ARE surfaced via `lastAutoSyncError`). Candidate small UX fix later.
+- Pre-existing duplicate docs sharing an externalId: dedup map keeps an arbitrary one as
+  the pending→booked update target (U3 review nit 7) — harmless, noted for awareness.
+- `npm run lint` gate passes with ~65 accepted warnings (non-null assertions etc.);
+  no `--max-warnings` ratchet yet.
+- U5 review follow-ups: a few consumers still on UTC calendars (`holdings.todayIso`, MCP tools
+  month keys, memoryManager, yearly/monthly analysis, weekly insight); no backfill for legacy
+  `date` fields mis-encoded by the old UTC-parse bug (going forward they bucket consistently);
+  `en-CA` comment nit in amsterdamTime.ts.
+- U7 review follow-ups: extractJson can return an inner fragment when the outer block is invalid
+  JSON (low practical risk); weekly-insight + memoryManager still use bare JSON.parse (same
+  failure mode the daily path fixed); recategorize success-write race on user edits pre-existing.
+- U8 review follow-ups: NL thousands-separator heuristic (`1.234` parses as €1.23); uncategorized
+  filter still matches split-but-uncategorized rows; income splits allowed but inert; pre-existing
+  counterparty monthly totals ignore split amounts (getSpendingExplorer counterparty branch).
+
+## Verification ledger
+
+Every unit must pass before PR-open: `npm run typecheck` · `npm run lint` (0 errors) ·
+`npm run test` · plus unit-specific checks. Filled in as units complete.
+
+| Unit | typecheck | lint | tests | extra verification |
+|---|---|---|---|---|
+| U12 | ✅ | ✅ 0 err | ✅ 735/735 | every claim checked against code (routes, handlers, MCP tools, types, rules); no dangling refs to moved files. Decision: superseded the 2,400-line PRD with a new `docs/FEATURES.md` + historical banner rather than rewriting it |
+| U9 | ✅ | ✅ 0 err | ✅ 735/735 (after main merge) | normalization pinned to MCP write-path parity with a shared fixture; tag filter composes with category/search/amount/status; no index change needed (tags CONTAINS + date DESC already existed) |
+| U7 | ✅ | ✅ 0 err | ✅ 696/696 (after main merge) | reviewer confirmed U3 insert-path parity byte-for-byte and caught a manual-categorization overwrite via mode:'failed' — fixed server+client pre-merge; holding-upsert race proven with an optimistic-concurrency fake |
+| U8 | ✅ | ✅ 0 err | ✅ 595/595 | reviewer confirmed no double-counting across all aggregation paths; 4 review findings fixed pre-merge (sum invariant enforced in mutation layer, last-row ✕ hidden, editor stays open on write failure, zero-amount toggle guarded) |
+| U5 | ✅ | ✅ 0 err | ✅ 604/604 (after main merge) | DST-gap/ambiguous-hour instants hand-verified by reviewer; suite green under TZ=America/New_York and TZ=Asia/Tokyo; golden hash + dedup windows confirmed unaffected; build ✅ |
+| U1 | ✅ | ✅ 0 err / 65 warn | ✅ 460/460 | `npm run build` ✅; functions `tsc` ✅; independent review: merge-ready (3 minor findings fixed pre-merge: `/` fallback restored, non-throwing advisor timestamps, functions typecheck added to CI); quality workflow green on PR #86 |
+| U3 | ✅ | ✅ 0 err | ✅ 488/488 | race/idempotency/error-surfacing/ICS tests + golden-hash regression pinned to old implementation's output (independently re-validated); review found 2 blockers (hash-separator regression, legacy string bookingDate) — fixed and re-verified merge-ready. Extra hardening: dateFrom clamped to 85d lookback; lastSync frozen on failed runs |
+| U4 | ✅ | ✅ 0 err | ✅ 485/485 | MCP handler exercised end-to-end via compiled function + curl (both auth forms); review merge-ready; owner action eventually: switch connector to Bearer header + rotate token (old one is already in Cloud Logging) |
+| U2 | ✅ | ✅ 0 err / 66 warn (+1 accepted) | ✅ 484/484 | 24 new tests (key factory, budgetProgress range refetch, month persistence); review merge-ready — full key/queryFn audit of all 27 query hooks clean, optimistic writers verified byte-compatible; minor follow-ups logged (budget-decoration race, default-window rollover semantics, category-rename staleness pre-existing) |
+| U6 | ✅ | ✅ 0 err | ✅ 467/467 | entry bundle 1064→746 kB (292→208 gzip), recharts off first paint (verified vs real main baseline build); 7 ErrorBoundary tests incl. chunk-load failure; route parity mechanically diffed; review merge-ready; location.key reset fix applied post-review |
+| U11 | ✅ | ✅ 0 err | ✅ 460/460 | build ✅, functions tsc ✅, `npm ci --dry-run` lockfile-sync ✅; reviewer verified zero references for every deletion, pure renames for plan archive, linear history (no rewrite). PR note: removing deployed `repairSharing` fn drops the self-service path for accounts still on the old dotted-key bug |
+| U10 | ✅ | ✅ 0 err | ✅ 465/465 | 5 new inviteMember tests (send, fallback, Resend 500, unconfigured key, duplicate-invite no-send); review merge-ready (nits only). Owner FYI: sender is Resend sandbox `onboarding@resend.dev` — real invitees need a verified domain sender configured |
