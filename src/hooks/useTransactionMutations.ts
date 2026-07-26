@@ -16,6 +16,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { invalidateFinancialData } from '@/lib/queryKeys';
+import { normalizeTags } from '@/lib/tags';
 import { recategorizeTransactions } from '@/lib/bankingFunctions';
 import { validateSplits } from '@/lib/splits';
 import type { Transaction, TransactionFormData, TransactionSplit } from '@/types';
@@ -195,6 +196,54 @@ export function useUpdateTransactionCategory() {
       // Refetch every money-displaying surface. Invalidation (not cache
       // patching) also removes the row from any server-filtered list it no
       // longer belongs to (e.g. category changed while filtering by category).
+      invalidateFinancialData(queryClient);
+    },
+  });
+}
+
+/**
+ * Replace a transaction's full `tags` array atomically (single `updateDoc`
+ * alongside `updatedAt`). The write shape is identical to the MCP server's
+ * `add_transaction_tags` / `remove_transaction_tags` tools
+ * (functions/src/mcp/writeTools.ts): a flat `tags: string[]` field, run
+ * through the same normalization (trim, drop empties, case-sensitive dedupe),
+ * so both write paths stay indistinguishable in Firestore.
+ *
+ * Optimistically patches every cached transaction list so chips update
+ * instantly in the edit sheet, then invalidates all financial surfaces.
+ */
+export function useUpdateTransactionTags() {
+  const queryClient = useQueryClient();
+  const { dataOwnerId } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ id, tags }: { id: string; tags: string[] }) => {
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const transactionRef = doc(db, 'users', dataOwnerId, 'transactions', id);
+      await updateDoc(transactionRef, {
+        tags: normalizeTags(tags),
+        updatedAt: serverTimestamp(),
+      });
+      return id;
+    },
+    onMutate: async ({ id, tags }) => {
+      await queryClient.cancelQueries({ queryKey: ['transactions'] });
+      const previousTransactions = queryClient.getQueriesData({ queryKey: ['transactions'] });
+      // Mirror the server write exactly (normalized array) so the optimistic
+      // row matches what the refetch will return.
+      queryClient.setQueriesData({ queryKey: ['transactions'] }, (old: unknown) =>
+        patchTransactionInCache(old, id, { tags: normalizeTags(tags) })
+      );
+      return { previousTransactions };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousTransactions) {
+        context.previousTransactions.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSettled: () => {
       invalidateFinancialData(queryClient);
     },
   });

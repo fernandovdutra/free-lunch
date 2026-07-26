@@ -17,6 +17,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { timed } from '@/lib/perf';
 import { queryKeys, type TransactionServerFilters } from '@/lib/queryKeys';
+import { collectExistingTags } from '@/lib/tags';
 import type { Transaction, TransactionSplit, ReimbursementInfo } from '@/types';
 
 // Re-export mutations from dedicated file for backward compatibility
@@ -24,6 +25,7 @@ export {
   useCreateTransaction,
   useUpdateTransaction,
   useUpdateTransactionCategory,
+  useUpdateTransactionTags,
   useSetTransactionSplit,
   useDeleteTransaction,
   useBulkUpdateCategory,
@@ -48,6 +50,7 @@ interface TransactionDocument {
   splits?: TransactionSplit[] | null;
   reimbursement?: ReimbursementInfo | null;
   note?: string | null;
+  tags?: string[];
   bankAccountId?: string | null;
   excludeFromTotals?: boolean;
   icsStatementId?: string | null;
@@ -65,6 +68,8 @@ export interface TransactionFilters {
   endDate?: Date;
   categoryId?: string | null;
   searchText?: string;
+  /** Exact-match tag filter (client-side, like search). */
+  tag?: string;
   minAmount?: number;
   maxAmount?: number;
   // New filter fields
@@ -89,6 +94,7 @@ type ServerFilters = TransactionServerFilters;
 // re-derives from the cached dataset without touching the network.
 interface ClientFilters {
   searchText?: string | undefined;
+  tag?: string | undefined;
   minAmount?: number | undefined;
   maxAmount?: number | undefined;
   direction?: 'income' | 'expense' | 'all' | undefined;
@@ -140,6 +146,12 @@ export function applyClientFilters(
         t.counterparty?.toLowerCase().includes(search) ||
         t.bankDescription?.toLowerCase().includes(search)
     );
+  }
+
+  // Exact, case-sensitive tag match — mirrors the MCP server's tag filter
+  // (functions/src/mcp/tools.ts), which matches stored tags verbatim.
+  if (filters.tag) {
+    result = result.filter((t) => t.tags?.includes(filters.tag!) ?? false);
   }
 
   if (filters.minAmount !== undefined) {
@@ -225,6 +237,7 @@ function transformTransaction(docSnap: QueryDocumentSnapshot): Transaction {
         }
       : null,
     note: data.note ?? null,
+    tags: Array.isArray(data.tags) ? data.tags : [],
     excludeFromTotals: data.excludeFromTotals ?? undefined,
     icsStatementId: data.icsStatementId ?? undefined,
     source: data.source ?? undefined,
@@ -251,6 +264,7 @@ export function useTransactions(filters: TransactionFilters = {}) {
   const select = useMemo(() => {
     const clientFilters: ClientFilters = {
       searchText: filters.searchText,
+      tag: filters.tag,
       minAmount: filters.minAmount,
       maxAmount: filters.maxAmount,
       direction: filters.direction,
@@ -260,6 +274,7 @@ export function useTransactions(filters: TransactionFilters = {}) {
     return (transactions: Transaction[]) => applyClientFilters(transactions, clientFilters);
   }, [
     filters.searchText,
+    filters.tag,
     filters.minAmount,
     filters.maxAmount,
     filters.direction,
@@ -340,6 +355,11 @@ interface TransactionPage {
  * Kept separate from `useTransactions` so the non-paginated callers
  * (Home, Settings export/counts) that need the full set are unaffected.
  */
+// Stable empty fallbacks so a loading render doesn't hand callers a fresh
+// array identity on every pass (the page memoizes on `transactions`).
+const EMPTY_TRANSACTIONS: Transaction[] = [];
+const EMPTY_TAGS: string[] = [];
+
 export function useInfiniteTransactions(filters: TransactionFilters = {}) {
   const { dataOwnerId } = useAuth();
   const { startDate, endDate, categoryId } = filters;
@@ -347,19 +367,26 @@ export function useInfiniteTransactions(filters: TransactionFilters = {}) {
   const select = useMemo(() => {
     const clientFilters: ClientFilters = {
       searchText: filters.searchText,
+      tag: filters.tag,
       minAmount: filters.minAmount,
       maxAmount: filters.maxAmount,
       direction: filters.direction,
       reimbursementStatus: filters.reimbursementStatus,
       categorizationStatus: filters.categorizationStatus,
     };
-    return (data: InfiniteData<TransactionPage>) =>
-      applyClientFilters(
-        data.pages.flatMap((page) => page.transactions),
-        clientFilters
-      );
+    return (data: InfiniteData<TransactionPage>) => {
+      const loaded = data.pages.flatMap((page) => page.transactions);
+      return {
+        transactions: applyClientFilters(loaded, clientFilters),
+        // Derived from the *unfiltered* loaded window so the tag filter sheet
+        // still lists every tag while a tag filter is active (otherwise it
+        // would collapse to the one tag currently selected).
+        availableTags: collectExistingTags(loaded),
+      };
+    };
   }, [
     filters.searchText,
+    filters.tag,
     filters.minAmount,
     filters.maxAmount,
     filters.direction,
@@ -410,7 +437,9 @@ export function useInfiniteTransactions(filters: TransactionFilters = {}) {
   });
 
   return {
-    transactions: result.data ?? [],
+    transactions: result.data?.transactions ?? EMPTY_TRANSACTIONS,
+    /** Distinct tags across the loaded window, most frequent first. */
+    availableTags: result.data?.availableTags ?? EMPTY_TAGS,
     isLoading: result.isLoading,
     error: result.error,
     fetchNextPage: result.fetchNextPage,

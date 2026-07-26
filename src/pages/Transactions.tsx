@@ -19,6 +19,7 @@ const FILTERS_STORAGE_KEY = 'transactions-filters';
 const FILTER_KEYS = [
   'category',
   'search',
+  'tag',
   'direction',
   'categorizationStatus',
   'reimbursementStatus',
@@ -89,6 +90,7 @@ export function Transactions() {
   const filters: Filters = useMemo(() => {
     const categoryId = searchParams.get('category');
     const searchText = searchParams.get('search');
+    const tag = searchParams.get('tag');
     const direction = searchParams.get('direction') as 'income' | 'expense' | undefined;
     const categorizationStatus = searchParams.get('categorizationStatus') as
       | 'auto'
@@ -106,6 +108,7 @@ export function Transactions() {
       endDate: dateRange.endDate,
       ...(categoryId && { categoryId }),
       ...(searchText && { searchText }),
+      ...(tag && { tag }),
       ...(direction && { direction }),
       ...(categorizationStatus && { categorizationStatus }),
       ...(reimbursementStatus && { reimbursementStatus }),
@@ -117,6 +120,7 @@ export function Transactions() {
       const filterParams: Record<string, string> = {};
       if (newFilters.categoryId) filterParams.category = newFilters.categoryId;
       if (newFilters.searchText) filterParams.search = newFilters.searchText;
+      if (newFilters.tag) filterParams.tag = newFilters.tag;
       if (newFilters.direction) filterParams.direction = newFilters.direction;
       if (newFilters.categorizationStatus)
         filterParams.categorizationStatus = newFilters.categorizationStatus;
@@ -165,8 +169,15 @@ export function Transactions() {
   }, [setSearchParams]);
 
   const { data: categories = [] } = useCategories();
-  const { transactions, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteTransactions(filters);
+  const {
+    transactions,
+    availableTags,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteTransactions(filters);
 
   // Load the next page when the list nears its end (infinite scroll). Guarded so
   // it's a no-op while a fetch is in flight or when no more pages remain.
@@ -181,6 +192,7 @@ export function Transactions() {
   // exhausted — otherwise a match in an unloaded page would be missed.
   const hasActiveClientFilters = Boolean(
     filters.searchText ||
+      filters.tag ||
       filters.minAmount != null ||
       filters.maxAmount != null ||
       (filters.direction && filters.direction !== 'all') ||
@@ -226,6 +238,7 @@ export function Transactions() {
         onChange={handleFiltersChange}
         categories={categories}
         selectedMonth={selectedMonth}
+        availableTags={availableTags}
       />
 
       {isLoading ? (
@@ -249,6 +262,7 @@ export function Transactions() {
         }}
         transaction={editingTransaction}
         categories={categories}
+        existingTags={availableTags}
         onSubmit={handleFormSubmit}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
