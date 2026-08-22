@@ -26,6 +26,12 @@ import {
 } from '@/hooks/useBankConnection';
 import { useToast } from '@/components/ui/toaster';
 import { formatDate } from '@/lib/utils';
+import {
+  canReconnect,
+  daysUntilConsentExpiry,
+  isConsentExpiringSoon,
+  resolveReconnectTarget,
+} from '@/lib/reconnectBank';
 import type { BankConnectionStatus } from '@/lib/bankingFunctions';
 
 const STATUS_TONE: Record<BankConnectionStatus['status'], string> = {
@@ -50,14 +56,30 @@ const ERROR_MESSAGES: Record<string, string> = {
 interface BankCardProps {
   connection: BankConnectionStatus;
   onSync: (id: string) => void;
+  onReconnect: (id: string) => void;
   onDisconnect: (id: string) => void;
   syncing: boolean;
+  reconnecting: boolean;
 }
 
-function BankCard({ connection, onSync, onDisconnect, syncing }: BankCardProps) {
+function BankCard({
+  connection,
+  onSync,
+  onReconnect,
+  onDisconnect,
+  syncing,
+  reconnecting,
+}: BankCardProps) {
   const tone = STATUS_TONE[connection.status];
   const dotShadow =
     connection.status === 'active' ? '0 0 5px var(--accent)' : 'none';
+  // An expired or errored consent can't sync — re-authorizing is the only way
+  // forward, so the primary action becomes RECONNECT rather than a dead SYNC.
+  const reconnectable = canReconnect(connection.status);
+  // Active but nearly out of consent: offer an early reconnect without
+  // demoting SYNC, which still works right up to the expiry date.
+  const expiringSoon = isConsentExpiringSoon(connection);
+  const daysLeft = expiringSoon ? daysUntilConsentExpiry(connection.consentExpiresAt) : null;
 
   return (
     <div className="mb-3 border border-rule bg-surface">
@@ -76,16 +98,30 @@ function BankCard({ connection, onSync, onDisconnect, syncing }: BankCardProps) 
             {connection.bankName}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            onSync(connection.id);
-          }}
-          disabled={syncing || connection.status === 'expired'}
-          className="border border-ruleHi px-[10px] py-[5px] font-mono text-[10.5px] tracking-[0.04em] text-textMid disabled:opacity-40 active:opacity-60"
-        >
-          {syncing ? '↻ …' : '↻ SYNC'}
-        </button>
+        {reconnectable ? (
+          <button
+            type="button"
+            onClick={() => {
+              onReconnect(connection.id);
+            }}
+            disabled={reconnecting}
+            data-testid="reconnect-bank"
+            className="border border-accent/60 bg-accent/10 px-[10px] py-[5px] font-mono text-[10.5px] tracking-[0.04em] text-accent disabled:opacity-40 active:opacity-60"
+          >
+            {reconnecting ? '↻ …' : '↻ RECONNECT'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              onSync(connection.id);
+            }}
+            disabled={syncing}
+            className="border border-ruleHi px-[10px] py-[5px] font-mono text-[10.5px] tracking-[0.04em] text-textMid disabled:opacity-40 active:opacity-60"
+          >
+            {syncing ? '↻ …' : '↻ SYNC'}
+          </button>
+        )}
       </div>
 
       {/* Account rows */}
@@ -124,6 +160,36 @@ function BankCard({ connection, onSync, onDisconnect, syncing }: BankCardProps) 
           </div>
         );
       })}
+
+      {/* Reconnect reassurance. The DISCONNECT footer below warns about data
+          loss, which reads as if a dead consent means losing history — it
+          doesn't, so say so where the choice is actually made. */}
+      {reconnectable ? (
+        <div className="border-t border-rule px-[14px] py-2 text-[11.5px] text-textMid">
+          Consent has run out — reconnect to resume syncing. Your accounts and
+          transactions stay exactly as they are.
+        </div>
+      ) : null}
+
+      {expiringSoon ? (
+        <div className="flex items-center justify-between gap-3 border-t border-rule px-[14px] py-2 text-[11.5px] text-textMid">
+          <span>
+            Consent expires in {daysLeft} day{daysLeft === 1 ? '' : 's'}. Reconnecting
+            now avoids a sync gap.
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              onReconnect(connection.id);
+            }}
+            disabled={reconnecting}
+            data-testid="reconnect-bank-early"
+            className="shrink-0 font-mono text-[10px] uppercase tracking-[0.04em] text-accent disabled:opacity-40 active:opacity-60"
+          >
+            {reconnecting ? '…' : 'RECONNECT'}
+          </button>
+        </div>
+      ) : null}
 
       {/* Background-sync failure notice (an active connection whose last
           automatic sync failed — otherwise invisible until it goes expired) */}
@@ -201,6 +267,13 @@ function DisconnectDialog({
               <>
                 Disconnecting will remove this bank and delete all of its transactions.
                 This cannot be undone.
+                {canReconnect(target.status) ? (
+                  <>
+                    {' '}
+                    If you only want to fix the expired consent, close this and use{' '}
+                    <strong>Reconnect</strong> instead — it keeps everything.
+                  </>
+                ) : null}
               </>
             )}
           </DialogDescription>
@@ -259,6 +332,7 @@ export function BankConnectionCard() {
     { type: 'success' | 'error'; text: string } | null
   >(null);
   const [disconnectTargetId, setDisconnectTargetId] = useState<string | null>(null);
+  const [reconnectingId, setReconnectingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: banks = [], isLoading: banksLoading } = useAvailableBanks();
@@ -293,13 +367,31 @@ export function BankConnectionCard() {
     sync.mutate(connectionId);
   };
 
-  const expiringSoon = connections.some((c) => {
-    if (!c.consentExpiresAt) return false;
-    const days = Math.ceil(
-      (new Date(c.consentExpiresAt).getTime() - Date.now()) / 86_400_000
-    );
-    return days <= 7;
-  });
+  /**
+   * Re-authorize an existing connection. This runs the same
+   * initBankConnection → bank consent → bankCallback flow as adding a bank;
+   * the callback recognises the returning IBANs and refreshes the existing
+   * connection doc in place rather than creating a second one, so no
+   * transactions are duplicated or lost. On success the mutation navigates
+   * away to the bank, so `reconnectingId` is only cleared on failure.
+   */
+  const handleReconnect = (connectionId: string) => {
+    const connection = connections.find((c) => c.id === connectionId);
+    if (!connection) return;
+    setReconnectingId(connectionId);
+    initConnection.mutate(resolveReconnectTarget(connection, banks), {
+      onError: (err) => {
+        setReconnectingId(null);
+        toast({
+          title: 'Reconnect failed',
+          description: err instanceof Error ? err.message : 'Please try again.',
+          variant: 'destructive',
+        });
+      },
+    });
+  };
+
+  const expiringSoon = connections.some((c) => isConsentExpiringSoon(c));
 
   const supportedNames =
     banks.length > 0
@@ -365,8 +457,10 @@ export function BankConnectionCard() {
           key={connection.id}
           connection={connection}
           onSync={handleSync}
+          onReconnect={handleReconnect}
           onDisconnect={setDisconnectTargetId}
           syncing={sync.isPending}
+          reconnecting={reconnectingId === connection.id}
         />
       ))}
 
