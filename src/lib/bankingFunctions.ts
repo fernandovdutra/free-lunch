@@ -26,6 +26,9 @@ export interface AccountInfo {
 export interface BankConnectionStatus {
   id: string;
   bankName: string;
+  /** Slug of the ASPSP name the connection was opened with. Optional so an
+   * older deployed backend that doesn't return it yet doesn't break the UI. */
+  bankId?: string | null;
   status: 'active' | 'expired' | 'error';
   accountCount: number;
   accounts: AccountInfo[];
