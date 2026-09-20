@@ -162,6 +162,7 @@ functions/src/
 | [`docs/FEATURES.md`](docs/FEATURES.md) | **What the app does today** — start here |
 | [`functions/src/ARCHITECTURE.md`](functions/src/ARCHITECTURE.md) | Backend tenancy model and constraints |
 | [`docs/TESTING.md`](docs/TESTING.md) | Test setup and strategy |
+| [`docs/CHATGPT_FINANCE.md`](docs/CHATGPT_FINANCE.md) | Connect the finance MCP server to ChatGPT using OAuth and cut over reports |
 | [`docs/PHONE_DEV_WORKFLOW.md`](docs/PHONE_DEV_WORKFLOW.md) | Developing against a phone on your LAN |
 | [`docs/ASSESSMENT.md`](docs/ASSESSMENT.md) | July 2026 repository assessment and roadmap |
 | [`docs/PRD.md`](docs/PRD.md) | Historical MVP planning document (not current state) |
