@@ -1,8 +1,9 @@
 # Free Lunch MCP Server
 
-Exposes your Free Lunch financial data to the Claude apps (iPhone, web, desktop)
-via the Model Context Protocol (MCP). Deployed as the `mcp` Firebase Cloud
-Function — it ships with the rest of the backend, no separate service.
+Exposes your Free Lunch financial data via the Model Context Protocol (MCP).
+Deployed as the `mcp` Firebase Cloud Function. The legacy Claude shared-secret
+connection remains supported, and ChatGPT can connect using OAuth 2.1 after
+configuration. See [the ChatGPT setup and cutover guide](../../../docs/CHATGPT_FINANCE.md).
 
 ## Tools
 
@@ -42,7 +43,7 @@ delete it.
 
 ## Security model — shared secret
 
-There is **no OAuth**. The connector is authenticated by a long random token
+The legacy connector is authenticated by a long random token
 (`MCP_SECRET_TOKEN`), accepted in either of two forms:
 
 1. **Preferred — Authorization header.** Use the plain function URL and send

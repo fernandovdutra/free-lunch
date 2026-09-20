@@ -1,3 +1,4 @@
 .secret.local
 .env
 .env.local
+.env.*
