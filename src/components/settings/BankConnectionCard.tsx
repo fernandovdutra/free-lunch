@@ -51,6 +51,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_state: 'Authorization failed — invalid session',
   expired: 'Authorization session expired — please try again',
   session_failed: 'Failed to create bank session',
+  accounts_changed: 'The bank returned fewer accounts than before. Nothing was changed. Select all previously connected accounts at the bank and try again.',
+  connection_changed: 'This bank connection no longer exists. Nothing was changed; refresh and try again.',
 };
 
 interface BankCardProps {
@@ -166,8 +168,8 @@ function BankCard({
           doesn't, so say so where the choice is actually made. */}
       {reconnectable ? (
         <div className="border-t border-rule px-[14px] py-2 text-[11.5px] text-textMid">
-          Consent has run out — reconnect to resume syncing. Your accounts and
-          transactions stay exactly as they are.
+          Consent has run out — reconnect to resume syncing. Your existing
+          account history and transactions are kept.
         </div>
       ) : null}
 
@@ -379,7 +381,10 @@ export function BankConnectionCard() {
     const connection = connections.find((c) => c.id === connectionId);
     if (!connection) return;
     setReconnectingId(connectionId);
-    initConnection.mutate(resolveReconnectTarget(connection, banks), {
+    initConnection.mutate({
+      ...resolveReconnectTarget(connection, banks),
+      reconnectConnectionId: connectionId,
+    }, {
       onError: (err) => {
         setReconnectingId(null);
         toast({

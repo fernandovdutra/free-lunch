@@ -15,7 +15,8 @@ const test = base.extend({});
  * on the card (DISCONNECT, which really does delete every transaction) as the
  * way to fix an expired bank. Re-authorizing keeps the connection doc and its
  * history — bankCallback matches the returning IBANs onto the existing doc —
- * so the card has to say that and offer the action.
+ * so the card has to say that and offer the action. The selected connection
+ * ID is passed through authorization so another doc cannot be overwritten.
  */
 test.describe('Expired bank connection — reconnect', () => {
   // Staged data is shared by the whole describe: with fullyParallel the
@@ -60,7 +61,16 @@ test.describe('Expired bank connection — reconnect', () => {
   });
 
   test('states that reconnecting preserves accounts and transactions', async ({ page }) => {
-    await expect(page.getByText(/transactions stay exactly as they are/i)).toBeVisible();
+    await expect(page.getByText(/account history and transactions are kept/i)).toBeVisible();
+  });
+
+  test('passes the selected connection ID to the authorization callable', async ({ page }) => {
+    const requestPromise = page.waitForRequest((request) =>
+      request.method() === 'POST' && request.url().endsWith('/initBankConnection')
+    );
+    await page.getByTestId('reconnect-bank').click();
+    const request = await requestPromise;
+    expect(request.postDataJSON().data.reconnectConnectionId).toBe(STAGED_BANK_CONNECTION.id);
   });
 
   test('drops the redundant "expires soon" banner once already expired', async ({ page }) => {

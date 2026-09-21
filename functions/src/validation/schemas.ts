@@ -36,4 +36,5 @@ export const deleteIcsImportSchema = z.object({
 export const initBankConnectionSchema = z.object({
   bankName: z.string().min(1, 'Bank name is required'),
   bankCountry: z.string().length(2).default('NL'),
+  reconnectConnectionId: z.string().min(1).optional(),
 });

@@ -21,11 +21,19 @@ export const initBankConnection = onCall(
     if (!parseResult.success) {
       throw new HttpsError('invalid-argument', parseResult.error.issues.map(i => i.message).join(', '));
     }
-    const { bankName, bankCountry } = parseResult.data;
+    const { bankName, bankCountry, reconnectConnectionId } = parseResult.data;
 
     const userId = await resolveDataOwner(request.auth.uid);
     await requireRole(request.auth.uid, userId, ['owner']);
     const db = getFirestore();
+
+    if (reconnectConnectionId) {
+      const existing = await db.collection('users').doc(userId)
+        .collection('bankConnections').doc(reconnectConnectionId).get();
+      if (!existing.exists) {
+        throw new HttpsError('not-found', 'Bank connection no longer exists');
+      }
+    }
 
     // Generate state token for OAuth verification
     const state = randomBytes(32).toString('hex');
@@ -40,6 +48,7 @@ export const initBankConnection = onCall(
       userId,
       bankName,
       bankCountry,
+      ...(reconnectConnectionId ? { reconnectConnectionId } : {}),
       createdAt: FieldValue.serverTimestamp(),
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min expiry
     });

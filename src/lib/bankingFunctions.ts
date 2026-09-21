@@ -82,7 +82,7 @@ export const getAvailableBanks = httpsCallable<{ country?: string }, Bank[]>(
 );
 
 export const initBankConnection = httpsCallable<
-  { bankName: string; bankCountry?: string },
+  { bankName: string; bankCountry?: string; reconnectConnectionId?: string },
   InitConnectionResponse
 >(functions, 'initBankConnection');
 

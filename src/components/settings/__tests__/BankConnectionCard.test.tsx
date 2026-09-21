@@ -81,6 +81,7 @@ describe('BankConnectionCard — reconnect', () => {
     expect(initMutate.mock.calls[0]?.[0]).toEqual({
       bankName: 'ABN AMRO',
       bankCountry: 'NL',
+      reconnectConnectionId: 'abn_amro_1',
     });
   });
 
@@ -88,7 +89,7 @@ describe('BankConnectionCard — reconnect', () => {
     connections = [connection({ status: 'expired' })];
     render(<BankConnectionCard />);
 
-    expect(screen.getByText(/transactions stay exactly as they are/i)).toBeDefined();
+    expect(screen.getByText(/account history and transactions are kept/i)).toBeDefined();
   });
 
   it('treats an errored connection the same as an expired one', () => {
@@ -116,7 +117,7 @@ describe('BankConnectionCard — reconnect', () => {
     expect(screen.getByText('↻ SYNC')).toBeDefined();
     fireEvent.click(screen.getByTestId('reconnect-bank-early'));
     expect(initMutate).toHaveBeenCalledWith(
-      { bankName: 'ABN AMRO', bankCountry: 'NL' },
+      { bankName: 'ABN AMRO', bankCountry: 'NL', reconnectConnectionId: 'abn_amro_1' },
       expect.anything()
     );
   });
