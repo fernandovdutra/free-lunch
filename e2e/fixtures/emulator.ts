@@ -39,6 +39,7 @@ export const fv = {
   ts: (v: Date): FirestoreValue => ({ timestampValue: v.toISOString() }),
   nul: (): FirestoreValue => ({ nullValue: null }),
   map: (fields: Record<string, FirestoreValue>): FirestoreValue => ({ mapValue: { fields } }),
+  arr: (values: FirestoreValue[]): FirestoreValue => ({ arrayValue: { values } }),
 };
 
 /** Full-document PATCH (replaces all fields) — idempotent staging. */
@@ -50,6 +51,15 @@ export async function setDoc(path: string, fields: Record<string, FirestoreValue
     body: JSON.stringify({ fields }),
   });
   if (!r.ok) throw new Error(`setDoc ${path}: ${r.status} ${await r.text()}`);
+}
+
+/** Remove a staged document. Missing documents are not an error. */
+export async function deleteDoc(path: string): Promise<void> {
+  const url = `http://${FIRESTORE_HOST}/v1/projects/${projectId()}/databases/(default)/documents/${path}`;
+  const r = await fetch(url, { method: 'DELETE', headers: AUTH_HEADERS });
+  if (!r.ok && r.status !== 404) {
+    throw new Error(`deleteDoc ${path}: ${r.status} ${await r.text()}`);
+  }
 }
 
 export async function listUserDocs(collection: string): Promise<
@@ -250,4 +260,50 @@ export async function stageCategorizationData(): Promise<void> {
       reimbursement: null,
     })
   );
+}
+
+// ---------------------------------------------------------------------------
+// Bank connections
+// ---------------------------------------------------------------------------
+
+export const STAGED_BANK_CONNECTION = {
+  id: 'e2e-abn-expired',
+  bankName: 'E2E Test Bank',
+  iban: 'NL01ABNA0000009999',
+  accountName: 'E2E RECONNECT ACCOUNT',
+};
+
+/**
+ * Stage a bank connection whose PSD2 consent has lapsed. `getBankStatus`
+ * reads it straight out of Firestore, so the settings page renders the real
+ * expired-connection state without any Enable Banking traffic.
+ */
+export async function stageExpiredBankConnection(): Promise<void> {
+  const { id, bankName, iban, accountName } = STAGED_BANK_CONNECTION;
+  await setDoc(`users/${TEST_UID}/bankConnections/${id}`, {
+    id: fv.str(id),
+    provider: fv.str('enable_banking'),
+    bankId: fv.str('e2e_test_bank'),
+    bankName: fv.str(bankName),
+    status: fv.str('expired'),
+    sessionId: fv.str('e2e-session'),
+    accounts: fv.arr([
+      fv.map({
+        uid: fv.str('e2e-account-1'),
+        iban: fv.str(iban),
+        name: fv.str(accountName),
+        currency: fv.str('EUR'),
+      }),
+    ]),
+    // 21 days past — consent gone, matching the state a stale connection
+    // reaches when nobody re-authorizes it.
+    consentExpiresAt: fv.ts(new Date(Date.now() - 21 * 86_400_000)),
+    lastSync: fv.ts(new Date(Date.now() - 21 * 86_400_000)),
+    createdAt: fv.ts(new Date(Date.now() - 111 * 86_400_000)),
+    updatedAt: fv.ts(new Date(Date.now() - 21 * 86_400_000)),
+  });
+}
+
+export async function removeStagedBankConnection(): Promise<void> {
+  await deleteDoc(`users/${TEST_UID}/bankConnections/${STAGED_BANK_CONNECTION.id}`);
 }

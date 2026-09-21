@@ -2,6 +2,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { EnableBankingClient } from '../enableBanking/client.js';
 import { config } from '../config.js';
+import { matchBankConnection } from '../shared/reconnectMatching.js';
 
 export const bankCallback = onRequest(
   {
@@ -43,6 +44,7 @@ export const bankCallback = onRequest(
     const pendingData = pendingDoc.data()!;
     const userId = pendingData.userId as string;
     const bankName = pendingData.bankName as string;
+    const reconnectConnectionId = pendingData.reconnectConnectionId as string | undefined;
 
     // Check if pending connection has expired
     const expiresAt = (pendingData.expiresAt as Timestamp).toDate();
@@ -71,26 +73,34 @@ export const bankCallback = onRequest(
         sessionAccounts.map((a) => a.iban).filter((x): x is string => typeof x === 'string')
       );
 
-      // Look for an existing connection that already covers any of these IBANs.
-      // If we find one, refresh it in place so all historical transactions
-      // (and any manual categorizations) stay linked, instead of creating a
-      // duplicate doc that the user then has to clean up.
+      // For reconnect, use the exact connection the user chose and require
+      // all of its accounts in the new consent. A partial grant must not
+      // silently remove accounts from future syncs.
       const userConnectionsRef = db
         .collection('users')
         .doc(userId)
         .collection('bankConnections');
       const existingSnap = await userConnectionsRef.get();
-      const existingMatch = existingSnap.docs.find((d) => {
-        const accs = (d.data().accounts ?? []) as { iban?: string | null }[];
-        return accs.some((a) => a.iban && sessionIbans.has(a.iban));
-      });
+      const match = matchBankConnection(
+        existingSnap.docs.map((d) => ({
+          id: d.id,
+          accounts: (d.data().accounts ?? []) as { iban?: string | null }[],
+        })),
+        sessionIbans,
+        reconnectConnectionId
+      );
+      if (match.kind === 'error') {
+        await pendingRef.delete();
+        res.redirect(`${appUrl}/settings?bank_error=${match.reason}`);
+        return;
+      }
 
       const connectionId =
-        existingMatch?.id ??
+        (match.kind === 'matched' ? match.id : null) ??
         `${bankName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
       const connectionRef = userConnectionsRef.doc(connectionId);
 
-      if (existingMatch) {
+      if (match.kind === 'matched') {
         // Refresh existing connection: new session, fresh consent, mark active.
         // Clear the auto-sync expiry reminder/error so they re-arm for the new
         // 90-day consent cycle.

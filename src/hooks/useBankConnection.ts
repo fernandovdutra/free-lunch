@@ -59,7 +59,7 @@ export function useBankConnections() {
 
 export function useInitBankConnection() {
   return useMutation({
-    mutationFn: async (params: { bankName: string; bankCountry?: string }) => {
+    mutationFn: async (params: { bankName: string; bankCountry?: string; reconnectConnectionId?: string }) => {
       const result = await initBankConnection(params);
       return result.data;
     },

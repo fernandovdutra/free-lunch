@@ -24,6 +24,10 @@ export const getBankStatus = onCall(
       return {
         id: doc.id,
         bankName: data.bankName,
+        // Slug of the ASPSP name the connection was originally opened with
+        // (see bankCallback). The reconnect button needs it to map a stored
+        // connection back onto an entry in the getAvailableBanks list.
+        bankId: typeof data.bankId === 'string' ? data.bankId : null,
         status: data.status,
         accountCount: data.accounts?.length ?? 0,
         accounts:
