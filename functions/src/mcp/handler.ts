@@ -68,7 +68,13 @@ export const mcp = onRequest(
       return;
     }
 
-    const server = createServer(getFirestore(), userId, canWrite, challenge);
+    const server = createServer(
+      getFirestore(),
+      userId,
+      canWrite,
+      challenge,
+      oauth ? oauthChallenge(oauth, 'finance:read finance:write') : undefined
+    );
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
