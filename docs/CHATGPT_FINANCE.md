@@ -81,8 +81,9 @@ a browser URL to test it.
    `https://europe-west1-free-lunch-85447.cloudfunctions.net/mcp`.
 3. Complete the Auth0 login. Check that the user is *your* Auth0 account and
    the requested API scopes are what you intended. Verify `get_advisor_memory`
-   and a small `get_transactions` query in a fresh chat. A read-only grant
-   should not expose write tools.
+   and a small `get_transactions` query in a fresh chat. Write tools remain
+   visible with a read-only grant, but invoking one must trigger a
+   `finance:write` authorization challenge before any mutation runs.
 4. If you enable writes later, verify a reversible edit (for example updating
    a test transaction note) before relying on categorization/budget edits.
 
@@ -134,7 +135,9 @@ proven.
 - `404` on an unauthenticated request: OAuth configuration is incomplete.
 - Login succeeds but finance tools still require authentication: check issuer, API audience,
   exact Auth0 user ID, token expiry, and `finance:read` scope.
-- Read tools work but write tools are missing: expected with a read-only grant.
+- Read tools work but a write call asks for authorization: reconnect and grant
+  `finance:write`; the server will continue to reject mutations until that
+  scope is present in the access token.
 - No data in ChatGPT: verify `SINGLE_USER_ID` still points to the original
   Firebase owner account. Do not replace it with the Auth0 user ID; they are
   separate identifiers.

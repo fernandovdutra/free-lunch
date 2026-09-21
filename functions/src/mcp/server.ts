@@ -9,9 +9,8 @@ import { WRITE_TOOL_DEFINITIONS } from './writeTools.js';
 
 const writableNames = new Set(WRITE_TOOL_DEFINITIONS.map((tool) => tool.name));
 
-export function allowedTools(canWrite: boolean) {
-  const tools = canWrite ? TOOL_DEFINITIONS : TOOL_DEFINITIONS.filter((tool) => !writableNames.has(tool.name));
-  return tools.map((tool) => ({
+export function allowedTools() {
+  return TOOL_DEFINITIONS.map((tool) => ({
     ...tool,
     securitySchemes: [{ type: 'oauth2', scopes: writableNames.has(tool.name)
       ? ['finance:read', 'finance:write'] : ['finance:read'] }],
@@ -22,14 +21,23 @@ export function allowedTools(canWrite: boolean) {
  * Builds an MCP server instance exposing the read-only finance tools.
  * A fresh instance is created per HTTP request (stateless transport).
  */
-export function createServer(db: Firestore, userId: string, canWrite = true, challenge?: string): Server {
+export function createServer(
+  db: Firestore,
+  userId: string,
+  canWrite = true,
+  challenge?: string,
+  writeChallenge?: string
+): Server {
   const server = new Server(
     { name: 'free-lunch-finance', version: '1.0.0' },
     { capabilities: { tools: {} } }
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: allowedTools(challenge ? true : canWrite),
+    // Always advertise write tools. Their per-tool securitySchemes let MCP
+    // clients request finance:write incrementally instead of permanently
+    // caching a read-only tool list after the first authorization.
+    tools: allowedTools(),
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -40,8 +48,13 @@ export function createServer(db: Firestore, userId: string, canWrite = true, cha
         isError: true,
         _meta: { 'mcp/www_authenticate': [challenge] },
       };
-      // Hiding a tool in tools/list does not stop a client from calling it by name.
-      if (!canWrite && writableNames.has(name)) throw new Error('Insufficient finance:write scope');
+      if (!canWrite && writableNames.has(name)) return {
+        content: [{ type: 'text' as const, text: 'Grant finance:write access to use this tool.' }],
+        isError: true,
+        _meta: writeChallenge
+          ? { 'mcp/www_authenticate': [writeChallenge] }
+          : undefined,
+      };
       const result = await callTool(db, userId, name, args ?? {});
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     } catch (err) {

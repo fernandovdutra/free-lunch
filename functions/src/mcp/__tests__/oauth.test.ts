@@ -34,10 +34,43 @@ describe('MCP OAuth', () => {
     expect(oauthChallenge(config)).not.toContain(config.subject);
   });
 
-  it('does not advertise write tools to a read-only OAuth connection', () => {
-    expect(allowedTools(false).some((tool) => tool.name === 'create_transaction')).toBe(false);
-    expect(allowedTools(false).some((tool) => tool.name === 'get_advisor_memory')).toBe(true);
-    expect(allowedTools(true).some((tool) => tool.name === 'create_transaction')).toBe(true);
+  it('advertises write tools with their required scopes for incremental authorization', () => {
+    const tools = allowedTools();
+    const createTransaction = tools.find((tool) => tool.name === 'create_transaction');
+    const getAdvisorMemory = tools.find((tool) => tool.name === 'get_advisor_memory');
+    expect(createTransaction?.securitySchemes).toEqual([
+      { type: 'oauth2', scopes: ['finance:read', 'finance:write'] },
+    ]);
+    expect(getAdvisorMemory?.securitySchemes).toEqual([
+      { type: 'oauth2', scopes: ['finance:read'] },
+    ]);
+  });
+
+  it('challenges a read-only token for finance:write without calling Firestore', async () => {
+    const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+    const writeChallenge = oauthChallenge(config, 'finance:read finance:write');
+    const server = createServer(
+      null as unknown as Firestore,
+      'owner',
+      false,
+      undefined,
+      writeChallenge
+    );
+    const client = new Client({ name: 'auth-test', version: '1.0.0' }, { capabilities: {} });
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    try {
+      const tools = await client.listTools();
+      expect(tools.tools.some((tool) => tool.name === 'recategorize_transaction')).toBe(true);
+      const result = await client.callTool({
+        name: 'recategorize_transaction',
+        arguments: { transactionId: 'tx-1', categoryId: 'self-care' },
+      });
+      expect(result.isError).toBe(true);
+      expect(result._meta?.['mcp/www_authenticate']).toEqual([writeChallenge]);
+    } finally {
+      await client.close();
+      await server.close();
+    }
   });
 
   it('allows unauthenticated discovery but never calls Firestore without a token', async () => {
