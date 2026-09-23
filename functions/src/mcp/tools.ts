@@ -144,6 +144,80 @@ async function loadCategoryNames(db: Firestore, userId: string): Promise<Map<str
   return names;
 }
 
+async function getCategories(db: Firestore, userId: string) {
+  const snap = await db.collection('users').doc(userId).collection('categories').get();
+  return snap.docs.map((doc) => ({ id: doc.id, name: doc.data().name,
+    icon: doc.data().icon, color: doc.data().color,
+    parentId: doc.data().parentId ?? null, order: doc.data().order ?? 0,
+    isSystem: doc.data().isSystem ?? false }))
+    .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+}
+
+/** The dated schedule used on Home, including the user's manual posted overrides. */
+async function getFixedSchedule(db: Firestore, userId: string, month: string) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('month must be YYYY-MM');
+  const [year, monthNumber] = month.split('-').map(Number);
+  const start = new Date(Date.UTC(year, monthNumber - 1, 1));
+  const end = new Date(Date.UTC(year, monthNumber, 1));
+  const user = db.collection('users').doc(userId);
+  const [scheduleSnap, matchesSnap, txnSnap, budgetSnap] = await Promise.all([
+    user.collection('settings').doc('fixedSchedule').get(),
+    user.collection('settings').doc('fixedMatches').get(),
+    user.collection('transactions').where('date', '>=', Timestamp.fromDate(new Date(start.getTime() - 86400000)))
+      .where('date', '<', Timestamp.fromDate(new Date(end.getTime() + 86400000))).get(),
+    user.collection('budgets').get(),
+  ]);
+  type FixedItem = { d: number; a: number; l: string };
+  const items: FixedItem[] = Array.isArray(scheduleSnap.data()?.items) ? scheduleSnap.data()!.items : [];
+  const overrides = new Set<string>(matchesSnap.data()?.months?.[month] ?? []);
+  const dayKey = (date: Date) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Amsterdam', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(date);
+  const txns = txnSnap.docs.map((doc) => doc.data()).filter((data) =>
+    data.date?.toDate && dayKey(data.date.toDate()).startsWith(month) &&
+    !data.excludeFromTotals && data.reimbursement?.status !== 'pending'
+  );
+  const claimed = new Set<number>();
+  const posted: FixedItem[] = [];
+  const unposted: FixedItem[] = [];
+  for (const item of items) {
+    if (overrides.has(`${item.d}|${item.l}|${item.a}`)) { posted.push(item); continue; }
+    const label = item.l.replace(/\([^)]*\)/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    let best = -1;
+    let drift = Infinity;
+    for (let i = 0; i < txns.length; i++) {
+      const txn = txns[i];
+      if (claimed.has(i) || txn.amount >= 0 || !label ||
+        !String(txn.counterparty ?? '').toLowerCase().includes(label)) continue;
+      const delta = item.a > 0 ? Math.abs(Math.abs(txn.amount) - item.a) / item.a : Infinity;
+      if (delta <= 0.2 && delta < drift) { best = i; drift = delta; }
+    }
+    if (best < 0) unposted.push(item);
+    else { claimed.add(best); posted.push(item); }
+  }
+  const asOf = dayKey(new Date());
+  const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+  const dayOfMonth = month === asOf.slice(0, 7) ? Number(asOf.slice(8)) : daysInMonth;
+  const spent = txns.filter((t) => t.amount < 0 && t.reimbursement?.status !== 'cleared')
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const budget = budgetSnap.docs.filter((d) => d.data().isActive !== false)
+    .reduce((sum, d) => sum + (d.data().monthlyLimit ?? 0), 0);
+  const fixedSum = items.reduce((sum, item) => sum + item.a, 0);
+  const remaining = unposted.reduce((sum, item) => sum + item.a, 0);
+  // Same seven-day shrinkage and fixed/variable decomposition as Home's computeProjection.
+  const observedRate = Math.max(0, (spent - (fixedSum - remaining)) / dayOfMonth);
+  const budgetRate = Math.max(0, budget - fixedSum) / daysInMonth;
+  const variableRate = (dayOfMonth * observedRate + 7 * budgetRate) / (dayOfMonth + 7);
+  const currentMonth = month === asOf.slice(0, 7);
+  return { month, asOf, items, posted, unposted, fixedTotal: round2(fixedSum),
+    fixedStillToPost: currentMonth ? round2(remaining) : 0,
+    spent: round2(spent), budget: round2(budget),
+    projectedEnd: currentMonth ? round2(spent + remaining + variableRate * (daysInMonth - dayOfMonth)) : null,
+    projectionVariableRemaining: currentMonth ? round2(variableRate * (daysInMonth - dayOfMonth)) : null,
+    note: 'Matching uses the same 20% amount tolerance and counterparty label heuristic as the dashboard; check unmatched items for changed merchant names.',
+  };
+}
+
 /** Best-effort cleaner merchant name from the categorization merchant database. */
 function resolveMerchantName(data: FirebaseFirestore.DocumentData): string | null {
   const description = typeof data.description === 'string' ? data.description : '';
@@ -694,6 +768,17 @@ async function getRecurringExpenses(db: Firestore, userId: string) {
 
 const READ_TOOL_DEFINITIONS = [
   {
+    name: 'get_categories', description: 'List category IDs, names, parent IDs, colors and icons',
+    inputSchema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name: 'get_fixed_schedule',
+    description: 'Get the dated monthly fixed-cost schedule, posted matches, still-to-post items and current-month forecast',
+    inputSchema: { type: 'object' as const, properties: {
+      month: { type: 'string', description: 'Month in YYYY-MM format' },
+    }, required: ['month'] },
+  },
+  {
     name: 'get_transactions',
     description:
       'Query bank transactions with filters (date range, category, counterparty, tags, amount, direction). Returns { transactions, totalCount, totalAmount }; each transaction includes categoryName and a cleaner merchantName. Tag filters search the full transaction history.',
@@ -904,6 +989,10 @@ export async function callTool(
   args: Record<string, unknown>
 ): Promise<unknown> {
   switch (name) {
+    case 'get_categories':
+      return getCategories(db, userId);
+    case 'get_fixed_schedule':
+      return getFixedSchedule(db, userId, requireString(args, 'month'));
     case 'get_transactions':
       return getTransactions(db, userId, parseTransactionFilter(args));
     case 'aggregate_transactions':
