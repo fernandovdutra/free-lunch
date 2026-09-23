@@ -131,6 +131,41 @@ describe('TOOL_DEFINITIONS', () => {
     const names = TOOL_DEFINITIONS.map((t) => t.name);
     expect(names).toContain('get_transactions');
     expect(names).toContain('aggregate_transactions');
+    expect(names).toContain('get_categories');
+    expect(names).toContain('get_fixed_schedule');
+  });
+});
+
+describe('get_fixed_schedule', () => {
+  it('matches a posted cost once and keeps an unmatched cost in the forecast', async () => {
+    const month = new Date().toLocaleDateString('en-CA', {
+      timeZone: 'Europe/Amsterdam', year: 'numeric', month: '2-digit',
+    }).slice(0, 7);
+    const txns = [{ amount: -100, counterparty: 'Rent landlord',
+      date: { toDate: () => new Date() } }];
+    const db = { collection: () => ({ doc: () => ({ collection: (name: string) => {
+      if (name === 'settings') return { doc: (id: string) => ({ get: async () => ({
+        data: () => id === 'fixedSchedule' ? { items: [
+          { d: 1, a: 100, l: 'Rent' }, { d: 28, a: 50, l: 'Internet' },
+        ] } : { months: {} },
+      }) }) };
+      if (name === 'transactions') {
+        const query = { where: () => query, get: async () => ({ docs: txns.map((data) => ({ data: () => data })) }) };
+        return query;
+      }
+      if (name === 'budgets') return { get: async () => ({ docs: [
+        { data: () => ({ monthlyLimit: 300, isActive: true }) },
+      ] }) };
+      throw new Error(name);
+    } }) }) } as unknown as Firestore;
+    const result = await callTool(db, UID, 'get_fixed_schedule', { month }) as {
+      posted: { l: string }[]; unposted: { l: string }[];
+      fixedStillToPost: number; projectedEnd: number;
+    };
+    expect(result.posted.map((x) => x.l)).toEqual(['Rent']);
+    expect(result.unposted.map((x) => x.l)).toEqual(['Internet']);
+    expect(result.fixedStillToPost).toBe(50);
+    expect(result.projectedEnd).toBeGreaterThanOrEqual(150);
   });
 });
 
