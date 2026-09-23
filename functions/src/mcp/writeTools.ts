@@ -130,6 +130,60 @@ async function assertCategoryExists(db: Firestore, userId: string, categoryId: s
   }
 }
 
+// Category documents use the same shape and generated document IDs as the UI.
+async function createCategory(db: Firestore, userId: string, args: Record<string, unknown>) {
+  const name = requireString(args, 'name').trim();
+  const icon = requireString(args, 'icon').trim();
+  const color = requireString(args, 'color').trim();
+  const parentId = optionalString(args, 'parentId') ?? null;
+  const col = userCollection(db, userId, 'categories');
+  if (parentId) await assertCategoryExists(db, userId, parentId);
+  const existing = await col.get();
+  if (existing.docs.some((d) => (d.data().parentId ?? null) === parentId &&
+    String(d.data().name).toLocaleLowerCase() === name.toLocaleLowerCase())) {
+    throw new Error(`Category already exists under this parent: ${name}`);
+  }
+  const ref = col.doc();
+  await ref.set({ name, icon, color, parentId, order: Date.now(), isSystem: false,
+    createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  return { id: ref.id, name, icon, color, parentId };
+}
+
+async function updateCategory(db: Firestore, userId: string, args: Record<string, unknown>) {
+  const id = requireString(args, 'categoryId');
+  const col = userCollection(db, userId, 'categories');
+  const existing = await col.get();
+  const current = existing.docs.find((d) => d.id === id);
+  if (!current) throw new Error(`Category not found: ${id}`);
+  const changes: Record<string, unknown> = {};
+  for (const key of ['name', 'icon', 'color'] as const) {
+    if (args[key] !== undefined) changes[key] = requireString(args, key).trim();
+  }
+  if (args.parentId !== undefined) {
+    if (args.parentId !== null && typeof args.parentId !== 'string') throw new Error('Invalid parentId');
+    const parentId = args.parentId === null ? null : requireString(args, 'parentId');
+    let ancestor = parentId;
+    const visited = new Set<string>();
+    while (ancestor) {
+      if (ancestor === id || visited.has(ancestor)) throw new Error('Category parent cycle');
+      visited.add(ancestor);
+      const parent = existing.docs.find((d) => d.id === ancestor);
+      if (!parent) throw new Error(`Category not found: ${ancestor}`);
+      ancestor = parent.data().parentId ?? null;
+    }
+    changes.parentId = parentId;
+  }
+  if (!Object.keys(changes).length) throw new Error('Provide at least one category field to update');
+  const nextName = String(changes.name ?? current.data().name);
+  const nextParent = changes.parentId !== undefined ? changes.parentId : current.data().parentId ?? null;
+  if (existing.docs.some((d) => d.id !== id && (d.data().parentId ?? null) === nextParent &&
+    String(d.data().name).toLocaleLowerCase() === nextName.toLocaleLowerCase())) {
+    throw new Error(`Category already exists under this parent: ${nextName}`);
+  }
+  await current.ref.update({ ...changes, updatedAt: FieldValue.serverTimestamp() });
+  return { id, updated: changes };
+}
+
 /** Apply document updates in batches, respecting Firestore's 500-write limit. */
 async function commitUpdates(
   db: Firestore,
@@ -477,6 +531,23 @@ const WRITE_ANNOTATIONS = { readOnlyHint: false, destructiveHint: false } as con
 
 export const WRITE_TOOL_DEFINITIONS = [
   {
+    name: 'create_category',
+    description: 'Create a spending category or subcategory',
+    inputSchema: { type: 'object' as const, properties: {
+      name: { type: 'string' }, icon: { type: 'string', description: 'Lucide icon name' },
+      color: { type: 'string', description: 'Category color' },
+      parentId: { type: 'string', description: 'Optional parent category ID' },
+    }, required: ['name', 'icon', 'color'] }, annotations: WRITE_ANNOTATIONS,
+  },
+  {
+    name: 'update_category',
+    description: 'Rename or change the icon, color, or parent of a category; existing transactions retain their category ID',
+    inputSchema: { type: 'object' as const, properties: {
+      categoryId: { type: 'string' }, name: { type: 'string' }, icon: { type: 'string' },
+      color: { type: 'string' }, parentId: { type: ['string', 'null'], description: 'Null moves to root' },
+    }, required: ['categoryId'] }, annotations: WRITE_ANNOTATIONS,
+  },
+  {
     name: 'recategorize_transaction',
     description:
       "Change the category of one or more transactions. Pass transactionId for a single transaction or transactionIds for a bulk change. Marks the change as manual.",
@@ -685,6 +756,10 @@ export async function callWriteTool(
   args: Record<string, unknown>
 ): Promise<unknown> {
   switch (name) {
+    case 'create_category':
+      return createCategory(db, userId, args);
+    case 'update_category':
+      return updateCategory(db, userId, args);
     case 'recategorize_transaction':
       return recategorizeTransactions(
         db,

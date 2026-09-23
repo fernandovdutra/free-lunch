@@ -42,6 +42,7 @@ function createFakeDb(seed: Record<string, Record<string, unknown>> = {}) {
         store.set(path, { ...(store.get(path) ?? {}), ...data });
         writes.push({ path, op: 'update', data });
       },
+      ref: undefined,
     };
     return doc;
   }
@@ -49,6 +50,9 @@ function createFakeDb(seed: Record<string, Record<string, unknown>> = {}) {
   function makeCollection(path: string) {
     return {
       doc: (id?: string) => makeDoc(`${path}/${id ?? `auto-${++idCounter}`}`),
+      get: async () => ({ docs: [...store.entries()]
+        .filter(([key]) => key.startsWith(`${path}/`) && !key.slice(path.length + 1).includes('/'))
+        .map(([key, data]) => ({ ...makeDoc(key), data: () => data, ref: makeDoc(key) })) }),
     };
   }
 
@@ -95,11 +99,35 @@ describe('callWriteTool — dispatch', () => {
     await expect(callWriteTool(db, UID, 'nope', {})).rejects.toThrow('Unknown tool');
   });
 
-  it('exposes 10 write tool definitions, all marked not read-only', () => {
-    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(10);
+  it('exposes 12 write tool definitions, all marked not read-only', () => {
+    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(12);
     for (const tool of WRITE_TOOL_DEFINITIONS) {
       expect(tool.annotations.readOnlyHint).toBe(false);
     }
+  });
+});
+
+describe('category writes', () => {
+  it('creates a child and rejects duplicate names in that parent', async () => {
+    const { db, writes } = withSeed();
+    await callWriteTool(db, UID, 'create_category', {
+      name: 'Bank Fees', icon: 'Landmark', color: '#abc', parentId: 'c1',
+    });
+    expect(writes.at(-1)?.data).toMatchObject({ name: 'Bank Fees', parentId: 'c1', isSystem: false });
+    await expect(callWriteTool(db, UID, 'create_category', {
+      name: 'bank fees', icon: 'Landmark', color: '#abc', parentId: 'c1',
+    })).rejects.toThrow('already exists');
+  });
+
+  it('renames in place and rejects moving a parent under its child', async () => {
+    const { db, writes } = withSeed({
+      'users/u1/categories/child': { name: 'Child', parentId: 'c1' },
+    });
+    await callWriteTool(db, UID, 'update_category', { categoryId: 'child', name: 'Kids Activities' });
+    expect(writes.at(-1)?.data).toMatchObject({ name: 'Kids Activities' });
+    await expect(callWriteTool(db, UID, 'update_category', {
+      categoryId: 'c1', parentId: 'child',
+    })).rejects.toThrow('cycle');
   });
 });
 
