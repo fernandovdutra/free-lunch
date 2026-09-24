@@ -24,6 +24,11 @@ export interface StoredRule {
   isSystem: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  enabled?: boolean;
+  confirmed?: boolean;
+  targetField?: 'counterparty' | 'description' | 'combined';
+  version?: number;
+  origin?: string;
 }
 
 /**

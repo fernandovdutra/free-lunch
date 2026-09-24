@@ -1,9 +1,8 @@
-import { useMemo } from 'react';
-import { useTransactions, useFailedCategorizationCount } from '@/hooks/useTransactions';
 import { useRules } from '@/hooks/useRules';
 import { useRecategorizeTransactions } from '@/hooks/useBankConnection';
 import { CategorizationRulesCard } from '@/components/settings/CategorizationRulesCard';
 import { BuiltInRulesCard } from '@/components/settings/BuiltInRulesCard';
+import { CategorizationReviewCard } from '@/components/settings/CategorizationReviewCard';
 import { useCategories } from '@/hooks/useCategories';
 import { MERCHANT_GROUPS } from '@/data/merchantGroups';
 import { useToast } from '@/components/ui/toaster';
@@ -29,18 +28,10 @@ const TOTAL_BUILT_IN_MERCHANTS = Object.values(MERCHANT_GROUPS).reduce(
  */
 export function SettingsCategorization() {
   const { data: rules = [] } = useRules();
-  const { data: transactions = [] } = useTransactions({});
   const { data: categories = [] } = useCategories();
-  const { data: failedCount = 0 } = useFailedCategorizationCount();
   const recategorize = useRecategorizeTransactions();
   const { toast } = useToast();
 
-  const uncategorizedCount = useMemo(
-    () => transactions.filter((t) => !t.categoryId).length,
-    [transactions]
-  );
-
-  const hasTransactions = transactions.length > 0;
   const isPending = recategorize.isPending;
 
   const onRecatError = (err: unknown) => {
@@ -51,7 +42,6 @@ export function SettingsCategorization() {
   };
 
   const runRulesOnly = () => {
-    if (!hasTransactions) return;
     recategorize.mutate(
       {},
       {
@@ -66,53 +56,6 @@ export function SettingsCategorization() {
     );
   };
 
-  const runAiUncategorized = () => {
-    if (!hasTransactions) return;
-    recategorize.mutate(
-      { useLLM: true, mode: 'uncategorized' },
-      {
-        onSuccess: (r) => {
-          toast({
-            title: 'AI categorize · uncategorized only',
-            description: `${r.llmCategorized} by AI · ${r.updated} updated`,
-          });
-        },
-        onError: onRecatError,
-      }
-    );
-  };
-
-  const runRetryFailed = () => {
-    recategorize.mutate(
-      { useLLM: true, mode: 'failed' },
-      {
-        onSuccess: (r) => {
-          toast({
-            title: 'Retried failed categorizations',
-            description: `${r.llmCategorized} categorized · ${r.llmFailed ?? 0} still failing`,
-          });
-        },
-        onError: onRecatError,
-      }
-    );
-  };
-
-  const runAiAll = () => {
-    if (!hasTransactions) return;
-    recategorize.mutate(
-      { useLLM: true, mode: 'all' },
-      {
-        onSuccess: (r) => {
-          toast({
-            title: 'AI categorize · all',
-            description: `${r.llmCategorized} by AI · ${r.updated} updated`,
-          });
-        },
-        onError: onRecatError,
-      }
-    );
-  };
-
   return (
     <SettingsScreen title="CATEGORIZATION">
       <div className="px-4 pb-4 mt-2">
@@ -120,7 +63,7 @@ export function SettingsCategorization() {
           stats={[
             { label: 'RULES', value: rules.length, meta: 'LEARNED + MANUAL' },
             { label: 'MERCHANTS', value: TOTAL_BUILT_IN_MERCHANTS, meta: 'DUTCH, BUILT-IN' },
-            { label: 'UNCATEG.', value: uncategorizedCount, meta: 'NEEDS ATTENTION' },
+            { label: 'AI MODE', value: 'ASSISTED', meta: 'CHATGPT TASK' },
           ]}
         />
       </div>
@@ -131,35 +74,15 @@ export function SettingsCategorization() {
         label="Re-categorize (rules only)"
         meta="Re-apply pattern matching to all transactions"
         onClick={runRulesOnly}
-        disabled={!hasTransactions || isPending}
+        disabled={isPending}
       />
       <SettingsRoomRow
-        glyph="✦"
-        label="AI categorize uncategorized"
-        meta="Only rows rules couldn't match"
-        onClick={runAiUncategorized}
+        glyph="?"
+        label="Needs review"
+        meta="Browse unresolved merchants and use ChatGPT for research"
+        onClick={() => { document.getElementById('review')?.scrollIntoView({ behavior: 'smooth' }); }}
         accent="accent"
-        disabled={!hasTransactions || isPending || uncategorizedCount === 0}
       />
-      <SettingsRoomRow
-        glyph="✦"
-        label="AI categorize all"
-        meta="Claude re-reviews every transaction (keeps manual)"
-        onClick={runAiAll}
-        accent="accent"
-        disabled={!hasTransactions || isPending}
-      />
-      {failedCount > 0 ? (
-        <SettingsRoomRow
-          glyph="△"
-          label="Retry failed AI categorization"
-          meta={`${failedCount} transaction${failedCount === 1 ? '' : 's'} failed last AI pass`}
-          onClick={runRetryFailed}
-          accent="warn"
-          badge={failedCount}
-          disabled={isPending}
-        />
-      ) : null}
 
       <SectionHeader>BROWSE</SectionHeader>
       <SettingsRoomRow
@@ -188,11 +111,13 @@ export function SettingsCategorization() {
       <div className="mx-4 mt-6 border border-rule bg-surface px-4 py-4 font-mono text-[10.5px] uppercase tracking-[0.04em] text-textMid">
         <div className="text-textLo mb-2">HOW IT WORKS</div>
         <p className="leading-[1.55] normal-case tracking-normal font-sans text-[12px] text-textMid">
-          Your <span className="text-textHi">manual</span> categorizations win. Below
-          that, custom <span className="text-textHi">rules</span> beat the built-in{' '}
-          <span className="text-textHi">merchant database</span>. Anything left goes
-          through <span className="text-accent">Claude</span>.
+          Individual corrections and confirmed merchant rules win. Built-in merchants fill clear matches.
+          Unresolved merchants appear in the review queue for your connected ChatGPT daily task or a manual choice.
         </p>
+      </div>
+
+      <div id="review" className="px-4 pt-8 pb-4 scroll-mt-16">
+        <CategorizationReviewCard categories={categories} />
       </div>
 
       <div id="rules" className="px-4 pt-8 pb-4 scroll-mt-16">

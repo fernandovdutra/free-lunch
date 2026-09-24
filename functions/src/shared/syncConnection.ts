@@ -14,6 +14,7 @@ import type { EnableBankingTransaction } from '../enableBanking/types.js';
 import { config } from '../config.js';
 import { Categorizer } from '../categorization/index.js';
 import { runLlmCategorization } from './categorizationPipeline.js';
+import { financeAiMode } from '../ai/mode.js';
 import {
   amsterdamDayKey,
   amsterdamNoon,
@@ -540,6 +541,7 @@ export async function applyLlmCategorization(
   categorizer: Categorizer,
   items: PendingTransaction[]
 ): Promise<void> {
+  if (financeAiMode() !== 'legacy_anthropic') return;
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicApiKey) return;
 

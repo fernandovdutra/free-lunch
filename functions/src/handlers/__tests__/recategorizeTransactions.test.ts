@@ -89,6 +89,13 @@ const fake = vi.hoisted(() => {
       return Promise.all(refs.map((r) => r.get()));
     }
 
+    async runTransaction<T>(callback: (tx: { get: (ref: FakeDocRef) => Promise<unknown>; update: (ref: FakeDocRef, data: DocData) => void }) => Promise<T>): Promise<T> {
+      const updates: Array<{ ref: FakeDocRef; data: DocData }> = [];
+      const result = await callback({ get: (ref) => ref.get(), update: (ref, data) => { updates.push({ ref, data }); } });
+      for (const item of updates) this.applyUpdate(item.ref.path, item.data);
+      return result;
+    }
+
     batch() {
       const ops: Array<{ path: string; data: DocData }> = [];
       return {
@@ -177,11 +184,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   db = new fake.FakeFirestore();
   process.env.ANTHROPIC_API_KEY = 'test-key';
+  process.env.FINANCE_AI_MODE = 'legacy_anthropic';
   categorizeMock.mockReturnValue(NO_MATCH);
 });
 
 afterEach(() => {
   delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.FINANCE_AI_MODE;
 });
 
 describe('recategorizeTransactions', () => {

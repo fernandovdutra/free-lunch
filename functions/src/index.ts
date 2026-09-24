@@ -20,6 +20,10 @@ export { importIcsStatement } from './handlers/importIcsStatement.js';
 export { getIcsBreakdown } from './handlers/getIcsBreakdown.js';
 export { deleteIcsImport } from './handlers/deleteIcsImport.js';
 export { generateDailyInsight } from './handlers/generateDailyInsight.js';
+export { previewCategorizationChange, applyCategorizationChange, getCategorizationOperation,
+  undoCategorizationOperation, dispatchCategorizationOutbox, repairCategorizationOutbox,
+  processCategorizationHistory, listCategorizationReviewQueue, upsertCategorizationRule,
+  getCategorizationProposalMatches } from './handlers/categorizationCommands.js';
 export { generateWeeklyInsight } from './handlers/generateWeeklyInsight.js';
 export { generateOnDemandInsight } from './handlers/generateOnDemandInsight.js';
 export { getMonthlyAnalysisData } from './handlers/getMonthlyAnalysisData.js';

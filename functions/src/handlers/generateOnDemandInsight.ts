@@ -13,6 +13,7 @@ import { storeInsight } from '../shared/insightStorage.js';
 import { loadAdvisorMemory, formatMemoryForPrompt } from '../shared/memoryManager.js';
 import { config } from '../config.js';
 import { resolveDataOwner } from '../shared/dataOwner.js';
+import { financeAiMode } from '../ai/mode.js';
 
 /**
  * On-demand insight generation — callable by the user from the app.
@@ -21,6 +22,7 @@ import { resolveDataOwner } from '../shared/dataOwner.js';
 export const generateOnDemandInsight = onCall(
   { region: 'europe-west1', cors: true, memory: '512MiB', secrets: ['ANTHROPIC_API_KEY'] },
   async (request) => {
+    if (financeAiMode() !== 'legacy_anthropic') throw new HttpsError('failed-precondition', 'Backend AI is disabled; ask ChatGPT with the Free Lunch connector.');
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }

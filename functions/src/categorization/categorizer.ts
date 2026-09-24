@@ -1,13 +1,15 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import type { CategorizationResult, StoredRule } from './types.js';
-import { matchRules } from './ruleEngine.js';
-import { matchMerchant } from './merchantDatabase.js';
+import { evaluateCategorization } from './decisionEngine.js';
 import { categorizeWithLLM, type LlmCategorizationOutcome } from './llmCategorizer.js';
+import { isAssignableCategory } from './categoryRegistry.js';
 
 interface CategoryDoc {
   id: string;
   name: string;
   parentId: string | null;
+  archived?: boolean;
+  status?: string;
 }
 
 /**
@@ -22,7 +24,6 @@ export class Categorizer {
   private userId: string;
   private rules: StoredRule[] = [];
   private categories: CategoryDoc[] = [];
-  private categorySlugMap: Map<string, string> = new Map(); // slug -> categoryId
   private initialized = false;
 
   constructor(userId: string) {
@@ -41,7 +42,6 @@ export class Categorizer {
       .collection('users')
       .doc(this.userId)
       .collection('rules')
-      .orderBy('priority', 'desc')
       .get();
 
     this.rules = rulesSnapshot.docs.map((doc) => ({
@@ -60,67 +60,11 @@ export class Categorizer {
       id: doc.id,
       name: doc.data().name,
       parentId: doc.data().parentId ?? null,
+      archived: doc.data().archived === true,
+      status: doc.data().status,
     }));
 
-    // Build slug map for merchant database resolution
-    this.buildCategorySlugMap();
-
     this.initialized = true;
-  }
-
-  /**
-   * Build a map from category slugs to category IDs.
-   * Handles hierarchical slugs like 'transport.public' by matching category names.
-   */
-  private buildCategorySlugMap(): void {
-    this.categorySlugMap.clear();
-
-    for (const cat of this.categories) {
-      // 1. Map by category ID directly
-      this.categorySlugMap.set(cat.id, cat.id);
-
-      // 2. Simple name match (lowercase, alphanumeric only)
-      const simpleName = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      this.categorySlugMap.set(simpleName, cat.id);
-
-      // 3. Name with spaces replaced by dots
-      const dottedName = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '.');
-      this.categorySlugMap.set(dottedName, cat.id);
-
-      // 4. If has parent, create hierarchical slugs
-      if (cat.parentId) {
-        const parent = this.categories.find((c) => c.id === cat.parentId);
-        if (parent) {
-          // Format: parent.child (e.g., "food.groceries")
-          const parentSimple = parent.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const childSimple = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-          this.categorySlugMap.set(`${parentSimple}.${childSimple}`, cat.id);
-
-          // Also map just the child name for partial matches
-          this.categorySlugMap.set(childSimple, cat.id);
-        }
-      }
-    }
-  }
-
-  /**
-   * Resolve a category slug to an actual category ID.
-   */
-  private resolveCategorySlug(slug: string): string | null {
-    // Try exact match first
-    if (this.categorySlugMap.has(slug)) {
-      return this.categorySlugMap.get(slug)!;
-    }
-
-    // Try partial match (e.g., 'groceries' matches 'Food > Groceries')
-    const normalizedSlug = slug.toLowerCase().replace(/[^a-z.]/g, '');
-    for (const [key, value] of this.categorySlugMap) {
-      if (key.includes(normalizedSlug) || normalizedSlug.includes(key)) {
-        return value;
-      }
-    }
-
-    return null;
   }
 
   /**
@@ -132,42 +76,7 @@ export class Categorizer {
       throw new Error('Categorizer not initialized. Call initialize() first.');
     }
 
-    const searchText = [description, counterparty].filter(Boolean).join(' ');
-
-    // 1. Try user-defined rules first (non-learned)
-    const userRules = this.rules.filter((r) => !r.isLearned);
-    const userRuleMatch = matchRules(searchText, userRules);
-    if (userRuleMatch) {
-      return userRuleMatch;
-    }
-
-    // 2. Try merchant database
-    const merchantMatch = matchMerchant(searchText);
-    if (merchantMatch) {
-      const categoryId = this.resolveCategorySlug(merchantMatch.categorySlug);
-      if (categoryId) {
-        return {
-          categoryId,
-          confidence: merchantMatch.confidence,
-          source: 'merchant',
-          matchedPattern: merchantMatch.pattern,
-        };
-      }
-    }
-
-    // 3. Try learned rules (lower priority)
-    const learnedRules = this.rules.filter((r) => r.isLearned);
-    const learnedMatch = matchRules(searchText, learnedRules);
-    if (learnedMatch) {
-      return learnedMatch;
-    }
-
-    // 4. No match found
-    return {
-      categoryId: null,
-      confidence: 0,
-      source: 'none',
-    };
+    return evaluateCategorization({ description, counterparty }, this.rules, this.categories);
   }
 
   /**
@@ -191,7 +100,7 @@ export class Categorizer {
 
     // Build category info for the LLM (only leaf categories)
     const categoryInfos = this.categories
-      .filter((c) => c.parentId !== null)
+      .filter((c) => isAssignableCategory(c.id, this.categories))
       .map((c) => {
         const parent = this.categories.find((p) => p.id === c.parentId);
         return {

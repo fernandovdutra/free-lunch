@@ -2,6 +2,7 @@ import { Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { subMonths } from 'date-fns';
 import { WRITE_TOOL_DEFINITIONS, callWriteTool } from './writeTools.js';
 import { matchMerchant } from '../categorization/merchantDatabase.js';
+import { getCorrectionOperation, listCategorizationReview } from '../categorization/commandService.js';
 
 /**
  * Finance query tools exposed over MCP.
@@ -767,6 +768,10 @@ async function getRecurringExpenses(db: Firestore, userId: string) {
 // ---------------------------------------------------------------------------
 
 const READ_TOOL_DEFINITIONS = [
+  { name: 'get_categorization_review', description: 'Page through the full transaction history to identify unresolved transactions. Continue with nextCursor until null; this covers missing, null and sentinel categories.',
+    inputSchema: { type: 'object' as const, properties: { cursor: { type: 'string' }, pageSize: { type: 'number' } } } },
+  { name: 'get_categorization_operation', description: 'Read status, progress and skipped counts for a categorization operation.',
+    inputSchema: { type: 'object' as const, properties: { operationId: { type: 'string' } }, required: ['operationId'] } },
   {
     name: 'get_categories', description: 'List category IDs, names, parent IDs, colors and icons',
     inputSchema: { type: 'object' as const, properties: {} },
@@ -993,6 +998,11 @@ export async function callTool(
       return getCategories(db, userId);
     case 'get_fixed_schedule':
       return getFixedSchedule(db, userId, requireString(args, 'month'));
+    case 'get_categorization_operation':
+      return getCorrectionOperation(db, userId, requireString(args, 'operationId'));
+    case 'get_categorization_review': {
+      return listCategorizationReview(db, userId, optionalString(args, 'cursor'), optionalNumber(args, 'pageSize'));
+    }
     case 'get_transactions':
       return getTransactions(db, userId, parseTransactionFilter(args));
     case 'aggregate_transactions':

@@ -22,6 +22,7 @@ test.describe('Categorization', () => {
     const page = await browser.newPage();
     authAvailable = await canAuthenticate(page);
     await page.close();
+    if (process.env.CI && !authAvailable) throw new Error('Firebase emulator authentication unavailable');
     if (authAvailable) await stageCategorizationData();
   });
 
@@ -54,6 +55,11 @@ test.describe('Categorization', () => {
     // Search narrows the tree; pick Restaurants.
     await picker.getByPlaceholder(/search categories/i).fill('restaur');
     await picker.getByRole('button').filter({ hasText: 'Restaurants' }).first().click();
+
+    await expect(editSheet.getByText('Apply this category to:')).toBeVisible();
+    await expect(editSheet.getByText(/0 eligible past transactions/)).toBeVisible();
+    await editSheet.getByRole('button', { name: 'Save category' }).click();
+    await expect(editSheet.getByText('Apply this category to:')).toBeHidden();
 
     // Edit sheet reflects the change.
     await expect(
