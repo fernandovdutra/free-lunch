@@ -18,7 +18,7 @@ import {
 import { previewCategorizationChange, applyCategorizationChange, getCategorizationOperation,
   undoCategorizationOperation, getCategorizationProposalMatches, type CorrectionPreview, type CorrectionOperation } from '@/lib/categorizationCommands';
 import { useQueryClient } from '@tanstack/react-query';
-import { invalidateFinancialData } from '@/lib/queryKeys';
+import { invalidateFinancialData, queryKeys } from '@/lib/queryKeys';
 import { useMarkAsReimbursable, useClearReimbursement } from '@/hooks/useReimbursements';
 import { useToast } from '@/components/ui/toaster';
 import { formatAmount, cn } from '@/lib/utils';
@@ -197,6 +197,9 @@ export function TransactionForm({
     try {
       const { data } = await applyCategorizationChange({ proposalId: preview.proposalId, operationId: operationIdRef.current });
       setOperation(data);
+      // Keep the edit sheet and the virtualized list in sync before hiding
+      // the staged choice. Otherwise both can briefly show the old category.
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
       setPendingCategoryId(undefined);
       setPreview(null);
       invalidateFinancialData(queryClient);

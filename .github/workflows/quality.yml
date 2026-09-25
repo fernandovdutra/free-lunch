@@ -96,3 +96,11 @@ jobs:
         env:
           FIREBASE_PROJECT_ID: demo-free-lunch-test
           VITE_FIREBASE_PROJECT_ID: demo-free-lunch-test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: categorization-mobile-failure
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore

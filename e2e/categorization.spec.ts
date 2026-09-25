@@ -1,6 +1,6 @@
 import { test as base, expect } from '@playwright/test';
 import { login, canAuthenticate } from './fixtures/auth';
-import { STAGED, stageCategorizationData } from './fixtures/emulator';
+import { STAGED, listUserDocs, stageCategorizationData } from './fixtures/emulator';
 
 const test = base.extend({});
 
@@ -60,6 +60,8 @@ test.describe('Categorization', () => {
     await expect(editSheet.getByText(/0 eligible past transactions/)).toBeVisible();
     await editSheet.getByRole('button', { name: 'Save category' }).click();
     await expect(editSheet.getByText('Apply this category to:')).toBeHidden();
+    const saved = (await listUserDocs('transactions')).find((doc) => doc.name.endsWith(`/${STAGED.categorizeId}`));
+    expect(saved?.fields.categoryId?.stringValue).toBe('food-restaurants');
 
     // Edit sheet reflects the change.
     await expect(
