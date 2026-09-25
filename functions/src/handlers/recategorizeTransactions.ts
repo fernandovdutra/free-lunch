@@ -124,7 +124,7 @@ export const recategorizeTransactions = onCall(
           const data = doc.data();
           const description = data.description || '';
           const counterparty = data.counterparty || null;
-          if (data.categorySource === 'manual' || data.categorization?.override ||
+          if (data.categorySource === 'manual' || data.categorization?.origin === 'user_bulk' || data.categorization?.override ||
               data.categorization?.state === 'intentionally_uncategorized' || data.isSplit ||
               data.splits?.length || data.isTransfer || data.excludeFromTotals) {
             result.skipped++;
@@ -142,7 +142,7 @@ export const recategorizeTransactions = onCall(
               const fresh = await tx.get(doc.ref);
               if (!fresh.exists || fresh.updateTime?.toMillis() !== doc.updateTime?.toMillis()) return false;
               const current = fresh.data()!;
-              if (current.categorySource === 'manual' || current.categorization?.override || current.isSplit ||
+              if (current.categorySource === 'manual' || current.categorization?.origin === 'user_bulk' || current.categorization?.override || current.isSplit ||
                   current.isTransfer || current.excludeFromTotals || current.splits?.length) return false;
               tx.update(doc.ref, categorizationSuccessFields({
                 categoryId: categorizationResult.categoryId!,

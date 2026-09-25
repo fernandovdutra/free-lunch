@@ -19,7 +19,8 @@ const unresolved: CategorizationResult = { categoryId: null, confidence: 0, sour
 
 /** Pure evaluator used by imports and repairs. No provider calls or writes. */
 export function evaluateCategorization(input: EvaluationInput, rules: StoredRule[], categories: AssignableCategory[]): CategorizationResult {
-  if (input.override || input.intentionallyUncategorized || input.categorySource === 'manual' ||
+  if (input.override || input.intentionallyUncategorized ||
+      ['manual', 'user_bulk'].includes(input.categorySource ?? '') ||
       input.isSplit || input.isTransfer || input.excludeFromTotals ||
       (typeof input.categoryId === 'string' && input.categoryId.startsWith('transfer'))) {
     return { ...unresolved };

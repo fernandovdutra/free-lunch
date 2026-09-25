@@ -79,6 +79,8 @@ describe.skipIf(!emulator)('categorization commands against Firestore emulator',
     expect(preview.counts.splits).toBe(1);
 
     const first = await applyCorrection(db!, ownerId, actorId, preview.proposalId, 'operation-main-123');
+    await db!.collection('users').doc(ownerId).collection('categorizationProposals').doc(preview.proposalId)
+      .update({ expiresAt: Timestamp.fromMillis(Date.now() - 1000) });
     const second = await applyCorrection(db!, ownerId, actorId, preview.proposalId, 'operation-main-123');
     expect(second.id).toBe(first.id);
     const rule = (await db!.collection('users').doc(ownerId).collection('rules').get()).docs.find((d) => d.data().confirmed);

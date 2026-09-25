@@ -194,6 +194,15 @@ afterEach(() => {
 });
 
 describe('recategorizeTransactions', () => {
+  it('keeps an explicit past-only merchant correction during re-evaluation', async () => {
+    seedTxn('past-choice', { categoryId: 'chosen', categorySource: 'rule',
+      categorization: { schemaVersion: 2, origin: 'user_bulk', decisionVersion: 2 } });
+    categorizeMock.mockReturnValue({ categoryId: 'other', confidence: 0.95, source: 'merchant' });
+    const result = await run({ mode: 'all' });
+    expect(result.skipped).toBe(1);
+    expect(db.store.get(`${TX_PATH}/past-choice`)?.categoryId).toBe('chosen');
+  });
+
   it('preserves the pattern-pass write shape (and rule matches still win)', async () => {
     seedTxn('t1', { categorySource: 'auto', categoryId: 'old-cat' });
     categorizeMock.mockReturnValue({ categoryId: 'rules-cat', confidence: 0.95, source: 'rule' });

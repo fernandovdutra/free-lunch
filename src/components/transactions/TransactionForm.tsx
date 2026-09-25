@@ -41,6 +41,20 @@ interface TransactionFormProps {
   isSubmitting?: boolean;
 }
 
+/** The callable has committed the current row; project that decision into
+ * both regular and paginated transaction caches while Firestore catches up. */
+function projectSavedCategory(cached: unknown, transactionId: string, categoryId: string | null): unknown {
+  const row = (item: unknown): unknown => item && typeof item === 'object' && 'id' in item && item.id === transactionId
+    ? { ...item, categoryId, categorySource: 'manual', categoryConfidence: categoryId ? 1 : 0 } : item;
+  if (Array.isArray(cached)) return cached.map(row);
+  if (cached && typeof cached === 'object' && 'pages' in cached && Array.isArray(cached.pages)) {
+    return { ...cached, pages: cached.pages.map((page: unknown) =>
+      page && typeof page === 'object' && 'transactions' in page && Array.isArray(page.transactions)
+        ? { ...page, transactions: page.transactions.map(row) } : page) };
+  }
+  return cached;
+}
+
 /**
  * Phase 6 Transaction Edit Sheet (replaces the modal Dialog).
  *
@@ -192,7 +206,8 @@ export function TransactionForm({
   };
 
   const saveCategory = async () => {
-    if (!preview || !operationIdRef.current || savingCategory) return;
+    const selectedCategoryId = pendingCategoryId;
+    if (!preview || selectedCategoryId === undefined || !operationIdRef.current || savingCategory) return;
     setSavingCategory(true);
     try {
       const { data } = await applyCategorizationChange({ proposalId: preview.proposalId, operationId: operationIdRef.current });
@@ -200,9 +215,11 @@ export function TransactionForm({
       // Keep the edit sheet and the virtualized list in sync before hiding
       // the staged choice. Otherwise both can briefly show the old category.
       await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
+      queryClient.setQueriesData({ queryKey: queryKeys.transactions.root }, (cached: unknown) =>
+        projectSavedCategory(cached, transaction.id, selectedCategoryId));
       setPendingCategoryId(undefined);
       setPreview(null);
-      invalidateFinancialData(queryClient);
+      invalidateFinancialData(queryClient, { skipTransactions: true });
       toast({ title: data.status === 'pending' ? 'Saved. Updating earlier transactions…' : 'Category saved' });
     } catch (err) {
       setPreviewError(err instanceof Error ? err.message : 'Save failed; refresh the preview');

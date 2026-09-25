@@ -131,20 +131,21 @@ export async function applyCorrection(db: Firestore, ownerId: string, actorId: s
   const proposalRef = owner.collection('categorizationProposals').doc(proposalId);
   const operationRef = owner.collection('categorizationOperations').doc(operationId);
   await db.runTransaction(async (tx) => {
+    const existing = await tx.get(operationRef);
+    if (existing.exists) {
+      if (existing.data()!.proposalId !== proposalId || existing.data()!.actorId !== actorId) throw new Error('Operation ID reused with different request');
+      return;
+    }
     const p = await tx.get(proposalRef);
     if (!p.exists || p.data()!.state !== 'ready' || p.data()!.actorId !== actorId || p.data()!.expiresAt.toMillis() < Date.now()) throw new Error('Proposal missing, expired or unauthorized');
     const input = p.data()!;
     const currentRef = owner.collection('transactions').doc(input.transactionId);
     const ruleRef = input.future ? owner.collection('rules').doc(input.ruleId) : null;
-    const [existing, current, rule, category, children] = await Promise.all([
-      tx.get(operationRef), tx.get(currentRef), ruleRef ? tx.get(ruleRef) : Promise.resolve(null),
+    const [current, rule, category, children] = await Promise.all([
+      tx.get(currentRef), ruleRef ? tx.get(ruleRef) : Promise.resolve(null),
       input.categoryId ? tx.get(owner.collection('categories').doc(input.categoryId)) : Promise.resolve(null),
       input.categoryId ? tx.get(owner.collection('categories').where('parentId', '==', input.categoryId)) : Promise.resolve(null),
     ]);
-    if (existing.exists) {
-      if (existing.data()!.proposalId !== proposalId || existing.data()!.actorId !== actorId) throw new Error('Operation ID reused with different request');
-      return;
-    }
     if (!current.exists || !validCurrent(current.data()!) || current.updateTime!.toMillis() !== input.currentUpdateMillis ||
         (current.data()!.categorization?.decisionVersion ?? 0) !== input.currentVersion ||
         (rule?.data()?.version ?? 0) !== input.ruleVersion) throw new Error('Preview is stale; review the changed transaction or rule');
@@ -244,7 +245,8 @@ export async function processCorrectionChunk(db: Firestore, ownerId: string, ope
         before: { categoryId: candidate.categoryId, categorySource: data!.categorySource ?? null,
           categorization: data!.categorization ?? null }, expectedVersion: candidate.version + 1,
         createdAt: FieldValue.serverTimestamp() });
-      tx.update(ref, categorization(proposal.data()!.categoryId, 'confirmed_rule', candidate.version + 1,
+      tx.update(ref, categorization(proposal.data()!.categoryId,
+        proposal.data()!.ruleId ? 'confirmed_rule' : 'user_bulk', candidate.version + 1,
         operationId, proposal.data()!.ruleId ?? undefined,
         proposal.data()!.ruleId ? proposal.data()!.ruleVersion + 1 : undefined));
       tx.update(opRef, { updated: FieldValue.increment(1), processed: FieldValue.increment(1) });

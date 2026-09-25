@@ -53,6 +53,7 @@ describe('pure categorization policy', () => {
     expect(isAssignableCategory('food', categories)).toBe(false);
     expect(isAssignableCategory('uncategorized', categories)).toBe(false);
     expect(evaluateCategorization({ description: 'IKEA', counterparty: 'IKEA', override: true }, [], categories).categoryId).toBeNull();
+    expect(evaluateCategorization({ description: 'IKEA', counterparty: 'IKEA', categorySource: 'user_bulk' }, [], categories).categoryId).toBeNull();
     expect(evaluateCategorization({ description: 'IKEA', counterparty: 'IKEA', isSplit: true }, [], categories).categoryId).toBeNull();
     expect(evaluateCategorization({ description: 'IKEA', counterparty: 'IKEA', categoryId: 'transfer-cc' }, [], categories).categoryId).toBeNull();
   });
