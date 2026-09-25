@@ -69,7 +69,8 @@ test.describe('Categorization', () => {
     ).toBeVisible({ timeout: 10000 });
 
     // And so does the list row after closing the sheet.
-    await page.keyboard.press('Escape');
+    await editSheet.getByRole('button', { name: 'Close' }).click();
+    await expect(editSheet).toBeHidden();
     await expect(
       page
         .getByRole('button')
