@@ -1,11 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "categorizationOutbox",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [{ "fieldPath": "status", "order": "ASCENDING" }]
-    },
-    {
       "collectionGroup": "transactions",
       "queryScope": "COLLECTION",
       "fields": [
@@ -70,5 +65,11 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "categorizationOutbox",
+      "fieldPath": "status",
+      "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }]
+    }
+  ]
 }
