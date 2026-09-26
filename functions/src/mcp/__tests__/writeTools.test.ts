@@ -6,6 +6,23 @@ vi.mock('firebase-admin/firestore', () => ({
   Timestamp: { fromDate: vi.fn((d: Date) => ({ _date: d, toDate: () => d })) },
 }));
 
+vi.mock('../../categorization/commandService.js', () => ({
+  previewCorrection: async (db: Firestore, userId: string, _actor: string, input: { transactionId: string; categoryId: string }) => {
+    const transaction = await db.collection('users').doc(userId).collection('transactions').doc(input.transactionId).get();
+    if (!transaction.exists) throw new Error(`Transaction not found: ${input.transactionId}`);
+    const category = await db.collection('users').doc(userId).collection('categories').doc(input.categoryId).get();
+    if (!category.exists) throw new Error(`Category not found: ${input.categoryId}`);
+    return { proposalId: `${input.transactionId}:${input.categoryId}` };
+  },
+  applyCorrection: async (db: Firestore, userId: string, _actor: string, proposalId: string) => {
+    const [id, categoryId] = proposalId.split(':');
+    await db.collection('users').doc(userId).collection('transactions').doc(id).update({
+      categoryId, categorySource: 'manual', categoryConfidence: 1,
+    });
+    return { status: 'complete' };
+  },
+}));
+
 import { callWriteTool, WRITE_TOOL_DEFINITIONS } from '../writeTools.js';
 
 interface WriteRecord {
@@ -99,8 +116,8 @@ describe('callWriteTool — dispatch', () => {
     await expect(callWriteTool(db, UID, 'nope', {})).rejects.toThrow('Unknown tool');
   });
 
-  it('exposes 12 write tool definitions, all marked not read-only', () => {
-    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(12);
+  it('advertises every write tool as a write action', () => {
+    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(16);
     for (const tool of WRITE_TOOL_DEFINITIONS) {
       expect(tool.annotations.readOnlyHint).toBe(false);
     }

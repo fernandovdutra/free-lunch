@@ -11,12 +11,14 @@ import { SplitEditorSheet } from './SplitEditorSheet';
 import { TagInput } from './TagInput';
 import {
   useUpdateTransaction,
-  useUpdateTransactionCategory,
   useUpdateTransactionTags,
   useSetTransactionSplit,
   useDeleteTransaction,
-  useBulkUpdateCategory,
 } from '@/hooks/useTransactions';
+import { previewCategorizationChange, applyCategorizationChange, getCategorizationOperation,
+  undoCategorizationOperation, getCategorizationProposalMatches, type CorrectionPreview, type CorrectionOperation } from '@/lib/categorizationCommands';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateFinancialData, queryKeys } from '@/lib/queryKeys';
 import { useMarkAsReimbursable, useClearReimbursement } from '@/hooks/useReimbursements';
 import { useToast } from '@/components/ui/toaster';
 import { formatAmount, cn } from '@/lib/utils';
@@ -37,6 +39,20 @@ interface TransactionFormProps {
   onSubmit?: unknown;
   /** Legacy prop kept for the same reason. */
   isSubmitting?: boolean;
+}
+
+/** The callable has committed the current row; project that decision into
+ * both regular and paginated transaction caches while Firestore catches up. */
+function projectSavedCategory(cached: unknown, transactionId: string, categoryId: string | null): unknown {
+  const row = (item: unknown): unknown => item && typeof item === 'object' && 'id' in item && item.id === transactionId
+    ? { ...item, categoryId, categorySource: 'manual', categoryConfidence: categoryId ? 1 : 0 } : item;
+  if (Array.isArray(cached)) return cached.map(row);
+  if (cached && typeof cached === 'object' && 'pages' in cached && Array.isArray(cached.pages)) {
+    return { ...cached, pages: cached.pages.map((page: unknown) =>
+      page && typeof page === 'object' && 'transactions' in page && Array.isArray(page.transactions)
+        ? { ...page, transactions: page.transactions.map(row) } : page) };
+  }
+  return cached;
 }
 
 /**
@@ -68,13 +84,12 @@ export function TransactionForm({
   existingTags = [],
 }: TransactionFormProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const updateMutation = useUpdateTransaction();
-  const updateCategoryMutation = useUpdateTransactionCategory();
   const updateTagsMutation = useUpdateTransactionTags();
   const setSplitMutation = useSetTransactionSplit();
   const markReimbursableMutation = useMarkAsReimbursable();
-  const bulkUpdateMutation = useBulkUpdateCategory();
   const deleteMutation = useDeleteTransaction();
   const clearReimbursementMutation = useClearReimbursement();
 
@@ -83,6 +98,16 @@ export function TransactionForm({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
+  const [pendingCategoryId, setPendingCategoryId] = useState<string | null | undefined>();
+  const [past, setPast] = useState(false);
+  const [future, setFuture] = useState(false);
+  const [preview, setPreview] = useState<CorrectionPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [matches, setMatches] = useState<Array<{ id: string; description: string; amount: number; date: string | null }> | null>(null);
+  const [matchPage, setMatchPage] = useState(0);
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [operation, setOperation] = useState<CorrectionOperation | null>(null);
+  const operationIdRef = useRef<string | null>(null);
   const initialNoteRef = useRef('');
 
   const dirty = note !== initialNoteRef.current;
@@ -94,13 +119,43 @@ export function TransactionForm({
       setNote(startingNote);
       initialNoteRef.current = startingNote;
       setConfirmingDiscard(false);
+      setPendingCategoryId(undefined);
+      setPast(false);
+      setFuture(false);
+      setPreview(null);
+      setMatches(null);
+      setOperation(null);
+      operationIdRef.current = null;
     }
     if (!open) {
       setPickerOpen(false);
       setSplitOpen(false);
       setResolveOpen(false);
     }
-  }, [open, transaction]);
+  }, [open, transaction?.id]);
+
+  useEffect(() => {
+    if (!open || !transaction || pendingCategoryId === undefined) return;
+    let active = true;
+    setPreview(null);
+    setMatches(null);
+    setPreviewError(null);
+    void previewCategorizationChange({ transactionId: transaction.id, categoryId: pendingCategoryId, past, future })
+      .then(({ data }) => { if (active) setPreview(data); })
+      .catch((err: unknown) => { if (active) setPreviewError(err instanceof Error ? err.message : 'Preview failed'); });
+    return () => { active = false; };
+  }, [open, transaction?.id, pendingCategoryId, past, future]);
+
+  useEffect(() => {
+    if (!operation || operation.status !== 'pending') return;
+    const timer = setInterval(() => {
+      void getCategorizationOperation({ operationId: operation.id }).then(({ data }) => {
+        setOperation(data);
+        if (data.status === 'complete') invalidateFinancialData(queryClient);
+      }).catch(() => {});
+    }, 2000);
+    return () => { clearInterval(timer); };
+  }, [operation?.id, operation?.status, queryClient]);
 
   if (!transaction) return null;
 
@@ -142,13 +197,41 @@ export function TransactionForm({
     onOpenChange(false);
   };
 
-  const handleCategoryPick = async (categoryId: string | null) => {
+  const handleCategoryPick = (categoryId: string | null) => {
     setPickerOpen(false);
+    setPendingCategoryId(categoryId);
+    setPast(false);
+    setFuture(false);
+    operationIdRef.current = crypto.randomUUID();
+  };
+
+  const saveCategory = async () => {
+    const selectedCategoryId = pendingCategoryId;
+    if (!preview || selectedCategoryId === undefined || !operationIdRef.current || savingCategory) return;
+    setSavingCategory(true);
     try {
-      await updateCategoryMutation.mutateAsync({ id: transaction.id, categoryId });
-    } catch {
-      toast({ title: 'Failed to change category', variant: 'destructive' });
-    }
+      const { data } = await applyCategorizationChange({ proposalId: preview.proposalId, operationId: operationIdRef.current });
+      setOperation(data);
+      // Keep the edit sheet and the virtualized list in sync before hiding
+      // the staged choice. Otherwise both can briefly show the old category.
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
+      queryClient.setQueriesData({ queryKey: queryKeys.transactions.root }, (cached: unknown) =>
+        projectSavedCategory(cached, transaction.id, selectedCategoryId));
+      setPendingCategoryId(undefined);
+      setPreview(null);
+      invalidateFinancialData(queryClient, { skipTransactions: true });
+      toast({ title: data.status === 'pending' ? 'Saved. Updating earlier transactions…' : 'Category saved' });
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Save failed; refresh the preview');
+    } finally { setSavingCategory(false); }
+  };
+
+  const viewMatches = async (page: number) => {
+    if (!preview) return;
+    try {
+      const { data } = await getCategorizationProposalMatches({ proposalId: preview.proposalId, page });
+      setMatches(data.entries); setMatchPage(page);
+    } catch (err) { setPreviewError(err instanceof Error ? err.message : 'Could not load matches'); }
   };
 
   const handleToggleReimbursable = async () => {
@@ -220,20 +303,6 @@ export function TransactionForm({
       await updateTagsMutation.mutateAsync({ id: transaction.id, tags: next });
     } catch {
       toast({ title: 'Failed to update tags', variant: 'destructive' });
-    }
-  };
-
-  const handleApplyMerchantRule = async () => {
-    if (!transaction.counterparty || !transaction.categoryId) return;
-    try {
-      await bulkUpdateMutation.mutateAsync({
-        counterparty: transaction.counterparty,
-        categoryId: transaction.categoryId,
-        excludeTransactionId: transaction.id,
-      });
-      toast({ title: `Applied to other ${transaction.counterparty} transactions` });
-    } catch {
-      toast({ title: 'Failed to apply rule', variant: 'destructive' });
     }
   };
 
@@ -349,10 +418,41 @@ export function TransactionForm({
                 </span>
               ) : (
                 <span className="font-sans text-[13.5px] text-textHi">
-                  {currentCategory?.name ?? 'Uncategorized'}
+                  {pendingCategoryId !== undefined ? categories.find((c) => c.id === pendingCategoryId)?.name ?? 'Leave uncategorized' : currentCategory?.name ?? 'Uncategorized'}
                 </span>
               )}
             </RowButton>
+
+            {pendingCategoryId !== undefined && (
+              <div className="hairline-b space-y-3 px-4 py-3 font-sans text-[13px] text-textHi">
+                <div>Apply this category to:</div>
+                <label className="flex items-center gap-2"><input type="checkbox" checked readOnly /> This transaction</label>
+                {transaction.counterparty && pendingCategoryId !== null && <>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={past} onChange={(e) => { setPast(e.target.checked); }} /> Also update past transactions from this merchant</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={future} onChange={(e) => { setFuture(e.target.checked); }} /> Use this category for future transactions</label>
+                </>}
+                {preview && <div className="text-textMid">{preview.counts.eligible} eligible past transactions; {preview.counts.alreadyCorrect} already correct; {preview.counts.protected} individual exceptions; {preview.counts.splits} splits skipped.</div>}
+                {preview && preview.chunkCount > 0 && <button type="button" className="underline" onClick={() => { void viewMatches(0); }}>View matches</button>}
+                {matches && <div className="max-h-36 overflow-y-auto border border-rule p-2" aria-label="Eligible past transactions">
+                  {matches.map((row) => <div key={row.id}>{row.date?.slice(0, 10)} · {row.description} · €{Math.abs(row.amount).toFixed(2)}</div>)}
+                  {preview && <div className="mt-2 flex gap-3">
+                    {matchPage > 0 && <button type="button" onClick={() => { void viewMatches(matchPage - 1); }}>Previous</button>}
+                    {matchPage + 1 < preview.chunkCount && <button type="button" onClick={() => { void viewMatches(matchPage + 1); }}>Next</button>}
+                  </div>}
+                </div>}
+                {previewError && <div role="alert" className="text-red-600">{previewError}</div>}
+                <div className="flex gap-2"><button type="button" onClick={() => void saveCategory()} disabled={!preview || savingCategory} className="border border-accent px-3 py-2 disabled:opacity-50">{savingCategory ? 'Saving…' : 'Save category'}</button>
+                  <button type="button" onClick={() => { setPendingCategoryId(undefined); }} className="px-3 py-2">Cancel</button></div>
+              </div>
+            )}
+            {operation && <div className="hairline-b px-4 py-3 font-sans text-[12px] text-textMid" role="status">
+              {operation.status === 'pending' ? `Updating earlier transactions: ${operation.processed}/${operation.total}` :
+                `Updated ${operation.updated} earlier transactions; skipped ${operation.skipped}.`}
+              {operation.status !== 'undone' && <button type="button" className="ml-3 underline" onClick={() => void undoCategorizationOperation({ operationId: operation.id }).then(({ data }) => {
+                setOperation({ ...operation, status: 'undone' }); invalidateFinancialData(queryClient);
+                toast({ title: `Restored ${data.restored}; ${data.conflicts} conflicts` });
+              })}>Undo</button>}
+            </div>}
 
             {/* FLAGS */}
             <SectionHeader>FLAGS</SectionHeader>
@@ -423,24 +523,6 @@ export function TransactionForm({
               />
             </div>
 
-            {/* MERCHANT RULES */}
-            {transaction.counterparty && transaction.categoryId && currentCategory && (
-              <>
-                <SectionHeader>MERCHANT RULES</SectionHeader>
-                <RowButton
-                  onClick={() => void handleApplyMerchantRule()}
-                  right="›"
-                  disabled={bulkUpdateMutation.isPending}
-                >
-                  <span className="font-sans text-[13.5px] text-textMid">
-                    Always categorize{' '}
-                    <span className="text-textHi">{transaction.counterparty}</span> as{' '}
-                    <span className="text-textHi">{currentCategory.name}</span>
-                  </span>
-                </RowButton>
-              </>
-            )}
-
             {/* MANUAL RESOLVE */}
             {isPendingReimb && (
               <>
@@ -499,7 +581,7 @@ export function TransactionForm({
         onOpenChange={setPickerOpen}
         categories={categories}
         currentCategoryId={transaction.categoryId}
-        onPick={(id) => void handleCategoryPick(id)}
+        onPick={handleCategoryPick}
       />
 
       <SplitEditorSheet

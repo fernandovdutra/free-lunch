@@ -151,6 +151,10 @@ export interface CategorizationRule {
   priority: number;
   isLearned: boolean;
   isSystem: boolean;
+  enabled?: boolean;
+  confirmed?: boolean;
+  version?: number;
+  targetField?: 'counterparty' | 'description' | 'combined';
   createdAt: Date;
   updatedAt: Date;
 }

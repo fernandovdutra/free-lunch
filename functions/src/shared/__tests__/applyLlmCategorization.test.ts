@@ -51,9 +51,11 @@ const originalKey = process.env.ANTHROPIC_API_KEY;
 
 beforeEach(() => {
   process.env.ANTHROPIC_API_KEY = 'test-key';
+  process.env.FINANCE_AI_MODE = 'legacy_anthropic';
 });
 
 afterEach(() => {
+  delete process.env.FINANCE_AI_MODE;
   if (originalKey === undefined) delete process.env.ANTHROPIC_API_KEY;
   else process.env.ANTHROPIC_API_KEY = originalKey;
 });

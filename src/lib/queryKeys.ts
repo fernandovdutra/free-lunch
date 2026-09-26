@@ -269,8 +269,9 @@ const FINANCIAL_DATA_PREFIXES: readonly (readonly string[])[] = [
  * category change while a category filter is active) disappears from that
  * list on refetch instead of lingering.
  */
-export function invalidateFinancialData(queryClient: QueryClient): void {
+export function invalidateFinancialData(queryClient: QueryClient, options?: { skipTransactions?: boolean }): void {
   for (const queryKey of FINANCIAL_DATA_PREFIXES) {
+    if (options?.skipTransactions && queryKey === queryKeys.transactions.root) continue;
     void queryClient.invalidateQueries({ queryKey });
   }
 }

@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { consolidateAdvisorMemory } from '../shared/memoryManager.js';
 import { config } from '../config.js';
 import { resolveDataOwner, requireRole } from '../shared/dataOwner.js';
+import { financeAiMode } from '../ai/mode.js';
 
 /**
  * On-demand memory consolidation — callable from the app.
@@ -19,6 +20,7 @@ export const refreshAdvisorMemory = onCall(
     secrets: ['ANTHROPIC_API_KEY'],
   },
   async (request) => {
+    if (financeAiMode() !== 'legacy_anthropic') throw new HttpsError('failed-precondition', 'Backend memory AI is disabled; the existing advisor memory is preserved.');
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }

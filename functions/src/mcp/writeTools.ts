@@ -1,4 +1,7 @@
 import { Timestamp, FieldValue, type Firestore } from 'firebase-admin/firestore';
+import { randomUUID } from 'node:crypto';
+import { previewCorrection, applyCorrection, getCorrectionOperation, undoCorrection } from '../categorization/commandService.js';
+import { isAssignableCategory } from '../categorization/categoryRegistry.js';
 
 /**
  * Write tools exposed over MCP. Each function is scoped to a single user id
@@ -125,9 +128,14 @@ function userCollection(db: Firestore, userId: string, name: string) {
 
 async function assertCategoryExists(db: Firestore, userId: string, categoryId: string) {
   const snap = await userCollection(db, userId, 'categories').doc(categoryId).get();
-  if (!snap.exists) {
-    throw new Error(`Category not found: ${categoryId}`);
-  }
+  if (!snap.exists) throw new Error(`Category not found: ${categoryId}`);
+}
+
+async function assertAssignableCategory(db: Firestore, userId: string, categoryId: string) {
+  await assertCategoryExists(db, userId, categoryId);
+  const cats = await userCollection(db, userId, 'categories').get();
+  if (!isAssignableCategory(categoryId, cats.docs.map((d) => ({ id: d.id, parentId: d.data().parentId ?? null,
+    archived: d.data().archived, status: d.data().status })))) throw new Error(`Category is not assignable: ${categoryId}`);
 }
 
 // Category documents use the same shape and generated document IDs as the UI.
@@ -241,21 +249,12 @@ async function recategorizeTransactions(
   transactionIds: string[],
   categoryId: string
 ) {
-  await assertCategoryExists(db, userId, categoryId);
-  const { refs } = await getTransactionSnaps(db, userId, transactionIds);
-
-  await commitUpdates(
-    db,
-    refs.map((ref) => ({
-      ref,
-      data: {
-        categoryId,
-        categorySource: 'manual',
-        categoryConfidence: 1,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-    }))
-  );
+  await assertAssignableCategory(db, userId, categoryId);
+  await getTransactionSnaps(db, userId, transactionIds);
+  for (const transactionId of transactionIds) {
+    const preview = await previewCorrection(db, userId, userId, { transactionId, categoryId, past: false, future: false });
+    await applyCorrection(db, userId, userId, preview.proposalId, randomUUID());
+  }
 
   return {
     updated: transactionIds.map((id) => ({ id, categoryId, categorySource: 'manual' })),
@@ -505,8 +504,9 @@ async function createRule(db: Firestore, userId: string, args: Record<string, un
   const pattern = requireString(args, 'pattern');
   const matchType = requireEnum(args, 'matchType', MATCH_TYPES);
   const categoryId = requireString(args, 'categoryId');
+  const targetField = optionalEnum(args, 'targetField', ['counterparty', 'description', 'combined'] as const) ?? 'combined';
 
-  await assertCategoryExists(db, userId, categoryId);
+  await assertAssignableCategory(db, userId, categoryId);
 
   const ref = userCollection(db, userId, 'rules').doc();
   await ref.set({
@@ -515,6 +515,11 @@ async function createRule(db: Firestore, userId: string, args: Record<string, un
     categoryId,
     priority: Date.now(),
     isLearned: true,
+    confirmed: true,
+    enabled: true,
+    origin: 'chatgpt_user_instruction',
+    targetField,
+    version: 1,
     isSystem: false,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -547,6 +552,23 @@ export const WRITE_TOOL_DEFINITIONS = [
       color: { type: 'string' }, parentId: { type: ['string', 'null'], description: 'Null moves to root' },
     }, required: ['categoryId'] }, annotations: WRITE_ANNOTATIONS,
   },
+  {
+    name: 'preview_categorization_change',
+    description: 'Preview a transaction category correction and optional past/future merchant scopes before applying.',
+    inputSchema: { type: 'object' as const, properties: {
+      transactionId: { type: 'string' }, categoryId: { type: 'string' },
+      past: { type: 'boolean' }, future: { type: 'boolean' },
+    }, required: ['transactionId', 'categoryId'] }, annotations: WRITE_ANNOTATIONS,
+  },
+  { name: 'apply_categorization_change', description: 'Apply a reviewed categorization proposal once, with a stable operation ID for retries.',
+    inputSchema: { type: 'object' as const, properties: { proposalId: { type: 'string' }, operationId: { type: 'string' } },
+      required: ['proposalId', 'operationId'] }, annotations: WRITE_ANNOTATIONS },
+  { name: 'undo_categorization_change', description: 'Conditionally undo a categorization operation without overwriting later corrections.',
+    inputSchema: { type: 'object' as const, properties: { operationId: { type: 'string' } }, required: ['operationId'] }, annotations: WRITE_ANNOTATIONS },
+  { name: 'submit_merchant_research', description: 'Submit a ChatGPT merchant research suggestion. No transaction is changed without explicit user confirmation.',
+    inputSchema: { type: 'object' as const, properties: { merchant: { type: 'string' }, categoryId: { type: 'string' },
+      reason: { type: 'string' }, sources: { type: 'array', items: { type: 'string' } } },
+      required: ['merchant', 'categoryId', 'reason', 'sources'] }, annotations: WRITE_ANNOTATIONS },
   {
     name: 'recategorize_transaction',
     description:
@@ -742,6 +764,7 @@ export const WRITE_TOOL_DEFINITIONS = [
           description: 'How the pattern is matched',
         },
         categoryId: { type: 'string', description: 'Category to assign on a match' },
+        targetField: { type: 'string', enum: ['counterparty', 'description', 'combined'], description: 'Field to match (default combined for legacy compatibility)' },
       },
       required: ['pattern', 'matchType', 'categoryId'],
     },
@@ -760,6 +783,27 @@ export async function callWriteTool(
       return createCategory(db, userId, args);
     case 'update_category':
       return updateCategory(db, userId, args);
+    case 'preview_categorization_change':
+      return previewCorrection(db, userId, userId, { transactionId: requireString(args, 'transactionId'),
+        categoryId: requireString(args, 'categoryId'), past: optionalBoolean(args, 'past') ?? false,
+        future: optionalBoolean(args, 'future') ?? false });
+    case 'apply_categorization_change':
+      return applyCorrection(db, userId, userId, requireString(args, 'proposalId'), requireString(args, 'operationId'));
+    case 'undo_categorization_change':
+      return undoCorrection(db, userId, requireString(args, 'operationId'));
+    case 'submit_merchant_research': {
+      const merchant = requireString(args, 'merchant');
+      const categoryId = requireString(args, 'categoryId');
+      const reason = requireString(args, 'reason');
+      const sources = requireStringArray(args, 'sources');
+      if (merchant.length > 160 || reason.length > 500 || sources.length > 5 ||
+          sources.some((url) => !url.startsWith('https://') || url.length > 500)) throw new Error('Invalid research evidence');
+      await assertAssignableCategory(db, userId, categoryId);
+      const ref = userCollection(db, userId, 'merchantResearch').doc();
+      await ref.create({ merchant, categoryId, reason, sources,
+        provenance: 'chatgpt_submitted_unverified', state: 'suggested', createdAt: FieldValue.serverTimestamp() });
+      return { id: ref.id, state: 'suggested', message: 'Suggestion saved; no category or rule changed' };
+    }
     case 'recategorize_transaction':
       return recategorizeTransactions(
         db,

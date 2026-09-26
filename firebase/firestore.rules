@@ -38,7 +38,12 @@ service cloud.firestore {
 
       match /transactions/{transactionId} {
         allow read: if canRead(userId);
-        allow write: if canWrite(userId);
+        // The v2 decision envelope and operation provenance are server-owned.
+        // Legacy flat-field writes remain temporarily for older cached clients.
+        allow create: if canWrite(userId) && !request.resource.data.keys().hasAny(['categorization']);
+        allow update: if canWrite(userId) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['categorization']);
+        allow delete: if canWrite(userId);
       }
 
       match /categories/{categoryId} {
@@ -48,7 +53,29 @@ service cloud.firestore {
 
       match /rules/{ruleId} {
         allow read: if canRead(userId);
-        allow write: if canWrite(userId);
+        allow create: if canWrite(userId) && !request.resource.data.keys().hasAny([
+          'confirmed', 'version', 'origin', 'operationId', 'targetField']);
+        allow update: if canWrite(userId) && resource.data.get('confirmed', false) != true &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'confirmed', 'version', 'origin', 'operationId', 'targetField']);
+        allow delete: if canWrite(userId) && resource.data.get('confirmed', false) != true;
+      }
+
+      // Proposals, operation state and audit provenance are server authored.
+      match /categorizationProposals/{proposalId} {
+        allow read: if canRead(userId);
+        allow write: if false;
+        match /chunks/{chunkId} { allow read, write: if false; }
+      }
+      match /categorizationOperations/{operationId} {
+        allow read: if canRead(userId);
+        allow write: if false;
+        match /audit/{auditId} { allow read, write: if false; }
+      }
+      match /categorizationOutbox/{outboxId} { allow read, write: if false; }
+      match /merchantResearch/{researchId} {
+        allow read: if canRead(userId);
+        allow write: if false;
       }
 
       match /bankConnections/{connectionId} {

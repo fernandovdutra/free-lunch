@@ -1,6 +1,6 @@
 import { test as base, expect } from '@playwright/test';
 import { login, canAuthenticate } from './fixtures/auth';
-import { STAGED, stageCategorizationData } from './fixtures/emulator';
+import { STAGED, listUserDocs, stageCategorizationData } from './fixtures/emulator';
 
 const test = base.extend({});
 
@@ -22,6 +22,7 @@ test.describe('Categorization', () => {
     const page = await browser.newPage();
     authAvailable = await canAuthenticate(page);
     await page.close();
+    if (process.env.CI && !authAvailable) throw new Error('Firebase emulator authentication unavailable');
     if (authAvailable) await stageCategorizationData();
   });
 
@@ -55,13 +56,21 @@ test.describe('Categorization', () => {
     await picker.getByPlaceholder(/search categories/i).fill('restaur');
     await picker.getByRole('button').filter({ hasText: 'Restaurants' }).first().click();
 
+    await expect(editSheet.getByText('Apply this category to:')).toBeVisible();
+    await expect(editSheet.getByText(/0 eligible past transactions/)).toBeVisible();
+    await editSheet.getByRole('button', { name: 'Save category' }).click();
+    await expect(editSheet.getByText('Apply this category to:')).toBeHidden();
+    const saved = (await listUserDocs('transactions')).find((doc) => doc.name.endsWith(`/${STAGED.categorizeId}`));
+    expect(saved?.fields.categoryId?.stringValue).toBe('food-restaurants');
+
     // Edit sheet reflects the change.
     await expect(
       editSheet.getByRole('button').filter({ hasText: 'Restaurants' }).first()
     ).toBeVisible({ timeout: 10000 });
 
     // And so does the list row after closing the sheet.
-    await page.keyboard.press('Escape');
+    await editSheet.getByRole('button', { name: 'Close' }).click();
+    await expect(editSheet).toBeHidden();
     await expect(
       page
         .getByRole('button')

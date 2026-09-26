@@ -16,6 +16,7 @@ import { sendInsightEmail } from '../shared/emailSender.js';
 import { buildDailyEmailHtml } from '../shared/emailTemplates.js';
 import { requestLlmJson } from '../shared/llmJson.js';
 import { config } from '../config.js';
+import { reportOwner } from '../ai/mode.js';
 
 // Insights are single-user by design (household app) — see
 // functions/src/ARCHITECTURE.md for the boundary and its rationale.
@@ -34,6 +35,7 @@ export const generateDailyInsight = onSchedule(
     secrets: ['ANTHROPIC_API_KEY', 'RESEND_API_KEY', 'SINGLE_USER_ID'],
   },
   async () => {
+    if (reportOwner() !== 'legacy_backend') return;
     if (!SINGLE_USER_ID) {
       console.error('SINGLE_USER_ID not configured');
       return;

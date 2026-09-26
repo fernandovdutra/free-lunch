@@ -1,10 +1,10 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { getFirestore, WriteBatch } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { Categorizer } from '../categorization/index.js';
 import { z } from 'zod';
+import { financeAiMode } from '../ai/mode.js';
 import { resolveDataOwner, requireRole } from '../shared/dataOwner.js';
 import {
-  CATEGORIZATION_BATCH_SIZE,
   categorizationSuccessFields,
   runLlmCategorization,
   writeLlmCategorizationOutcome,
@@ -55,12 +55,16 @@ export const recategorizeTransactions = onCall(
       );
     }
     const { useLLM, mode, transactionIds } = parseResult.data;
+    if (financeAiMode() !== 'legacy_anthropic' && (useLLM || mode === 'failed' || transactionIds?.length)) {
+      throw new HttpsError('failed-precondition', 'Backend AI is disabled. Use the ChatGPT categorization review queue.');
+    }
 
     // When targeting specific transactions, always use LLM. The 'failed' mode
     // exists to retry transactions a previous LLM pass failed on, so it
     // implies LLM too.
-    const effectiveUseLLM =
-      useLLM || (transactionIds && transactionIds.length > 0) || mode === 'failed';
+    const effectiveUseLLM = financeAiMode() === 'legacy_anthropic' && (
+      useLLM || (transactionIds && transactionIds.length > 0) || mode === 'failed'
+    );
     const isExplicitAICategorize = transactionIds && transactionIds.length > 0;
 
     const userId = await resolveDataOwner(request.auth.uid);
@@ -81,7 +85,9 @@ export const recategorizeTransactions = onCall(
       docs = docSnaps.filter((d) => d.exists) as FirebaseFirestore.QueryDocumentSnapshot[];
     } else {
       if (mode === 'uncategorized') {
-        docs = (await transactionsRef.where('categorySource', '==', 'none').get()).docs;
+        docs = (await transactionsRef.get()).docs.filter((d) =>
+          !d.data().categoryId || d.data().categoryId === 'uncategorized' || d.data().categoryId === 'none'
+        );
       } else if (mode === 'failed') {
         const snapshot = await transactionsRef.where('categorizationStatus', '==', 'failed').get();
         // Never re-categorize a doc the user has since categorized by hand:
@@ -93,7 +99,7 @@ export const recategorizeTransactions = onCall(
         // dropping docs that carry no `categorySource` field at all.
         docs = snapshot.docs.filter((d) => d.data().categorySource !== 'manual');
       } else {
-        docs = (await transactionsRef.where('categorySource', '!=', 'manual').get()).docs;
+        docs = (await transactionsRef.get()).docs;
       }
     }
 
@@ -109,40 +115,42 @@ export const recategorizeTransactions = onCall(
     // Collect transactions still uncategorized after pattern matching for LLM pass
     const uncategorizedForLLM: Array<LlmWorkItem<FirebaseFirestore.DocumentReference>> = [];
 
-    // Process in batches — pattern matching pass
-    for (let i = 0; i < docs.length; i += CATEGORIZATION_BATCH_SIZE) {
-      const batch: WriteBatch = db.batch();
-      const batchDocs = docs.slice(i, i + CATEGORIZATION_BATCH_SIZE);
-      let batchUpdates = 0;
-
-      for (const doc of batchDocs) {
+    // Reads used to choose work are advisory. Each write checks the latest
+    // transaction in a Firestore transaction, so a concurrent user edit wins.
+    for (const doc of docs) {
         result.processed++;
 
         try {
           const data = doc.data();
           const description = data.description || '';
           const counterparty = data.counterparty || null;
+          if (data.categorySource === 'manual' || data.categorization?.origin === 'user_bulk' || data.categorization?.override ||
+              data.categorization?.state === 'intentionally_uncategorized' || data.isSplit ||
+              data.splits?.length || data.isTransfer || data.excludeFromTotals) {
+            result.skipped++;
+            continue;
+          }
 
           // Re-run pattern-based categorization
           const categorizationResult = categorizer.categorize(description, counterparty);
 
-          if (
-            categorizationResult.categoryId &&
-            categorizationResult.categoryId !== data.categoryId &&
-            !isExplicitAICategorize
-          ) {
-            // Pattern matching found a different (better) category — apply it
-            // (and clear any failure marker from an earlier LLM pass).
-            batch.update(
-              doc.ref,
-              categorizationSuccessFields({
-                categoryId: categorizationResult.categoryId,
-                confidence: categorizationResult.confidence,
-                source: categorizationResult.source,
-              })
-            );
-            batchUpdates++;
-            result.updated++;
+          if (categorizationResult.categoryId && !isExplicitAICategorize) {
+            // A matching rule terminates evaluation even when no write is
+            // needed. Never feed an already-correct decision to the model.
+            if (categorizationResult.categoryId === data.categoryId) { result.skipped++; continue; }
+            const updated = await db.runTransaction(async (tx) => {
+              const fresh = await tx.get(doc.ref);
+              if (!fresh.exists || fresh.updateTime?.toMillis() !== doc.updateTime?.toMillis()) return false;
+              const current = fresh.data()!;
+              if (current.categorySource === 'manual' || current.categorization?.origin === 'user_bulk' || current.categorization?.override || current.isSplit ||
+                  current.isTransfer || current.excludeFromTotals || current.splits?.length) return false;
+              tx.update(doc.ref, categorizationSuccessFields({
+                categoryId: categorizationResult.categoryId!,
+                confidence: categorizationResult.confidence, source: categorizationResult.source,
+              }));
+              return true;
+            });
+            if (updated) result.updated++; else result.skipped++;
           } else if (effectiveUseLLM) {
             // Send to LLM: either no pattern match, or explicit AI categorize request
             uncategorizedForLLM.push({
@@ -158,11 +166,6 @@ export const recategorizeTransactions = onCall(
           const error = err instanceof Error ? err.message : 'Unknown error';
           result.errors.push(`Transaction ${doc.id}: ${error}`);
         }
-      }
-
-      if (batchUpdates > 0) {
-        await batch.commit();
-      }
     }
 
     // LLM categorization pass (shared pipeline: LLM fallback + batched writes

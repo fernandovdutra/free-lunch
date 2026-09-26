@@ -38,6 +38,9 @@ export function CategorizationRulesCard({
     'contains'
   );
   const [newRuleCategoryId, setNewRuleCategoryId] = useState('');
+  const [newRuleTargetField, setNewRuleTargetField] = useState<'counterparty' | 'description' | 'combined'>('combined');
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [editingVersion, setEditingVersion] = useState(0);
 
   const { data: rules = [], isLoading: isLoadingRules } = useRules();
   const createRuleMutation = useCreateRule();
@@ -47,6 +50,9 @@ export function CategorizationRulesCard({
     setNewRulePattern('');
     setNewRuleMatchType('contains');
     setNewRuleCategoryId('');
+    setNewRuleTargetField('combined');
+    setEditingRuleId(null);
+    setEditingVersion(0);
   };
 
   const handleCreateRule = async () => {
@@ -56,6 +62,9 @@ export function CategorizationRulesCard({
       matchType: newRuleMatchType,
       categoryId: newRuleCategoryId,
       isLearned: false,
+      ...(editingRuleId ? { id: editingRuleId } : {}),
+      expectedVersion: editingRuleId ? editingVersion : 0,
+      targetField: newRuleTargetField,
     });
     setNewRuleDialogOpen(false);
     resetForm();
@@ -112,8 +121,9 @@ export function CategorizationRulesCard({
                       {rule.pattern}
                     </code>
                     <span className="font-mono text-[9.5px] uppercase tracking-[0.04em] text-textLo">
-                      {rule.matchType === 'contains' ? 'CONTAINS' : 'EXACT'}
+                      {rule.matchType.toUpperCase()} · {rule.targetField ?? 'COMBINED'}
                     </span>
+                    {rule.enabled === false && <span className="text-warn">DISABLED</span>}
                     {rule.isLearned ? (
                       <span className="border border-accent/40 bg-accent/10 px-2 py-[1px] font-mono text-[9.5px] uppercase tracking-[0.04em] text-accent">
                         LEARNED
@@ -127,9 +137,15 @@ export function CategorizationRulesCard({
                     </span>
                   </div>
                 </div>
+                <button type="button" aria-label={`Edit ${rule.pattern}`} onClick={() => {
+                  setEditingRuleId(rule.id); setEditingVersion(rule.version ?? 0);
+                  setNewRulePattern(rule.pattern); setNewRuleMatchType(rule.matchType === 'regex' ? 'contains' : rule.matchType);
+                  setNewRuleCategoryId(rule.categoryId); setNewRuleTargetField(rule.targetField ?? 'combined');
+                  setNewRuleDialogOpen(true);
+                }} className="font-mono text-[11px] text-textMid">EDIT</button>
                 <button
                   type="button"
-                  aria-label="Delete rule"
+                  aria-label="Disable or delete rule"
                   onClick={() => void handleDeleteRule(rule.id)}
                   disabled={deleteRuleMutation.isPending}
                   className="font-mono text-[14px] leading-none text-textLo hover:text-warn disabled:opacity-40 active:opacity-60"
@@ -152,7 +168,7 @@ export function CategorizationRulesCard({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create categorization rule</DialogTitle>
+            <DialogTitle>{editingRuleId ? 'Edit categorization rule' : 'Create categorization rule'}</DialogTitle>
             <DialogDescription>
               Transactions matching this pattern will be auto-categorized.
             </DialogDescription>
@@ -193,13 +209,25 @@ export function CategorizationRulesCard({
             </label>
 
             <label className="block text-[12px] text-textMid">
+              Match field
+              <Select value={newRuleTargetField} onValueChange={(v) => { setNewRuleTargetField(v as typeof newRuleTargetField); }}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="counterparty">Merchant / counterparty</SelectItem>
+                  <SelectItem value="description">Description</SelectItem>
+                  <SelectItem value="combined">Both (legacy)</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+
+            <label className="block text-[12px] text-textMid">
               Category
               <Select value={newRuleCategoryId} onValueChange={setNewRuleCategoryId}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
+                  {categories.filter((c) => c.id !== 'uncategorized' && !categories.some((child) => child.parentId === c.id)).map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.icon} {category.name}
                     </SelectItem>
@@ -229,7 +257,7 @@ export function CategorizationRulesCard({
               }
               className="border border-accent/60 bg-accent/10 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.04em] text-accent disabled:opacity-40 active:opacity-60"
             >
-              {createRuleMutation.isPending ? '…' : 'CREATE RULE'}
+              {createRuleMutation.isPending ? '…' : editingRuleId ? 'SAVE RULE' : 'CREATE RULE'}
             </button>
           </DialogFooter>
         </DialogContent>

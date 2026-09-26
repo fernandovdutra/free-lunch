@@ -211,7 +211,7 @@ export const DUTCH_MERCHANTS: MerchantMapping[] = [
   // =============================================
   // Delivery services
   { pattern: 'THUISBEZORGD', categorySlug: 'food.restaurants', confidence: 0.95 },
-  { pattern: 'UBER EATS', categorySlug: 'food.restaurants', confidence: 0.95 },
+  { pattern: 'UBER EATS', categorySlug: 'food.takeaway', confidence: 0.95 },
   { pattern: 'DELIVEROO', categorySlug: 'food.restaurants', confidence: 0.95 },
   { pattern: 'JUST EAT', categorySlug: 'food.restaurants', confidence: 0.95 },
   { pattern: 'GORILLAS', categorySlug: 'groceries', confidence: 0.9 },
@@ -464,13 +464,21 @@ export const DUTCH_MERCHANTS: MerchantMapping[] = [
  * Returns the first match with highest confidence, or null if no match.
  */
 export function matchMerchant(description: string): MerchantMapping | null {
-  const upperDesc = description.toUpperCase();
+  const upperDesc = description.toUpperCase().normalize('NFKC');
+
+  // These are intermediaries and bank names, not evidence of the underlying
+  // purchase or of a fee. An explicit household rule may still classify them.
+  if (/(?:^|[^A-Z0-9])(PAYPAL|MOLLIE|ADYEN|STRIPE|RABOBANK|ING BANK|ABN AMRO|BUNQ|REVOLUT)(?:$|[^A-Z0-9])/.test(upperDesc)) return null;
 
   let bestMatch: MerchantMapping | null = null;
 
   for (const merchant of DUTCH_MERCHANTS) {
-    if (upperDesc.includes(merchant.pattern)) {
-      if (!bestMatch || merchant.confidence > bestMatch.confidence) {
+    const pattern = merchant.pattern.trim().toUpperCase();
+    const start = upperDesc.indexOf(pattern);
+    if (start >= 0 && (start === 0 || !/[A-Z0-9]/.test(upperDesc[start - 1])) &&
+      (start + pattern.length === upperDesc.length || !/[A-Z0-9]/.test(upperDesc[start + pattern.length]))) {
+      if (!bestMatch || pattern.length > bestMatch.pattern.trim().length ||
+        (pattern.length === bestMatch.pattern.trim().length && merchant.confidence > bestMatch.confidence)) {
         bestMatch = merchant;
       }
     }
