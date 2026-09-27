@@ -42,7 +42,7 @@ jobs:
         with:
           name: functions-lib
           path: functions/lib
-          retention-days: 1
+          retention-days: 7
 
   # Build the frontend in parallel with the functions. The VITE_* values are
   # inlined at build time, so they must stay on this build step.
@@ -79,7 +79,7 @@ jobs:
         with:
           name: frontend-dist
           path: dist
-          retention-days: 1
+          retention-days: 7
 
   # Deploy everything in the required order: Firestore schema first, then the
   # backend, then the frontend. Running all three deploys in one job means the
