@@ -565,15 +565,23 @@ export function TransactionForm({
         categories={categories}
         currentCategoryId={transaction.categoryId}
         onPick={handleCategoryPick}
-        confirmation={pendingCategoryId === undefined ? undefined : <div className="space-y-3 px-4 py-3 font-sans text-[13px] text-textHi" aria-label="Review category change">
-          <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-accent">Category change · Not saved yet</div>
-          <div>Apply {categories.find((c) => c.id === pendingCategoryId)?.name ?? 'Uncategorized'} to:</div>
-          <label className="flex items-center gap-2"><input type="checkbox" checked readOnly /> This transaction</label>
+        confirmation={pendingCategoryId === undefined ? undefined : <div className="space-y-3 px-5 py-5 font-sans text-[13px] text-textHi" aria-label="Review category change">
+          <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-accent">Not saved yet</div>
+          <div className="border border-accent/50 bg-accent-dim p-4">
+            <div className="mb-2 truncate text-[12px] text-textMid">{merchant}</div>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[16px]">
+              <span className="text-textMid">{currentCategory?.name ?? 'Uncategorized'}</span>
+              <span aria-hidden="true" className="text-textLo">→</span>
+              <strong className="font-medium text-accent">{categories.find((c) => c.id === pendingCategoryId)?.name ?? 'Uncategorized'}</strong>
+            </div>
+          </div>
+          <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-textMid">Apply to</div>
+          <label className="flex min-h-10 items-center gap-3"><input type="checkbox" checked readOnly /> This transaction</label>
           {transaction.counterparty && pendingCategoryId !== null && <>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={past} onChange={(e) => { setPast(e.target.checked); }} /> Also update past transactions from this merchant</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={future} onChange={(e) => { setFuture(e.target.checked); }} /> Use this category for future transactions</label>
+            <label className="flex min-h-10 items-center gap-3"><input type="checkbox" checked={past} onChange={(e) => { setPast(e.target.checked); }} /> Also update past transactions from this merchant</label>
+            <label className="flex min-h-10 items-center gap-3"><input type="checkbox" checked={future} onChange={(e) => { setFuture(e.target.checked); }} /> Use this category for future transactions</label>
           </>}
-          {preview && <div className="text-textMid">{preview.counts.eligible} eligible past transactions; {preview.counts.alreadyCorrect} already correct; {preview.counts.protected} individual exceptions; {preview.counts.splits} splits skipped.</div>}
+          {past && preview && <div className="text-textMid">{preview.counts.eligible} eligible past transactions; {preview.counts.alreadyCorrect} already correct; {preview.counts.protected} individual exceptions; {preview.counts.splits} splits skipped.</div>}
           {preview && preview.chunkCount > 0 && <button type="button" className="underline" onClick={() => { void viewMatches(0); }}>View matches</button>}
           {matches && <div className="max-h-36 overflow-y-auto border border-rule p-2" aria-label="Eligible past transactions">
             {matches.map((row) => <div key={row.id}>{row.date?.slice(0, 10)} · {row.description} · €{Math.abs(row.amount).toFixed(2)}</div>)}
@@ -585,9 +593,9 @@ export function TransactionForm({
           {!preview && !previewError && <div role="status">Preparing category change…</div>}
           {previewError && <div role="alert" className="text-red-600">{previewError} {!preview && <button type="button" className="underline" onClick={() => { setPreviewAttempt((n) => n + 1); }}>Retry</button>}</div>}
         </div>}
-        confirmationActions={pendingCategoryId === undefined ? undefined : <div className="flex gap-2">
-          <button type="button" onClick={() => void saveCategory()} disabled={!preview || savingCategory} className="border border-accent px-3 py-2 disabled:opacity-50">{savingCategory ? 'Saving…' : 'Save category'}</button>
-          <button type="button" onClick={() => { setPendingCategoryId(undefined); setPickerOpen(false); }} className="px-3 py-2">Cancel</button>
+        confirmationActions={pendingCategoryId === undefined ? undefined : <div className="flex gap-3">
+          <button type="button" onClick={() => void saveCategory()} disabled={!preview || savingCategory} className="min-h-12 flex-1 bg-accent px-3 py-2 font-medium text-bg disabled:opacity-50">{savingCategory ? 'Saving…' : 'Save category'}</button>
+          <button type="button" onClick={() => { setPendingCategoryId(undefined); setPickerOpen(false); }} className="min-h-12 border border-rule px-4 py-2">Cancel</button>
         </div>}
       />
 

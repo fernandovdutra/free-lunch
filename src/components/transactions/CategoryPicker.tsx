@@ -56,13 +56,16 @@ export function CategoryPicker({
         if (!next) setQuery('');
       }}
     >
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>{confirmation ? 'REVIEW CATEGORY CHANGE' : 'SELECT CATEGORY'}</SheetTitle>
+      <SheetContent
+        overlayClassName="z-[60] bg-black/80"
+        className="z-[70] border-t-2 border-accent bg-bg shadow-[0_-20px_64px_rgba(0,0,0,0.85)]"
+      >
+        <SheetHeader className="border-b border-rule px-5 py-4">
+          <SheetTitle className="text-[12px] text-textHi">{confirmation ? 'REVIEW CATEGORY CHANGE' : 'SELECT CATEGORY'}</SheetTitle>
         </SheetHeader>
         {confirmation ? <>
           <SheetBody>{confirmation}</SheetBody>
-          <div className="hairline-t shrink-0 bg-surfaceHi px-4 py-3">{confirmationActions}</div>
+          <div className="hairline-t shrink-0 bg-bg px-4 py-3">{confirmationActions}</div>
         </> : <>
         <div className="hairline-b px-4 pb-3">
           <input
