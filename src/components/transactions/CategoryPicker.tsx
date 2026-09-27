@@ -56,7 +56,7 @@ export function CategoryPicker({
         if (!next) setQuery('');
       }}
     >
-      <SheetContent aria-label="Category picker">
+      <SheetContent>
         <SheetHeader>
           <SheetTitle>{confirmation ? 'REVIEW CATEGORY CHANGE' : 'SELECT CATEGORY'}</SheetTitle>
         </SheetHeader>
