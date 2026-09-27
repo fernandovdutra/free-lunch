@@ -49,18 +49,18 @@ test.describe('Categorization', () => {
       .first();
     await editSheet.getByRole('button').filter({ hasText: 'Coffee & Bars' }).first().click();
 
-    const picker = page.getByRole('dialog').filter({ hasText: 'SELECT CATEGORY' }).first();
+    const picker = page.getByRole('dialog').filter({ hasText: /SELECT CATEGORY|REVIEW CATEGORY CHANGE/ });
     await expect(picker.getByText('SELECT CATEGORY')).toBeVisible({ timeout: 10000 });
 
     // Search narrows the tree; pick Restaurants.
     await picker.getByPlaceholder(/search categories/i).fill('restaur');
     await picker.getByRole('button').filter({ hasText: 'Restaurants' }).first().click();
 
-    await expect(editSheet.getByText('Category change · Not saved yet')).toBeVisible();
-    await expect(editSheet.getByRole('button', { name: 'Save category' })).toBeInViewport();
-    await expect(editSheet.getByText(/0 eligible past transactions/)).toBeVisible();
-    await editSheet.getByRole('button', { name: 'Save category' }).click();
-    await expect(editSheet.getByText('Category change · Not saved yet')).toBeHidden();
+    await expect(picker.getByText('Category change · Not saved yet')).toBeVisible();
+    await expect(picker.getByRole('button', { name: 'Save category' })).toBeInViewport();
+    await expect(picker.getByText(/0 eligible past transactions/)).toBeVisible();
+    await picker.getByRole('button', { name: 'Save category' }).click();
+    await expect(picker).toBeHidden();
     const saved = (await listUserDocs('transactions')).find((doc) => doc.name.endsWith(`/${STAGED.categorizeId}`));
     expect(saved?.fields.categoryId?.stringValue).toBe('food-restaurants');
 

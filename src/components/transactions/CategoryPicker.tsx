@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   Sheet,
   SheetBody,
@@ -18,6 +18,8 @@ interface CategoryPickerProps {
   currentCategoryId: string | null;
   /** Pass `null` to clear the category (mark uncategorized). */
   onPick: (categoryId: string | null) => void;
+  confirmation?: ReactNode;
+  confirmationActions?: ReactNode;
 }
 
 /**
@@ -31,6 +33,8 @@ export function CategoryPicker({
   categories,
   currentCategoryId,
   onPick,
+  confirmation,
+  confirmationActions,
 }: CategoryPickerProps) {
   const [query, setQuery] = useState('');
   const tree = useMemo(() => buildCategoryTree(categories), [categories]);
@@ -54,8 +58,12 @@ export function CategoryPicker({
     >
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>SELECT CATEGORY</SheetTitle>
+          <SheetTitle>{confirmation ? 'REVIEW CATEGORY CHANGE' : 'SELECT CATEGORY'}</SheetTitle>
         </SheetHeader>
+        {confirmation ? <>
+          <SheetBody>{confirmation}</SheetBody>
+          <div className="hairline-t shrink-0 bg-surfaceHi px-4 py-3">{confirmationActions}</div>
+        </> : <>
         <div className="hairline-b px-4 pb-3">
           <input
             type="text"
@@ -118,6 +126,7 @@ export function CategoryPicker({
             </div>
           )}
         </SheetBody>
+        </>}
       </SheetContent>
     </Sheet>
   );
