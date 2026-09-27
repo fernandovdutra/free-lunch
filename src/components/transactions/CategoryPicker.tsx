@@ -87,7 +87,7 @@ export function CategoryPicker({
               <div className="mt-3 px-4 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-textLo">
                 {parent.name}
               </div>
-              {(query.trim() === '' || matches(parent.name)) && (
+              {parent.children.length === 0 && (query.trim() === '' || matches(parent.name)) && (
                 <PickerRow
                   isCurrent={currentCategoryId === parent.id}
                   onClick={() => {

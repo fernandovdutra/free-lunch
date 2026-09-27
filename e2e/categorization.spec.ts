@@ -6,7 +6,7 @@ const test = base.extend({});
 
 // The app is mobile-first and edit sheets animate from the bottom; the
 // stable, production-representative way to drive them is an iPhone viewport.
-test.use({ viewport: { width: 390, height: 844 } });
+test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
 /**
  * Manual categorization journey: open a transaction's edit sheet, change
@@ -56,10 +56,11 @@ test.describe('Categorization', () => {
     await picker.getByPlaceholder(/search categories/i).fill('restaur');
     await picker.getByRole('button').filter({ hasText: 'Restaurants' }).first().click();
 
-    await expect(editSheet.getByText('Apply this category to:')).toBeVisible();
+    await expect(editSheet.getByText('Category change · Not saved yet')).toBeVisible();
+    await expect(editSheet.getByRole('button', { name: 'Save category' })).toBeInViewport();
     await expect(editSheet.getByText(/0 eligible past transactions/)).toBeVisible();
     await editSheet.getByRole('button', { name: 'Save category' }).click();
-    await expect(editSheet.getByText('Apply this category to:')).toBeHidden();
+    await expect(editSheet.getByText('Category change · Not saved yet')).toBeHidden();
     const saved = (await listUserDocs('transactions')).find((doc) => doc.name.endsWith(`/${STAGED.categorizeId}`));
     expect(saved?.fields.categoryId?.stringValue).toBe('food-restaurants');
 
