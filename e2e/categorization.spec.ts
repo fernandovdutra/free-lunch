@@ -49,7 +49,7 @@ test.describe('Categorization', () => {
       .first();
     await editSheet.getByRole('button').filter({ hasText: 'Coffee & Bars' }).first().click();
 
-    const picker = page.getByRole('dialog').filter({ hasText: 'SELECT CATEGORY' }).first();
+    const picker = page.getByRole('dialog', { name: 'Category picker' });
     await expect(picker.getByText('SELECT CATEGORY')).toBeVisible({ timeout: 10000 });
 
     // Search narrows the tree; pick Restaurants.
