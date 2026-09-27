@@ -13,7 +13,9 @@ export default defineConfig(({ mode }) => {
   ) as { version: string };
   return {
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_VERSION__: JSON.stringify(
+      process.env.GITHUB_SHA ? `${pkg.version}+${process.env.GITHUB_SHA.slice(0, 7)}` : pkg.version
+    ),
   },
   plugins: [
     react(),

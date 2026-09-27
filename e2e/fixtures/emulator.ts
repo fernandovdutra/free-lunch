@@ -251,14 +251,14 @@ export async function stageReimbursementData(): Promise<void> {
 export async function stageCategorizationData(): Promise<void> {
   await setDoc(
     `users/${TEST_UID}/transactions/${STAGED.categorizeId}`,
-    txnFields({
+    { ...txnFields({
       date: dayOfThisMonth(3),
       description: STAGED.categorizeMerchant,
       counterparty: STAGED.categorizeMerchant,
       amount: -3.45,
       categoryId: 'food-coffee',
       reimbursement: null,
-    })
+    }), categorySource: fv.str('learned') }
   );
 }
 

@@ -199,7 +199,6 @@ export function TransactionForm({
   };
 
   const handleCategoryPick = (categoryId: string | null) => {
-    setPickerOpen(false);
     setPendingCategoryId(categoryId);
     setPast(false);
     setFuture(false);
@@ -220,6 +219,7 @@ export function TransactionForm({
       queryClient.setQueriesData({ queryKey: queryKeys.transactions.root }, (cached: unknown) =>
         projectSavedCategory(cached, transaction.id, selectedCategoryId));
       setPendingCategoryId(undefined);
+      setPickerOpen(false);
       setPreview(null);
       invalidateFinancialData(queryClient, { skipTransactions: true });
       toast({ title: data.status === 'pending' ? 'Saved. Updating earlier transactions…' : 'Category saved' });
@@ -343,6 +343,7 @@ export function TransactionForm({
         open={open}
         onOpenChange={(next) => {
           if (!next) {
+            if (pickerOpen) return;
             closeIfClean();
             return;
           }
@@ -351,12 +352,14 @@ export function TransactionForm({
       >
         <SheetContent
           onPointerDownOutside={(e) => {
+            if (pickerOpen) { e.preventDefault(); return; }
             if (dirty) {
               e.preventDefault();
               setConfirmingDiscard(true);
             }
           }}
           onEscapeKeyDown={(e) => {
+            if (pickerOpen) { e.preventDefault(); return; }
             if (dirty) {
               e.preventDefault();
               setConfirmingDiscard(true);
@@ -530,31 +533,6 @@ export function TransactionForm({
             {!isExpense && isReimbursable && null}
           </SheetBody>
 
-          {pendingCategoryId !== undefined && (
-            <div className="hairline-t max-h-[55vh] shrink-0 space-y-3 overflow-y-auto bg-surfaceHi px-4 py-3 font-sans text-[13px] text-textHi" aria-label="Review category change">
-              <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-accent">Category change · Not saved yet</div>
-              <div>Apply {categories.find((c) => c.id === pendingCategoryId)?.name ?? 'Uncategorized'} to:</div>
-              <label className="flex items-center gap-2"><input type="checkbox" checked readOnly /> This transaction</label>
-              {transaction.counterparty && pendingCategoryId !== null && <>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={past} onChange={(e) => { setPast(e.target.checked); }} /> Also update past transactions from this merchant</label>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={future} onChange={(e) => { setFuture(e.target.checked); }} /> Use this category for future transactions</label>
-              </>}
-              {preview && <div className="text-textMid">{preview.counts.eligible} eligible past transactions; {preview.counts.alreadyCorrect} already correct; {preview.counts.protected} individual exceptions; {preview.counts.splits} splits skipped.</div>}
-              {preview && preview.chunkCount > 0 && <button type="button" className="underline" onClick={() => { void viewMatches(0); }}>View matches</button>}
-              {matches && <div className="max-h-36 overflow-y-auto border border-rule p-2" aria-label="Eligible past transactions">
-                {matches.map((row) => <div key={row.id}>{row.date?.slice(0, 10)} · {row.description} · €{Math.abs(row.amount).toFixed(2)}</div>)}
-                {preview && <div className="mt-2 flex gap-3">
-                  {matchPage > 0 && <button type="button" onClick={() => { void viewMatches(matchPage - 1); }}>Previous</button>}
-                  {matchPage + 1 < preview.chunkCount && <button type="button" onClick={() => { void viewMatches(matchPage + 1); }}>Next</button>}
-                </div>}
-              </div>}
-              {!preview && !previewError && <div role="status">Preparing category change…</div>}
-              {previewError && <div role="alert" className="text-red-600">{previewError} {!preview && <button type="button" className="underline" onClick={() => { setPreviewAttempt((n) => n + 1); }}>Retry</button>}</div>}
-              <div className="flex gap-2"><button type="button" onClick={() => void saveCategory()} disabled={!preview || savingCategory} className="border border-accent px-3 py-2 disabled:opacity-50">{savingCategory ? 'Saving…' : 'Save category'}</button>
-                <button type="button" onClick={() => { setPendingCategoryId(undefined); }} className="px-3 py-2">Cancel</button></div>
-            </div>
-          )}
-
           {/* Discard confirm strip — pinned just above the sheet's safe-inset */}
           {confirmingDiscard && (
             <div className="hairline-t flex items-center gap-2 bg-surfaceHi px-4 py-3">
@@ -583,10 +561,34 @@ export function TransactionForm({
 
       <CategoryPicker
         open={pickerOpen}
-        onOpenChange={setPickerOpen}
+        onOpenChange={(next) => { setPickerOpen(next); if (!next) setPendingCategoryId(undefined); }}
         categories={categories}
         currentCategoryId={transaction.categoryId}
         onPick={handleCategoryPick}
+        confirmation={pendingCategoryId === undefined ? undefined : <div className="space-y-3 px-4 py-3 font-sans text-[13px] text-textHi" aria-label="Review category change">
+          <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-accent">Category change · Not saved yet</div>
+          <div>Apply {categories.find((c) => c.id === pendingCategoryId)?.name ?? 'Uncategorized'} to:</div>
+          <label className="flex items-center gap-2"><input type="checkbox" checked readOnly /> This transaction</label>
+          {transaction.counterparty && pendingCategoryId !== null && <>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={past} onChange={(e) => { setPast(e.target.checked); }} /> Also update past transactions from this merchant</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={future} onChange={(e) => { setFuture(e.target.checked); }} /> Use this category for future transactions</label>
+          </>}
+          {preview && <div className="text-textMid">{preview.counts.eligible} eligible past transactions; {preview.counts.alreadyCorrect} already correct; {preview.counts.protected} individual exceptions; {preview.counts.splits} splits skipped.</div>}
+          {preview && preview.chunkCount > 0 && <button type="button" className="underline" onClick={() => { void viewMatches(0); }}>View matches</button>}
+          {matches && <div className="max-h-36 overflow-y-auto border border-rule p-2" aria-label="Eligible past transactions">
+            {matches.map((row) => <div key={row.id}>{row.date?.slice(0, 10)} · {row.description} · €{Math.abs(row.amount).toFixed(2)}</div>)}
+            {preview && <div className="mt-2 flex gap-3">
+              {matchPage > 0 && <button type="button" onClick={() => { void viewMatches(matchPage - 1); }}>Previous</button>}
+              {matchPage + 1 < preview.chunkCount && <button type="button" onClick={() => { void viewMatches(matchPage + 1); }}>Next</button>}
+            </div>}
+          </div>}
+          {!preview && !previewError && <div role="status">Preparing category change…</div>}
+          {previewError && <div role="alert" className="text-red-600">{previewError} {!preview && <button type="button" className="underline" onClick={() => { setPreviewAttempt((n) => n + 1); }}>Retry</button>}</div>}
+        </div>}
+        confirmationActions={pendingCategoryId === undefined ? undefined : <div className="flex gap-2">
+          <button type="button" onClick={() => void saveCategory()} disabled={!preview || savingCategory} className="border border-accent px-3 py-2 disabled:opacity-50">{savingCategory ? 'Saving…' : 'Save category'}</button>
+          <button type="button" onClick={() => { setPendingCategoryId(undefined); setPickerOpen(false); }} className="px-3 py-2">Cancel</button>
+        </div>}
       />
 
       <SplitEditorSheet
