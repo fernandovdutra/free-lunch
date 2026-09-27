@@ -56,9 +56,13 @@ test.describe('Categorization', () => {
     await picker.getByPlaceholder(/search categories/i).fill('restaur');
     await picker.getByRole('button').filter({ hasText: 'Restaurants' }).first().click();
 
-    await expect(picker.getByText('Category change · Not saved yet')).toBeVisible();
+    await expect(picker.getByText('Not saved yet')).toBeVisible();
+    await expect(picker).toHaveCSS('z-index', '70');
+    await expect(page.locator('[data-state="open"].fixed.inset-0').last()).toHaveCSS('z-index', '60');
     await expect(picker.getByRole('button', { name: 'Save category' })).toBeInViewport();
+    await picker.getByLabel('Also update past transactions from this merchant').check();
     await expect(picker.getByText(/0 eligible past transactions/)).toBeVisible();
+    await picker.getByLabel('Also update past transactions from this merchant').uncheck();
     await picker.getByRole('button', { name: 'Save category' }).click();
     await expect(picker).toBeHidden();
     const saved = (await listUserDocs('transactions')).find((doc) => doc.name.endsWith(`/${STAGED.categorizeId}`));

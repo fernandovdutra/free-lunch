@@ -55,8 +55,8 @@ SheetOverlay.displayName = 'SheetOverlay';
 
 const SheetContent = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, style, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { overlayClassName?: string }
+>(({ className, overlayClassName, children, style, ...props }, ref) => {
   const { inset, visibleHeight } = useKeyboardInset();
   const keyboardOpen = inset > 0;
 
@@ -75,7 +75,7 @@ const SheetContent = React.forwardRef<
 
   return (
     <SheetPortal>
-      <SheetOverlay />
+      <SheetOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
