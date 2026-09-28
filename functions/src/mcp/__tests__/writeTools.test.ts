@@ -3,7 +3,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 
 vi.mock('firebase-admin/firestore', () => ({
   FieldValue: { serverTimestamp: vi.fn(() => 'MOCK_TS') },
-  Timestamp: { fromDate: vi.fn((d: Date) => ({ _date: d, toDate: () => d })) },
+  Timestamp: { fromDate: vi.fn((d: Date) => ({ _date: d, toDate: () => d })), now: vi.fn(() => 'NOW') },
 }));
 
 vi.mock('../../categorization/commandService.js', () => ({
@@ -93,6 +93,18 @@ function createFakeDb(seed: Record<string, Record<string, unknown>> = {}) {
         return { exists: data !== undefined, id: ref.id, data: () => data };
       }),
     batch: () => makeBatch(),
+    runTransaction: async <T>(callback: (tx: {
+      get: (ref: FakeDoc) => ReturnType<FakeDoc['get']>;
+      update: (ref: FakeDoc, data: Record<string, unknown>) => void;
+    }) => Promise<T>) => {
+      const updates: { ref: FakeDoc; data: Record<string, unknown> }[] = [];
+      const result = await callback({
+        get: (ref) => ref.get(),
+        update: (ref, data) => { updates.push({ ref, data }); },
+      });
+      for (const update of updates) await update.ref.update(update.data);
+      return result;
+    },
   };
 
   return { db: db as unknown as Firestore, store, writes };
@@ -117,10 +129,35 @@ describe('callWriteTool — dispatch', () => {
   });
 
   it('advertises every write tool as a write action', () => {
-    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(16);
+    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(17);
     for (const tool of WRITE_TOOL_DEFINITIONS) {
       expect(tool.annotations.readOnlyHint).toBe(false);
     }
+  });
+});
+
+describe('record_reimbursement', () => {
+  it('matches only the repaid portion and rejects reuse of a credit', async () => {
+    const { db, store } = withSeed({
+      'users/u1/transactions/purchase': { amount: -120, isSplit: false, reimbursement: null },
+      'users/u1/transactions/credit': { amount: 60, reimbursement: null },
+    });
+    const args = { expenseTransactionId: 'purchase', incomeTransactionId: 'credit', amount: 60, type: 'personal' };
+    await callWriteTool(db, UID, 'record_reimbursement', args);
+    expect(store.get('users/u1/transactions/purchase')?.reimbursement).toMatchObject({ amount: 60, status: 'cleared', linkedTransactionId: 'credit' });
+    expect(store.get('users/u1/transactions/credit')?.reimbursement).toMatchObject({ amount: 60, status: 'cleared', linkedTransactionId: 'purchase' });
+    await expect(callWriteTool(db, UID, 'record_reimbursement', args)).rejects.toThrow('not eligible');
+  });
+
+  it('does not change either transaction if the repayment differs', async () => {
+    const { db, writes } = withSeed({
+      'users/u1/transactions/purchase': { amount: -120, reimbursement: null },
+      'users/u1/transactions/credit': { amount: 59, reimbursement: null },
+    });
+    await expect(callWriteTool(db, UID, 'record_reimbursement', {
+      expenseTransactionId: 'purchase', incomeTransactionId: 'credit', amount: 60, type: 'personal',
+    })).rejects.toThrow('not eligible');
+    expect(writes).toHaveLength(0);
   });
 });
 

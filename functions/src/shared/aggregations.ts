@@ -15,6 +15,8 @@ export interface TransactionDoc {
   reimbursement: {
     type: string;
     status: string;
+    /** Portion expected back. Older records without this field mean the full expense. */
+    amount?: number;
     note: string | null;
     linkedTransactionId: string | null;
     clearedAt: Timestamp | null;
@@ -118,6 +120,7 @@ export interface TransactionResult {
   reimbursement: {
     type: string;
     status: string;
+    amount?: number;
     note: string | null;
     linkedTransactionId: string | null;
     clearedAt: string | null;
@@ -170,6 +173,7 @@ export function serializeTransaction(id: string, doc: TransactionDoc): Transacti
       ? {
           type: doc.reimbursement.type,
           status: doc.reimbursement.status,
+          amount: doc.reimbursement.amount,
           note: doc.reimbursement.note ?? null,
           linkedTransactionId: doc.reimbursement.linkedTransactionId ?? null,
           clearedAt: doc.reimbursement.clearedAt
@@ -201,6 +205,20 @@ function getTopLevelCategoryId(
   return categoryId;
 }
 
+/** Household cost left after the reimbursable part is removed. */
+export function countedExpense(doc: TransactionDoc): number {
+  const gross = Math.abs(doc.amount);
+  if (doc.amount >= 0 || !doc.reimbursement ||
+      !['pending', 'cleared'].includes(doc.reimbursement.status)) return gross;
+  const portion = doc.reimbursement.amount ?? gross;
+  return Math.max(0, gross - Math.min(gross, Math.max(0, portion)));
+}
+
+export function reimbursementPortion(doc: TransactionDoc): number {
+  const gross = Math.abs(doc.amount);
+  return Math.min(gross, Math.max(0, doc.reimbursement?.amount ?? gross));
+}
+
 // ============================================================================
 // calculateSummary
 // ============================================================================
@@ -220,11 +238,12 @@ export function calculateSummary(
       if (topLevel === 'transfer') continue;
     }
     if (doc.reimbursement?.status === 'pending') {
-      pendingReimbursements += Math.abs(doc.amount);
+      pendingReimbursements += reimbursementPortion(doc);
+      if (doc.amount < 0) totalExpenses += countedExpense(doc);
     } else if (doc.reimbursement?.status === 'cleared') {
-      // Reimbursed: the expense was paid back and the incoming payment is
-      // not real income — the pair nets to zero, so exclude both sides.
-      continue;
+      // Incoming reimbursement is not income; keep any unreimbursed
+      // portion of the original purchase as household spending.
+      if (doc.amount < 0) totalExpenses += countedExpense(doc);
     } else if (doc.amount > 0) {
       totalIncome += doc.amount;
     } else {
@@ -250,12 +269,10 @@ export function calculateCategorySpending(
   transactions: TransactionWithId[],
   categories: Map<string, CategoryDoc>
 ): CategorySpendingResult[] {
-  // Only count expenses (negative amounts), exclude reimbursements (pending
-  // or already paid back), excluded, and Transfer category
+  // Only count household portions of expenses, excluding transfers.
   const expenses = transactions.filter(({ doc }) => {
     if (doc.amount >= 0) return false;
-    if (doc.reimbursement?.status === 'pending') return false;
-    if (doc.reimbursement?.status === 'cleared') return false;
+    if (countedExpense(doc) === 0) return false;
     if (doc.excludeFromTotals) return false;
     const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
     if (topLevel === 'transfer') return false;
@@ -266,6 +283,8 @@ export function calculateCategorySpending(
   const spending = new Map<string, { amount: number; count: number }>();
 
   for (const { doc } of expenses) {
+    const net = countedExpense(doc);
+    const ratio = net / Math.abs(doc.amount);
     if (doc.isSplit && doc.splits) {
       // Handle split transactions: each split counted toward its own category
       for (const split of doc.splits) {
@@ -273,7 +292,7 @@ export function calculateCategorySpending(
         const key = split.categoryId || 'uncategorized';
         const current = spending.get(key) ?? { amount: 0, count: 0 };
         spending.set(key, {
-          amount: current.amount + split.amount,
+          amount: current.amount + split.amount * ratio,
           count: current.count + 1,
         });
       }
@@ -282,7 +301,7 @@ export function calculateCategorySpending(
       const key = doc.categoryId ?? 'uncategorized';
       const current = spending.get(key) ?? { amount: 0, count: 0 };
       spending.set(key, {
-        amount: current.amount + Math.abs(doc.amount),
+        amount: current.amount + net,
         count: current.count + 1,
       });
     }
@@ -345,8 +364,7 @@ export function calculateTimelineData(
   // Aggregate transactions by day
   for (const { doc } of transactions) {
     if (doc.excludeFromTotals) continue;
-    if (doc.reimbursement?.status === 'pending') continue; // Skip pending reimbursements
-    if (doc.reimbursement?.status === 'cleared') continue; // Reimbursed pair nets to zero
+    if (doc.amount > 0 && ['pending', 'cleared'].includes(doc.reimbursement?.status ?? '')) continue;
     if (categories && doc.categoryId) {
       const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
       if (topLevel === 'transfer') continue;
@@ -358,7 +376,7 @@ export function calculateTimelineData(
     if (doc.amount > 0) {
       current.income += doc.amount;
     } else {
-      current.expenses += Math.abs(doc.amount);
+      current.expenses += countedExpense(doc);
     }
 
     dailyData.set(dateKey, current);
@@ -386,28 +404,28 @@ export function calculateSpendingByCategory(
   const spending = new Map<string, number>();
 
   for (const { doc } of transactions) {
-    // Skip income, reimbursements (pending or paid back), excluded, and Transfer category
+    // Keep the household portion of partially reimbursed expenses.
     if (doc.excludeFromTotals) continue;
     if (doc.amount >= 0) continue;
-    if (doc.reimbursement?.status === 'pending') continue;
-    if (doc.reimbursement?.status === 'cleared') continue;
+    if (countedExpense(doc) === 0) continue;
     const topLevelId = getTopLevelCategoryId(doc.categoryId, categories);
     if (topLevelId === 'transfer') continue;
 
-    const absAmount = Math.abs(doc.amount);
+    const absAmount = countedExpense(doc);
+    const ratio = absAmount / Math.abs(doc.amount);
 
     if (doc.isSplit && doc.splits) {
       // Handle split transactions — each split counts toward its category
       for (const split of doc.splits) {
         if (split.amount <= 0) continue; // splits use positive amounts
         const current = spending.get(split.categoryId) ?? 0;
-        spending.set(split.categoryId, current + split.amount);
+        spending.set(split.categoryId, current + split.amount * ratio);
 
         // Also add to parent category if exists
         const category = categories.get(split.categoryId);
         if (category?.parentId) {
           const parentCurrent = spending.get(category.parentId) ?? 0;
-          spending.set(category.parentId, parentCurrent + split.amount);
+          spending.set(category.parentId, parentCurrent + split.amount * ratio);
         }
       }
     } else if (doc.categoryId) {
@@ -478,17 +496,17 @@ export function calculateReimbursementSummary(
   clearedTransactions: TransactionWithId[]
 ): ReimbursementSummaryResult {
   const pendingTotal = pendingTransactions.reduce(
-    (sum, { doc }) => sum + Math.abs(doc.amount),
+    (sum, { doc }) => sum + reimbursementPortion(doc),
     0
   );
   const pendingWorkTotal = pendingTransactions
     .filter(({ doc }) => doc.reimbursement?.type === 'work')
-    .reduce((sum, { doc }) => sum + Math.abs(doc.amount), 0);
+    .reduce((sum, { doc }) => sum + reimbursementPortion(doc), 0);
   const pendingPersonalTotal = pendingTransactions
     .filter(({ doc }) => doc.reimbursement?.type === 'personal')
-    .reduce((sum, { doc }) => sum + Math.abs(doc.amount), 0);
+    .reduce((sum, { doc }) => sum + reimbursementPortion(doc), 0);
   const clearedTotal = clearedTransactions.reduce(
-    (sum, { doc }) => sum + Math.abs(doc.amount),
+    (sum, { doc }) => sum + reimbursementPortion(doc),
     0
   );
 

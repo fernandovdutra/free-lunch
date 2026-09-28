@@ -223,6 +223,58 @@ function requireTransactionIds(args: Record<string, unknown>): string[] {
   return deduped;
 }
 
+/** Match one posted credit to an equal reimbursable portion of one debit. */
+async function recordReimbursement(db: Firestore, userId: string, args: Record<string, unknown>) {
+  const expenseId = requireString(args, 'expenseTransactionId');
+  const incomeId = requireString(args, 'incomeTransactionId');
+  const amount = requireNumber(args, 'amount');
+  const type = requireEnum(args, 'type', ['work', 'personal'] as const);
+  if (expenseId === incomeId || amount <= 0 ||
+      !Number.isSafeInteger(Math.round(amount * 100)) ||
+      Math.abs(Math.round(amount * 100) - amount * 100) > 0.000001) {
+    throw new Error('Provide distinct transactions and a positive amount in cents');
+  }
+  const col = userCollection(db, userId, 'transactions');
+  const expenseRef = col.doc(expenseId);
+  const incomeRef = col.doc(incomeId);
+  return db.runTransaction(async (transaction) => {
+    const [expenseSnap, incomeSnap] = await Promise.all([
+      transaction.get(expenseRef), transaction.get(incomeRef),
+    ]);
+    if (!expenseSnap.exists || !incomeSnap.exists) throw new Error('Transaction not found');
+    const expense = expenseSnap.data()!;
+    const income = incomeSnap.data()!;
+    const cents = Math.round(amount * 100);
+    if (expense.amount >= 0 || income.amount <= 0 ||
+        Math.round(income.amount * 100) !== cents ||
+        Math.round(Math.abs(expense.amount) * 100) < cents ||
+        expense.isSplit || expense.excludeFromTotals || income.excludeFromTotals ||
+        income.reimbursement ||
+        (expense.reimbursement && expense.reimbursement.status !== 'pending') ||
+        (expense.reimbursement?.amount !== undefined &&
+         Math.round(expense.reimbursement.amount * 100) !== cents)) {
+      throw new Error('Transactions are not eligible for this reimbursement amount');
+    }
+    const clearedAt = Timestamp.now();
+    transaction.update(expenseRef, {
+      reimbursement: {
+        type, amount, status: 'cleared',
+        note: expense.reimbursement?.note ?? null,
+        linkedTransactionId: incomeId, clearedAt,
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(incomeRef, {
+      reimbursement: {
+        type, amount, status: 'cleared', note: `Reimburses ${expenseId}`,
+        linkedTransactionId: expenseId, clearedAt,
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { expenseTransactionId: expenseId, incomeTransactionId: incomeId, amount, status: 'cleared' };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Transaction writes
 // ---------------------------------------------------------------------------
@@ -602,6 +654,21 @@ export const WRITE_TOOL_DEFINITIONS = [
     annotations: WRITE_ANNOTATIONS,
   },
   {
+    name: 'record_reimbursement',
+    description: 'Match one income transaction to an equal reimbursable portion of an expense. The unmatched expense remains in spending; the matched income is excluded. Rejects existing matches, splits and mismatched amounts.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        expenseTransactionId: { type: 'string' },
+        incomeTransactionId: { type: 'string' },
+        amount: { type: 'number', description: 'Amount reimbursed in EUR; must equal the income transaction' },
+        type: { type: 'string', enum: ['personal', 'work'] },
+      },
+      required: ['expenseTransactionId', 'incomeTransactionId', 'amount', 'type'],
+    },
+    annotations: WRITE_ANNOTATIONS,
+  },
+  {
     name: 'create_transaction',
     description: 'Create a manual transaction (negative amount = expense, positive = income)',
     inputSchema: {
@@ -818,6 +885,8 @@ export async function callWriteTool(
         requireString(args, 'transactionId'),
         requireText(args, 'note')
       );
+    case 'record_reimbursement':
+      return recordReimbursement(db, userId, args);
     case 'create_transaction':
       return createTransaction(db, userId, args);
     case 'add_transaction_tags':

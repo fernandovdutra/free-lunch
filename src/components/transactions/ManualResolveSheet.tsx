@@ -25,8 +25,8 @@ interface ManualResolveSheetProps {
  * Phase 6 nested sheet — opens on top of the Transaction Edit Sheet
  * when the user taps "Mark as reimbursed" on a pending reimbursable
  * txn. Lists candidate income transactions (uncleared, amount > 0)
- * with a search input, newest first. Income whose amount exactly
- * matches the expense is surfaced in a SUGGESTED section on top.
+ * with a search input, newest first. Income matching the amount owed
+ * is surfaced in a SUGGESTED section on top.
  * Tap a row → caller invokes `useClearReimbursement` with
  * `{ incomeTransactionId, expenseTransactionIds }`.
  */
@@ -54,7 +54,7 @@ export function ManualResolveSheet({ open, onOpenChange, expense, onPick }: Manu
     }
   }, [open]);
 
-  // Exact-amount suggestions, hidden while the user is searching
+  // Exact reimbursable-amount suggestions, hidden while the user is searching
   const suggestions = useMemo(() => {
     if (!expense || debouncedSearch) return [];
     return suggestIncomeMatches(expense, incomeTxns);
@@ -101,7 +101,7 @@ export function ManualResolveSheet({ open, onOpenChange, expense, onPick }: Manu
             <>
               {suggestions.length > 0 && (
                 <>
-                  <ListHeader>Suggested · Same amount</ListHeader>
+                  <ListHeader>Suggested · Amount owed</ListHeader>
                   {suggestions.map((t) => (
                     <IncomeRow key={t.id} txn={t} suggested onPick={onPick} />
                   ))}

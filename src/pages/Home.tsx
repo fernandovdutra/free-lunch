@@ -77,7 +77,10 @@ export function Home() {
   // stays stable.
   const matched = useMemo(() => {
     const eligible = monthTxns.filter(
-      (t) => !t.excludeFromTotals && t.reimbursement?.status !== 'pending'
+      (t) => !t.excludeFromTotals && (
+        t.reimbursement?.status !== 'pending' ||
+        (t.reimbursement.amount ?? Math.abs(t.amount)) < Math.abs(t.amount)
+      )
     );
     return matchFixedToActuals(fixedSchedule, eligible, undefined, manualPostedKeys);
   }, [fixedSchedule, monthTxns, manualPostedKeys]);
@@ -165,7 +168,7 @@ export function Home() {
   // back for).
   const pendingCount = pendingReimbursements.length;
   const pendingTotal = pendingReimbursements.reduce(
-    (sum, t) => sum + Math.abs(t.amount),
+    (sum, t) => sum + (t.reimbursement?.amount ?? Math.abs(t.amount)),
     0
   );
 

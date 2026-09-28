@@ -94,6 +94,7 @@ export function TransactionForm({
   const clearReimbursementMutation = useClearReimbursement();
 
   const [note, setNote] = useState('');
+  const [reimbursableAmount, setReimbursableAmount] = useState('');
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
@@ -118,6 +119,7 @@ export function TransactionForm({
     if (open && transaction) {
       const startingNote = transaction.note ?? '';
       setNote(startingNote);
+      setReimbursableAmount((transaction.reimbursement?.amount ?? Math.abs(transaction.amount)).toFixed(2));
       initialNoteRef.current = startingNote;
       setConfirmingDiscard(false);
       setPendingCategoryId(undefined);
@@ -237,6 +239,7 @@ export function TransactionForm({
   };
 
   const handleToggleReimbursable = async () => {
+    if (transaction.reimbursement?.status === 'cleared') return;
     try {
       if (isReimbursable) {
         await updateMutation.mutateAsync({
@@ -247,12 +250,33 @@ export function TransactionForm({
       } else {
         await markReimbursableMutation.mutateAsync({
           id: transaction.id,
-          type: 'work',
+          type: 'personal',
+          amount: Math.abs(transaction.amount),
         });
         toast({ title: 'Marked as reimbursable' });
       }
     } catch {
       toast({ title: 'Failed to update reimbursable', variant: 'destructive' });
+    }
+  };
+
+  const saveReimbursableAmount = async () => {
+    const amount = Number(reimbursableAmount.replace(',', '.'));
+    if (!isPendingReimb || !Number.isFinite(amount) || amount <= 0 ||
+        amount > Math.abs(transaction.amount)) {
+      toast({ title: 'Enter a valid reimbursable amount', variant: 'destructive' });
+      return;
+    }
+    try {
+      await markReimbursableMutation.mutateAsync({
+        id: transaction.id,
+        type: transaction.reimbursement?.type ?? 'personal',
+        amount,
+        ...(transaction.reimbursement?.note ? { note: transaction.reimbursement.note } : {}),
+      });
+      toast({ title: 'Reimbursable amount saved' });
+    } catch {
+      toast({ title: 'Could not save reimbursable amount', variant: 'destructive' });
     }
   };
 
@@ -443,8 +467,26 @@ export function TransactionForm({
               label="Reimbursable"
               active={isReimbursable}
               onToggle={() => void handleToggleReimbursable()}
-              disabled={markReimbursableMutation.isPending || updateMutation.isPending}
+              disabled={markReimbursableMutation.isPending || updateMutation.isPending ||
+                transaction.reimbursement?.status === 'cleared'}
             />
+            {isReimbursable && (
+              <div className="hairline-b flex items-center gap-3 px-4 py-2.5">
+                <label htmlFor="reimbursable-amount" className="flex-1 font-mono text-[10px] uppercase text-textLo">
+                  Amount owed
+                </label>
+                {isPendingReimb ? <>
+                  <input id="reimbursable-amount" type="number" min="0.01" step="0.01"
+                    max={Math.abs(transaction.amount)} value={reimbursableAmount}
+                    onChange={(e) => { setReimbursableAmount(e.target.value); }}
+                    className="w-24 border border-rule bg-bg px-2 py-1 text-right font-mono text-sm text-textHi" />
+                  <button type="button" onClick={() => void saveReimbursableAmount()}
+                    disabled={markReimbursableMutation.isPending} className="text-xs text-accent">Save</button>
+                </> : <span className="font-mono text-sm text-textHi">
+                  {formatAmount(transaction.reimbursement?.amount ?? Math.abs(transaction.amount), { showSign: false })}
+                </span>}
+              </div>
+            )}
             {isReimbursable && (
               <div className="hairline-b flex items-center justify-between px-4 py-2.5">
                 <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-textLo">
@@ -529,7 +571,7 @@ export function TransactionForm({
               />
             </div>
 
-            {/* type='expense' currently ignored on display; the toggle uses 'work' default */}
+            {/* type='expense' currently ignored on display; the toggle uses 'personal' default */}
             {!isExpense && isReimbursable && null}
           </SheetBody>
 
