@@ -29,6 +29,7 @@ interface TransactionDocument {
   categoryConfidence?: number;
   categorySource?: 'auto' | 'manual' | 'rule';
   isSplit?: boolean;
+  excludeFromTotals?: boolean;
   splits?: Transaction['splits'];
   reimbursement?: ReimbursementInfo | null;
   bankAccountId?: string | null;
@@ -298,6 +299,52 @@ export function useClearReimbursement() {
     onSuccess: () => {
       invalidateFinancialData(queryClient);
     },
+  });
+}
+
+/** Atomically correct both sides of an existing one-to-one cleared match. */
+export function useCorrectClearedReimbursement() {
+  const queryClient = useQueryClient();
+  const { dataOwnerId } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ expenseTransactionId, incomeTransactionId, amount, type }: {
+      expenseTransactionId: string;
+      incomeTransactionId: string;
+      amount: number;
+      type: 'work' | 'personal';
+    }) => {
+      if (!dataOwnerId) throw new Error('Not authenticated');
+      const cents = Math.round(amount * 100);
+      if (expenseTransactionId === incomeTransactionId || amount <= 0 ||
+          !Number.isSafeInteger(cents) || Math.abs(cents - amount * 100) > 0.000001) {
+        throw new Error('Invalid reimbursement amount');
+      }
+      const expenseRef = doc(db, 'users', dataOwnerId, 'transactions', expenseTransactionId);
+      const incomeRef = doc(db, 'users', dataOwnerId, 'transactions', incomeTransactionId);
+      await runTransaction(db, async (tx) => {
+        const [expenseSnap, incomeSnap] = await Promise.all([tx.get(expenseRef), tx.get(incomeRef)]);
+        const expense = expenseSnap.data() as TransactionDocument | undefined;
+        const income = incomeSnap.data() as TransactionDocument | undefined;
+        if (!expense || !income || expense.amount >= 0 || income.amount <= 0 ||
+            Math.round(income.amount * 100) !== cents ||
+            Math.round(Math.abs(expense.amount) * 100) < cents ||
+            expense.isSplit || expense.excludeFromTotals || income.excludeFromTotals ||
+            expense.reimbursement?.status !== 'cleared' ||
+            income.reimbursement?.status !== 'cleared' ||
+            expense.reimbursement.linkedTransactionId !== incomeTransactionId ||
+            income.reimbursement.linkedTransactionId !== expenseTransactionId) {
+          throw new Error('The linked transactions changed or do not match this amount');
+        }
+        tx.update(expenseRef, {
+          reimbursement: { ...expense.reimbursement, amount, type }, updatedAt: serverTimestamp(),
+        });
+        tx.update(incomeRef, {
+          reimbursement: { ...income.reimbursement, amount, type }, updatedAt: serverTimestamp(),
+        });
+      });
+    },
+    onSuccess: () => { invalidateFinancialData(queryClient); },
   });
 }
 

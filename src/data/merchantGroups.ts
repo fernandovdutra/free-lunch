@@ -278,10 +278,13 @@ export const MERCHANT_GROUPS: Record<string, { name: string; merchants: string[]
       'Univ\u00e9',
       'Nationale Nederlanden',
       'Aegon',
-      'ASR',
       'Interpolis',
       'InShared',
     ],
+  },
+  mortgage: {
+    name: 'Mortgage',
+    merchants: ['ASR LEVVERZ'],
   },
   travel: {
     name: 'Travel & Airlines',

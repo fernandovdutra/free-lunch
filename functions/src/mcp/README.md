@@ -29,6 +29,7 @@ configuration. See [the ChatGPT setup and cutover guide](../../../docs/CHATGPT_F
 |------|-------------|
 | `recategorize_transaction` | Change the category of one or more transactions (`transactionId` or `transactionIds`) |
 | `record_reimbursement` | Atomically match an income transaction to an equal reimbursable portion of one expense; the remainder stays in spending |
+| `correct_reimbursement` | Atomically correct the portion and type of an existing reciprocal cleared reimbursement match |
 | `update_transaction_note` | Set or clear a transaction's note |
 | `create_transaction` | Create a manual transaction |
 | `add_transaction_tags` | Add free-form tags to one or more transactions (`transactionId` or `transactionIds`) |

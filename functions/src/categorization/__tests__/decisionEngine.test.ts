@@ -12,6 +12,8 @@ const categories = [
   { id: 'shopping', parentId: null }, { id: 'shopping-home', parentId: 'shopping' },
   { id: 'subscriptions', parentId: null }, { id: 'subscriptions-streaming', parentId: 'subscriptions' },
   { id: 'pets', parentId: null }, { id: 'uncategorized', parentId: null },
+  { id: 'housing', parentId: null }, { id: 'housing-rent', parentId: 'housing' },
+  { id: 'housing-insurance', parentId: 'housing' },
 ];
 
 function evaluate(counterparty: string, rules: StoredRule[] = []) {
@@ -38,6 +40,11 @@ describe('pure categorization policy', () => {
     for (const name of ['PAYPAL IKEA', 'ADYEN SHELL', 'RABOBANK', 'SHELLFISH', 'SUPERSTARBUCKS']) {
       expect(evaluate(name).categoryId, name).toBeNull();
     }
+  });
+
+  it('assigns the confirmed ASR mortgage descriptor to Mortgage and abstains on generic ASR', () => {
+    expect(evaluate('ASR LEVVERZ').categoryId).toBe('housing-rent');
+    expect(evaluate('ASR VERZEKERING').categoryId).toBeNull();
   });
 
   it('confirmed ChatGPT rule beats a built-in and exact counterparty ignores a repeated description', () => {
