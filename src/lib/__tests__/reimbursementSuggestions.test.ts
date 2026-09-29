@@ -26,6 +26,13 @@ function income(id: string, amount: number, date: string): Transaction {
 const expense = { amount: -42.5, date: new Date('2026-07-01') };
 
 describe('suggestIncomeMatches', () => {
+  it('suggests an income equal to the partial reimbursable amount', () => {
+    const txns = [income('repayment', 60, '2024-01-20'), income('gross', 120, '2024-01-20')];
+    const result = suggestIncomeMatches({ amount: -120, date: new Date('2024-01-15'),
+      reimbursement: { type: 'personal', amount: 60, note: null, status: 'pending', linkedTransactionId: null, clearedAt: null },
+    }, txns);
+    expect(result.map((t) => t.id)).toEqual(['repayment']);
+  });
   it('returns only income whose amount exactly matches the expense', () => {
     const txns = [
       income('exact', 42.5, '2026-07-05'),

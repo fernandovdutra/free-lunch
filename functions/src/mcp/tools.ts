@@ -3,6 +3,7 @@ import { subMonths } from 'date-fns';
 import { WRITE_TOOL_DEFINITIONS, callWriteTool } from './writeTools.js';
 import { matchMerchant } from '../categorization/merchantDatabase.js';
 import { getCorrectionOperation, listCategorizationReview } from '../categorization/commandService.js';
+import { countedExpense, type TransactionDoc } from '../shared/aggregations.js';
 
 /**
  * Finance query tools exposed over MCP.
@@ -176,7 +177,8 @@ async function getFixedSchedule(db: Firestore, userId: string, month: string) {
   }).format(date);
   const txns = txnSnap.docs.map((doc) => doc.data()).filter((data) =>
     data.date?.toDate && dayKey(data.date.toDate()).startsWith(month) &&
-    !data.excludeFromTotals && data.reimbursement?.status !== 'pending'
+    !data.excludeFromTotals &&
+    (data.amount >= 0 || countedExpense(data as TransactionDoc) > 0)
   );
   const claimed = new Set<number>();
   const posted: FixedItem[] = [];
@@ -199,8 +201,8 @@ async function getFixedSchedule(db: Firestore, userId: string, month: string) {
   const asOf = dayKey(new Date());
   const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
   const dayOfMonth = month === asOf.slice(0, 7) ? Number(asOf.slice(8)) : daysInMonth;
-  const spent = txns.filter((t) => t.amount < 0 && t.reimbursement?.status !== 'cleared')
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const spent = txns.filter((t) => t.amount < 0)
+    .reduce((sum, t) => sum + countedExpense(t as TransactionDoc), 0);
   const budget = budgetSnap.docs.filter((d) => d.data().isActive !== false)
     .reduce((sum, d) => sum + (d.data().monthlyLimit ?? 0), 0);
   const fixedSum = items.reduce((sum, item) => sum + item.a, 0);
@@ -243,6 +245,12 @@ function enrichTransaction(row: RawTxn, categoryNames: Map<string, string>) {
     categoryName: categoryId ? (categoryNames.get(categoryId) ?? null) : null,
     categorySource: row.data.categorySource ?? 'none',
     isSplit: row.data.isSplit ?? false,
+    reimbursement: row.data.reimbursement ? {
+      type: row.data.reimbursement.type,
+      status: row.data.reimbursement.status,
+      amount: row.data.reimbursement.amount ?? null,
+      linkedTransactionId: row.data.reimbursement.linkedTransactionId ?? null,
+    } : null,
     tags: Array.isArray(row.data.tags) ? (row.data.tags as string[]) : [],
   };
 }
@@ -404,13 +412,14 @@ async function getSpendingSummary(
   for (const doc of txnSnap.docs) {
     const data = doc.data();
     if (data.excludeFromTotals) continue;
-    if (data.reimbursement?.status === 'pending') continue;
-    if (data.reimbursement?.status === 'cleared') continue;
+    if (data.amount > 0 && ['pending', 'cleared'].includes(data.reimbursement?.status)) continue;
 
     if (data.amount > 0) {
       totalIncome += data.amount;
     } else {
-      totalExpenses += Math.abs(data.amount);
+      const netExpense = countedExpense(data as TransactionDoc);
+      if (netExpense === 0) continue;
+      totalExpenses += netExpense;
       const catId = data.categoryId ?? 'uncategorized';
       const cat = categories.get(catId);
       const existing = byCat.get(catId) ?? {
@@ -418,7 +427,7 @@ async function getSpendingSummary(
         amount: 0,
         count: 0,
       };
-      existing.amount += Math.abs(data.amount);
+      existing.amount += netExpense;
       existing.count += 1;
       byCat.set(catId, existing);
     }
@@ -471,8 +480,8 @@ async function getCategoryTrends(
     let count = 0;
     for (const doc of snapshot.docs) {
       const data = doc.data();
-      if (data.amount < 0) {
-        total += Math.abs(data.amount);
+      if (data.amount < 0 && !data.excludeFromTotals) {
+        total += countedExpense(data as TransactionDoc);
         count++;
       }
     }
@@ -516,10 +525,11 @@ async function getBudgetProgress(db: Firestore, userId: string) {
     if (data.amount >= 0 || data.excludeFromTotals) continue;
     const catId = data.categoryId;
     if (!catId) continue;
-    spending.set(catId, (spending.get(catId) ?? 0) + Math.abs(data.amount));
+    const net = countedExpense(data as TransactionDoc);
+    spending.set(catId, (spending.get(catId) ?? 0) + net);
     const cat = categories.get(catId);
     if (cat?.parentId) {
-      spending.set(cat.parentId, (spending.get(cat.parentId) ?? 0) + Math.abs(data.amount));
+      spending.set(cat.parentId, (spending.get(cat.parentId) ?? 0) + net);
     }
   }
 

@@ -3,6 +3,7 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { format } from 'date-fns';
 import {
   serializeTransaction,
+  countedExpense,
   type TransactionDoc,
   type CategoryDoc,
 } from '../shared/aggregations.js';
@@ -50,7 +51,7 @@ export interface SpendingExplorerResponse {
 }
 
 // ============================================================================
-// Helper: filter transactions by direction, excluding pending reimbursements
+// Helper: filter transactions by direction, retaining partial household costs
 // ============================================================================
 
 function filterByDirection(
@@ -61,10 +62,9 @@ function filterByDirection(
   return transactions.filter(({ doc }) => {
     // Exclude transactions marked for exclusion (e.g. ABN AMRO ICS lump sums)
     if (doc.excludeFromTotals) return false;
-    // Exclude reimbursements — pending (money coming back) and cleared
-    // (already paid back; the expense/payment pair nets to zero)
-    if (doc.reimbursement?.status === 'pending') return false;
-    if (doc.reimbursement?.status === 'cleared') return false;
+    // Keep the unreimbursed part of a purchase; exclude repayment income.
+    if (doc.amount < 0 && countedExpense(doc) === 0) return false;
+    if (doc.amount > 0 && ['pending', 'cleared'].includes(doc.reimbursement?.status ?? '')) return false;
     // Exclude Transfer category from both expenses and income views
     if (doc.categoryId) {
       const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
@@ -78,8 +78,12 @@ function filterByDirection(
 // Helper: get effective amount (always positive)
 // ============================================================================
 
-function effectiveAmount(amount: number): number {
-  return Math.abs(amount);
+function effectiveAmount(doc: TransactionDoc): number {
+  return doc.amount < 0 ? countedExpense(doc) : doc.amount;
+}
+
+function effectiveSplitAmount(splitAmount: number, doc: TransactionDoc): number {
+  return splitAmount * effectiveAmount(doc) / Math.abs(doc.amount);
 }
 
 // ============================================================================
@@ -226,7 +230,7 @@ export const getSpendingExplorer = onCall(
         const monthKey = amsterdamMonthKey(doc.date.toDate());
         const entry = monthlyMap.get(monthKey);
         if (entry) {
-          entry.amount += effectiveAmount(doc.amount);
+          entry.amount += effectiveAmount(doc);
           entry.count += 1;
         }
       }
@@ -244,12 +248,12 @@ export const getSpendingExplorer = onCall(
           if (doc.isSplit && doc.splits) {
             for (const split of doc.splits) {
               if (split.categoryId === subcategoryId) {
-                entry.amount += split.amount;
+                entry.amount += effectiveSplitAmount(split.amount, doc);
                 entry.count += 1;
               }
             }
           } else {
-            entry.amount += effectiveAmount(doc.amount);
+            entry.amount += effectiveAmount(doc);
             entry.count += 1;
           }
         }
@@ -269,12 +273,12 @@ export const getSpendingExplorer = onCall(
           for (const split of doc.splits) {
             const splitTopLevel = getTopLevelCategoryId(split.categoryId, categories);
             if (splitTopLevel === categoryId) {
-              entry.amount += split.amount;
+              entry.amount += effectiveSplitAmount(split.amount, doc);
               entry.count += 1;
             }
           }
         } else if (topLevel === categoryId) {
-          entry.amount += effectiveAmount(doc.amount);
+          entry.amount += effectiveAmount(doc);
           entry.count += 1;
         }
       }
@@ -284,7 +288,7 @@ export const getSpendingExplorer = onCall(
         const monthKey = amsterdamMonthKey(doc.date.toDate());
         const entry = monthlyMap.get(monthKey);
         if (entry) {
-          entry.amount += effectiveAmount(doc.amount);
+          entry.amount += effectiveAmount(doc);
           entry.count += 1;
         }
       }
@@ -401,7 +405,7 @@ export const getSpendingExplorer = onCall(
               const key = cat?.parentId === categoryId ? split.categoryId : categoryId;
               const current = spending.get(key) ?? { amount: 0, count: 0 };
               spending.set(key, {
-                amount: current.amount + split.amount,
+                amount: current.amount + effectiveSplitAmount(split.amount, doc),
                 count: current.count + 1,
               });
             }
@@ -415,7 +419,7 @@ export const getSpendingExplorer = onCall(
             const key = cat?.parentId === categoryId ? txCatId : categoryId;
             const current = spending.get(key) ?? { amount: 0, count: 0 };
             spending.set(key, {
-              amount: current.amount + effectiveAmount(doc.amount),
+              amount: current.amount + effectiveAmount(doc),
               count: current.count + 1,
             });
           }
@@ -456,7 +460,7 @@ export const getSpendingExplorer = onCall(
           const topLevel = getTopLevelCategoryId(split.categoryId, categories);
           const current = spending.get(topLevel) ?? { amount: 0, count: 0 };
           spending.set(topLevel, {
-            amount: current.amount + split.amount,
+            amount: current.amount + effectiveSplitAmount(split.amount, doc),
             count: current.count + 1,
           });
         }
@@ -464,7 +468,7 @@ export const getSpendingExplorer = onCall(
         const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
         const current = spending.get(topLevel) ?? { amount: 0, count: 0 };
         spending.set(topLevel, {
-          amount: current.amount + effectiveAmount(doc.amount),
+          amount: current.amount + effectiveAmount(doc),
           count: current.count + 1,
         });
       }

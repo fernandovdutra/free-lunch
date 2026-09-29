@@ -122,6 +122,7 @@ export interface SerializedTransaction {
   reimbursement: {
     type: string;
     status: string;
+    amount?: number;
     note: string | null;
     linkedTransactionId: string | null;
     clearedAt: string | null;
@@ -153,6 +154,7 @@ export function deserializeTransaction(t: SerializedTransaction): Transaction {
           type: t.reimbursement.type as 'work' | 'personal',
           note: t.reimbursement.note,
           status: t.reimbursement.status as 'pending' | 'cleared',
+          ...(t.reimbursement.amount !== undefined ? { amount: t.reimbursement.amount } : {}),
           linkedTransactionId: t.reimbursement.linkedTransactionId,
           clearedAt: t.reimbursement.clearedAt ? new Date(t.reimbursement.clearedAt) : null,
         }

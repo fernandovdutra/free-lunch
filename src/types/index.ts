@@ -133,6 +133,8 @@ export interface TransactionSplit {
 
 export interface ReimbursementInfo {
   type: 'work' | 'personal';
+  /** Reimbursable part of an expense; absent on legacy full reimbursements. */
+  amount?: number;
   note: string | null;
   status: 'pending' | 'cleared';
   linkedTransactionId: string | null;

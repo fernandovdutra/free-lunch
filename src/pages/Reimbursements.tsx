@@ -63,7 +63,7 @@ export function Reimbursements() {
 
   const now = new Date();
 
-  const owedTotal = pending.reduce((s, t) => s + Math.abs(t.amount), 0);
+  const owedTotal = pending.reduce((s, t) => s + (t.reimbursement?.amount ?? Math.abs(t.amount)), 0);
   const owedFormatted = formatAmount(owedTotal, { showSign: false });
   const { whole: owedWhole, cents: owedCents } = splitCents(owedFormatted);
 
@@ -77,7 +77,7 @@ export function Reimbursements() {
         d.getMonth() === selectedMonth.getMonth()
       );
     })
-    .reduce((s, t) => s + Math.abs(t.amount), 0);
+    .reduce((s, t) => s + (t.reimbursement?.amount ?? Math.abs(t.amount)), 0);
 
   const sublabel =
     pending.length === 0
@@ -157,7 +157,7 @@ export function Reimbursements() {
           const dateLabel = format(t.date, 'MMM d').toUpperCase();
           const days = daysOpenLabel(t.date, now);
           const meta = `${dateLabel} · ${days}`;
-          const amountFormatted = formatAmount(Math.abs(t.amount), { showSign: false });
+          const amountFormatted = formatAmount(t.reimbursement?.amount ?? Math.abs(t.amount), { showSign: false });
           return (
             <button
               key={t.id}
@@ -248,7 +248,7 @@ export function Reimbursements() {
               ? `CLEARED ${format(clearedAt, 'MMM d').toUpperCase()}`
               : 'CLEARED';
             const meta = `${dateLabel} · ${clearedLabel}`;
-            const amountFormatted = formatAmount(Math.abs(t.amount), { showSign: false });
+            const amountFormatted = formatAmount(t.reimbursement?.amount ?? Math.abs(t.amount), { showSign: false });
             return (
               <button
                 key={t.id}

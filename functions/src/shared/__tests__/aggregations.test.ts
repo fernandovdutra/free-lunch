@@ -48,6 +48,41 @@ function createTx(overrides: Omit<Partial<TransactionDoc>, 'date'> & { amount: n
 // ============================================================================
 
 describe('calculateSummary', () => {
+  it('keeps the unreimbursed portions of two purchases in spending', () => {
+    const rows = [
+      createTx({ amount: -120, categoryId: 'travel', reimbursement: {
+        type: 'personal', amount: 60, status: 'cleared', note: null,
+        linkedTransactionId: 'income-a', clearedAt: mockTimestamp('2024-01-20'),
+      } }),
+      createTx({ amount: -30, categoryId: 'travel', reimbursement: {
+        type: 'personal', amount: 15, status: 'cleared', note: null,
+        linkedTransactionId: 'income-b', clearedAt: mockTimestamp('2024-01-20'),
+      } }),
+      createTx({ amount: 60, reimbursement: {
+        type: 'personal', amount: 60, status: 'cleared', note: null,
+        linkedTransactionId: 'purchase-a', clearedAt: mockTimestamp('2024-01-20'),
+      } }),
+      createTx({ amount: 15, reimbursement: {
+        type: 'personal', amount: 15, status: 'cleared', note: null,
+        linkedTransactionId: 'purchase-b', clearedAt: mockTimestamp('2024-01-20'),
+      } }),
+    ];
+    expect(calculateSummary(rows)).toMatchObject({ totalExpenses: 75, totalIncome: 0 });
+    const categories = new Map<string, CategoryDoc>([['travel', {
+      name: 'Travel', icon: '', color: '', parentId: null, order: 0, isSystem: false,
+    }]]);
+    expect(calculateCategorySpending(rows, categories)[0]?.amount).toBe(75);
+    expect(calculateSpendingByCategory(rows, categories).get('travel')).toBe(75);
+  });
+
+  it('counts only the unreimbursed part while a partial repayment is pending', () => {
+    const rows = [createTx({ amount: -120, reimbursement: {
+      type: 'personal', amount: 60, status: 'pending', note: null,
+      linkedTransactionId: null, clearedAt: null,
+    } })];
+    expect(calculateSummary(rows)).toMatchObject({ totalExpenses: 60, pendingReimbursements: 60 });
+    expect(calculateReimbursementSummary(rows, [])).toMatchObject({ pendingTotal: 60 });
+  });
   it('handles empty array', () => {
     const result = calculateSummary([]);
     expect(result).toEqual({

@@ -4,6 +4,7 @@ import {
   query,
   orderBy,
   getDocs,
+  runTransaction,
   doc,
   updateDoc,
   serverTimestamp,
@@ -189,25 +190,31 @@ export function useMarkAsReimbursable() {
       id,
       type,
       note,
+      amount,
     }: {
       id: string;
       type: 'work' | 'personal';
       note?: string | undefined;
+      amount: number;
     }) => {
       if (!dataOwnerId) throw new Error('Not authenticated');
 
       const transactionRef = doc(db, 'users', dataOwnerId, 'transactions', id);
-      const reimbursement: ReimbursementInfo = {
-        type,
-        note: note ?? null,
-        status: 'pending',
-        linkedTransactionId: null,
-        clearedAt: null,
-      };
-
-      await updateDoc(transactionRef, {
-        reimbursement,
-        updatedAt: serverTimestamp(),
+      await runTransaction(db, async (tx) => {
+        const current = await tx.get(transactionRef);
+        const data = current.data() as { amount: number; isSplit?: boolean; reimbursement?: ReimbursementInfo | null } | undefined;
+        if (!data || data.amount >= 0 || data.isSplit ||
+            data.reimbursement?.status === 'cleared' ||
+            !Number.isSafeInteger(Math.round(amount * 100)) ||
+            amount <= 0 || amount > Math.abs(data.amount) ||
+            Math.abs(Math.round(amount * 100) - amount * 100) > 0.000001) {
+          throw new Error('Invalid reimbursable amount');
+        }
+        const reimbursement: ReimbursementInfo = {
+          type, amount, note: note ?? data.reimbursement?.note ?? null,
+          status: 'pending', linkedTransactionId: null, clearedAt: null,
+        };
+        tx.update(transactionRef, { reimbursement, updatedAt: serverTimestamp() });
       });
 
       return id;
@@ -237,28 +244,53 @@ export function useClearReimbursement() {
 
       const clearedAt = new Date();
 
-      // Update each expense transaction to mark as cleared and link to income
-      for (const expenseId of expenseTransactionIds) {
-        const expenseRef = doc(db, 'users', dataOwnerId, 'transactions', expenseId);
-        await updateDoc(expenseRef, {
-          'reimbursement.status': 'cleared',
-          'reimbursement.linkedTransactionId': incomeTransactionId,
-          'reimbursement.clearedAt': Timestamp.fromDate(clearedAt),
+      const incomeRef = doc(db, 'users', dataOwnerId, 'transactions', incomeTransactionId);
+      const expenseRefs = expenseTransactionIds.map((id) =>
+        doc(db, 'users', dataOwnerId, 'transactions', id));
+      if (!expenseRefs.length || new Set(expenseTransactionIds).size !== expenseRefs.length ||
+          expenseTransactionIds.includes(incomeTransactionId)) {
+        throw new Error('Select distinct expenses and income');
+      }
+      await runTransaction(db, async (tx) => {
+        const [income, ...expenses] = await Promise.all([
+          tx.get(incomeRef), ...expenseRefs.map((ref) => tx.get(ref)),
+        ]);
+        const incomeData = income.data() as { amount: number; reimbursement?: ReimbursementInfo | null } | undefined;
+        if (!incomeData || incomeData.amount <= 0 || incomeData.reimbursement) {
+          throw new Error('Income is unavailable for reimbursement');
+        }
+        let reimbursable = 0;
+        let type: 'work' | 'personal' = 'personal';
+        for (const expense of expenses) {
+          const data = expense.data() as { amount: number; reimbursement?: ReimbursementInfo | null } | undefined;
+          if (!data || data.amount >= 0 || data.reimbursement?.status !== 'pending') {
+            throw new Error('Expense is not pending reimbursement');
+          }
+          reimbursable += data.reimbursement.amount ?? Math.abs(data.amount);
+          type = data.reimbursement.type === 'work' ? 'work' : 'personal';
+        }
+        if (Math.round(reimbursable * 100) !== Math.round(incomeData.amount * 100)) {
+          throw new Error('Income must equal the reimbursable amount');
+        }
+        for (const ref of expenseRefs) {
+          tx.update(ref, {
+            'reimbursement.status': 'cleared',
+            'reimbursement.linkedTransactionId': incomeTransactionId,
+            'reimbursement.clearedAt': Timestamp.fromDate(clearedAt),
+            updatedAt: serverTimestamp(),
+          });
+        }
+        tx.update(incomeRef, {
+          reimbursement: {
+            type,
+            amount: reimbursable,
+            note: `Clears ${expenseTransactionIds.length} expense(s)`,
+            status: 'cleared',
+            linkedTransactionId: expenseTransactionIds[0],
+            clearedAt: Timestamp.fromDate(clearedAt),
+          },
           updatedAt: serverTimestamp(),
         });
-      }
-
-      // Optionally mark the income transaction as containing reimbursement
-      const incomeRef = doc(db, 'users', dataOwnerId, 'transactions', incomeTransactionId);
-      await updateDoc(incomeRef, {
-        reimbursement: {
-          type: 'work' as const,
-          note: `Clears ${expenseTransactionIds.length} expense(s)`,
-          status: 'cleared' as const,
-          linkedTransactionId: expenseTransactionIds[0],
-          clearedAt: Timestamp.fromDate(clearedAt),
-        },
-        updatedAt: serverTimestamp(),
       });
 
       return { incomeTransactionId, expenseTransactionIds };

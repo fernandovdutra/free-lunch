@@ -3,17 +3,17 @@ import type { Transaction } from '@/types';
 /**
  * Suggest income transactions that likely reimburse the given expense.
  *
- * A candidate is suggested when its amount exactly matches the expense
- * amount (compared in cents to avoid float noise). Candidates are ranked
+ * A candidate is suggested when its amount matches the reimbursable portion
+ * (or the full expense for older records), compared in cents. Candidates are ranked
  * by plausibility: income dated on/after the expense first (reimbursements
  * normally arrive after the expense), then by date proximity to it.
  */
 export function suggestIncomeMatches(
-  expense: Pick<Transaction, 'amount' | 'date'>,
+  expense: Pick<Transaction, 'amount' | 'date'> & Partial<Pick<Transaction, 'reimbursement'>>,
   incomeTxns: Transaction[],
   max = 3
 ): Transaction[] {
-  const targetCents = Math.round(Math.abs(expense.amount) * 100);
+  const targetCents = Math.round((expense.reimbursement?.amount ?? Math.abs(expense.amount)) * 100);
   if (targetCents === 0) return [];
 
   const expenseTime = expense.date.getTime();
