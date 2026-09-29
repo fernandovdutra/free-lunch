@@ -129,7 +129,7 @@ describe('callWriteTool — dispatch', () => {
   });
 
   it('advertises every write tool as a write action', () => {
-    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(17);
+    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(18);
     for (const tool of WRITE_TOOL_DEFINITIONS) {
       expect(tool.annotations.readOnlyHint).toBe(false);
     }
@@ -158,6 +158,46 @@ describe('record_reimbursement', () => {
       expenseTransactionId: 'purchase', incomeTransactionId: 'credit', amount: 60, type: 'personal',
     })).rejects.toThrow('not eligible');
     expect(writes).toHaveLength(0);
+  });
+});
+
+describe('correct_reimbursement', () => {
+  const linked = {
+    'users/u1/transactions/purchase': { amount: -194, isSplit: false,
+      reimbursement: { type: 'work', status: 'cleared', linkedTransactionId: 'credit' } },
+    'users/u1/transactions/credit': { amount: 97,
+      reimbursement: { type: 'work', status: 'cleared', linkedTransactionId: 'purchase' } },
+  };
+
+  it('corrects both sides of a legacy full match to the partial personal repayment', async () => {
+    const { db, store } = withSeed(linked);
+    await callWriteTool(db, UID, 'correct_reimbursement', {
+      expenseTransactionId: 'purchase', incomeTransactionId: 'credit', amount: 97, type: 'personal',
+    });
+    expect(store.get('users/u1/transactions/purchase')?.reimbursement).toMatchObject({
+      amount: 97, type: 'personal', status: 'cleared', linkedTransactionId: 'credit',
+    });
+    expect(store.get('users/u1/transactions/credit')?.reimbursement).toMatchObject({
+      amount: 97, type: 'personal', status: 'cleared', linkedTransactionId: 'purchase',
+    });
+  });
+
+  it('rejects mismatched or nonreciprocal links without writing', async () => {
+    const { db, writes } = withSeed(linked);
+    await expect(callWriteTool(db, UID, 'correct_reimbursement', {
+      expenseTransactionId: 'purchase', incomeTransactionId: 'credit', amount: 98, type: 'personal',
+    })).rejects.toThrow('not an eligible');
+    expect(writes).toHaveLength(0);
+    const { db: broken, writes: brokenWrites } = withSeed({
+      ...linked,
+      'users/u1/transactions/credit': { amount: 97, reimbursement: {
+        type: 'work', status: 'cleared', linkedTransactionId: 'another',
+      } },
+    });
+    await expect(callWriteTool(broken, UID, 'correct_reimbursement', {
+      expenseTransactionId: 'purchase', incomeTransactionId: 'credit', amount: 97, type: 'personal',
+    })).rejects.toThrow('not an eligible');
+    expect(brokenWrites).toHaveLength(0);
   });
 });
 

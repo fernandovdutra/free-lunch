@@ -381,11 +381,13 @@ export const DUTCH_MERCHANTS: MerchantMapping[] = [
   { pattern: 'DITZO', categorySlug: 'housing.insurance', confidence: 0.95 },
   { pattern: 'JUST VERZEKERING', categorySlug: 'housing.insurance', confidence: 0.95 },
   // General insurance
+  // ASR also services mortgages. Only this confirmed payment descriptor is
+  // specific enough to categorize; generic ASR must remain undecided.
+  { pattern: 'ASR LEVVERZ', categorySlug: 'housing.mortgage', confidence: 0.95 },
   { pattern: 'CENTRAAL BEHEER', categorySlug: 'housing.insurance', confidence: 0.95 },
   { pattern: 'UNIVE', categorySlug: 'housing.insurance', confidence: 0.95 },
   { pattern: 'NATIONALE NEDERLANDEN', categorySlug: 'housing.insurance', confidence: 0.95 },
   { pattern: 'AEGON', categorySlug: 'housing.insurance', confidence: 0.95 },
-  { pattern: 'ASR', categorySlug: 'housing.insurance', confidence: 0.95 },
   { pattern: 'ALLIANZ', categorySlug: 'housing.insurance', confidence: 0.95 },
   { pattern: 'REAAL', categorySlug: 'housing.insurance', confidence: 0.95 },
   { pattern: 'INSHARED', categorySlug: 'housing.insurance', confidence: 0.95 },

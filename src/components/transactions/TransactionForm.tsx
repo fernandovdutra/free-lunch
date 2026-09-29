@@ -19,7 +19,7 @@ import { previewCategorizationChange, applyCategorizationChange, getCategorizati
   undoCategorizationOperation, getCategorizationProposalMatches, type CorrectionPreview, type CorrectionOperation } from '@/lib/categorizationCommands';
 import { useQueryClient } from '@tanstack/react-query';
 import { invalidateFinancialData, queryKeys } from '@/lib/queryKeys';
-import { useMarkAsReimbursable, useClearReimbursement } from '@/hooks/useReimbursements';
+import { useMarkAsReimbursable, useClearReimbursement, useCorrectClearedReimbursement } from '@/hooks/useReimbursements';
 import { useToast } from '@/components/ui/toaster';
 import { formatAmount, cn } from '@/lib/utils';
 import type { Category, Transaction, TransactionSplit } from '@/types';
@@ -92,9 +92,11 @@ export function TransactionForm({
   const markReimbursableMutation = useMarkAsReimbursable();
   const deleteMutation = useDeleteTransaction();
   const clearReimbursementMutation = useClearReimbursement();
+  const correctReimbursementMutation = useCorrectClearedReimbursement();
 
   const [note, setNote] = useState('');
   const [reimbursableAmount, setReimbursableAmount] = useState('');
+  const [reimbursementType, setReimbursementType] = useState<'personal' | 'work'>('personal');
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
@@ -120,6 +122,7 @@ export function TransactionForm({
       const startingNote = transaction.note ?? '';
       setNote(startingNote);
       setReimbursableAmount((transaction.reimbursement?.amount ?? Math.abs(transaction.amount)).toFixed(2));
+      setReimbursementType(transaction.reimbursement?.type ?? 'personal');
       initialNoteRef.current = startingNote;
       setConfirmingDiscard(false);
       setPendingCategoryId(undefined);
@@ -277,6 +280,23 @@ export function TransactionForm({
       toast({ title: 'Reimbursable amount saved' });
     } catch {
       toast({ title: 'Could not save reimbursable amount', variant: 'destructive' });
+    }
+  };
+
+  const correctClearedReimbursement = async () => {
+    const amount = Number(reimbursableAmount.replace(',', '.'));
+    const incomeTransactionId = transaction.reimbursement?.linkedTransactionId;
+    if (!isExpense || transaction.reimbursement?.status !== 'cleared' ||
+        !incomeTransactionId || !Number.isFinite(amount)) return;
+    try {
+      await correctReimbursementMutation.mutateAsync({
+        expenseTransactionId: transaction.id, incomeTransactionId, amount,
+        type: reimbursementType,
+      });
+      toast({ title: 'Reimbursement corrected' });
+      onOpenChange(false);
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not correct reimbursement', variant: 'destructive' });
     }
   };
 
@@ -475,16 +495,29 @@ export function TransactionForm({
                 <label htmlFor="reimbursable-amount" className="flex-1 font-mono text-[10px] uppercase text-textLo">
                   Amount owed
                 </label>
-                {isPendingReimb ? <>
+                {(isPendingReimb || (isExpense && transaction.reimbursement?.status === 'cleared')) ? <>
                   <input id="reimbursable-amount" type="number" min="0.01" step="0.01"
                     max={Math.abs(transaction.amount)} value={reimbursableAmount}
                     onChange={(e) => { setReimbursableAmount(e.target.value); }}
                     className="w-24 border border-rule bg-bg px-2 py-1 text-right font-mono text-sm text-textHi" />
-                  <button type="button" onClick={() => void saveReimbursableAmount()}
-                    disabled={markReimbursableMutation.isPending} className="text-xs text-accent">Save</button>
+                  {isPendingReimb && <button type="button" onClick={() => void saveReimbursableAmount()}
+                    disabled={markReimbursableMutation.isPending} className="text-xs text-accent">Save</button>}
                 </> : <span className="font-mono text-sm text-textHi">
                   {formatAmount(transaction.reimbursement?.amount ?? Math.abs(transaction.amount), { showSign: false })}
                 </span>}
+              </div>
+            )}
+            {isExpense && transaction.reimbursement?.status === 'cleared' && (
+              <div className="hairline-b flex items-center justify-between gap-3 px-4 py-2.5">
+                <select aria-label="Reimbursement type" value={reimbursementType}
+                  onChange={(e) => { setReimbursementType(e.target.value as 'personal' | 'work'); }}
+                  className="border border-rule bg-bg px-2 py-1 font-mono text-xs text-textHi">
+                  <option value="personal">Personal</option>
+                  <option value="work">Work</option>
+                </select>
+                <button type="button" onClick={() => void correctClearedReimbursement()}
+                  disabled={correctReimbursementMutation.isPending}
+                  className="text-xs text-accent">Correct linked reimbursement</button>
               </div>
             )}
             {isReimbursable && (

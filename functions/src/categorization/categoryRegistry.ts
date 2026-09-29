@@ -18,6 +18,7 @@ export const MERCHANT_CATEGORY_IDS: Record<string, string | null> = {
   'health.pharmacy': 'health-pharmacy',
   'housing.communications': 'housing-communications',
   'housing.insurance': 'housing-insurance',
+  'housing.mortgage': 'housing-rent',
   'housing.taxes': 'housing-taxes',
   'housing.utilities': 'housing-utilities',
   income: null,

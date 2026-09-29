@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { matchMerchant, DUTCH_MERCHANTS } from '../merchantDatabase';
 
+describe('ASR mortgage distinction', () => {
+  it('recognizes the confirmed mortgage descriptor without treating generic ASR as insurance', () => {
+    expect(matchMerchant('ASR LEVVERZ')?.categorySlug).toBe('housing.mortgage');
+    expect(matchMerchant('ASR')?.categorySlug).toBeUndefined();
+    expect(matchMerchant('ASR VERZEKERING')?.categorySlug).toBeUndefined();
+  });
+});
+
 describe('matchMerchant', () => {
   describe('grocery matching', () => {
     it('matches ALBERT HEIJN', () => {

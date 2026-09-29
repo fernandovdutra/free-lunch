@@ -275,6 +275,49 @@ async function recordReimbursement(db: Firestore, userId: string, args: Record<s
   });
 }
 
+/** Correct the portion and type of an existing reciprocal reimbursement match. */
+async function correctReimbursement(db: Firestore, userId: string, args: Record<string, unknown>) {
+  const expenseId = requireString(args, 'expenseTransactionId');
+  const incomeId = requireString(args, 'incomeTransactionId');
+  const amount = requireNumber(args, 'amount');
+  const type = requireEnum(args, 'type', ['work', 'personal'] as const);
+  const cents = Math.round(amount * 100);
+  if (expenseId === incomeId || amount <= 0 || !Number.isSafeInteger(cents) ||
+      Math.abs(cents - amount * 100) > 0.000001) {
+    throw new Error('Provide distinct transactions and a positive amount in cents');
+  }
+  const col = userCollection(db, userId, 'transactions');
+  const expenseRef = col.doc(expenseId);
+  const incomeRef = col.doc(incomeId);
+  return db.runTransaction(async (transaction) => {
+    const [expenseSnap, incomeSnap] = await Promise.all([
+      transaction.get(expenseRef), transaction.get(incomeRef),
+    ]);
+    if (!expenseSnap.exists || !incomeSnap.exists) throw new Error('Transaction not found');
+    const expense = expenseSnap.data()!;
+    const income = incomeSnap.data()!;
+    if (expense.amount >= 0 || income.amount <= 0 ||
+        Math.round(income.amount * 100) !== cents ||
+        Math.round(Math.abs(expense.amount) * 100) < cents ||
+        expense.isSplit || expense.excludeFromTotals || income.excludeFromTotals ||
+        expense.reimbursement?.status !== 'cleared' ||
+        income.reimbursement?.status !== 'cleared' ||
+        expense.reimbursement?.linkedTransactionId !== incomeId ||
+        income.reimbursement?.linkedTransactionId !== expenseId) {
+      throw new Error('Transactions are not an eligible reciprocal reimbursement match');
+    }
+    transaction.update(expenseRef, {
+      reimbursement: { ...expense.reimbursement, amount, type },
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(incomeRef, {
+      reimbursement: { ...income.reimbursement, amount, type },
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { expenseTransactionId: expenseId, incomeTransactionId: incomeId, amount, type, status: 'cleared' };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Transaction writes
 // ---------------------------------------------------------------------------
@@ -669,6 +712,21 @@ export const WRITE_TOOL_DEFINITIONS = [
     annotations: WRITE_ANNOTATIONS,
   },
   {
+    name: 'correct_reimbursement',
+    description: 'Correct the reimbursed portion and type of an existing reciprocal cleared match. Updates both transactions atomically; the amount must equal the linked income and cannot exceed the expense.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        expenseTransactionId: { type: 'string' },
+        incomeTransactionId: { type: 'string' },
+        amount: { type: 'number', description: 'Correct reimbursed amount in EUR; must equal linked income' },
+        type: { type: 'string', enum: ['personal', 'work'] },
+      },
+      required: ['expenseTransactionId', 'incomeTransactionId', 'amount', 'type'],
+    },
+    annotations: WRITE_ANNOTATIONS,
+  },
+  {
     name: 'create_transaction',
     description: 'Create a manual transaction (negative amount = expense, positive = income)',
     inputSchema: {
@@ -887,6 +945,8 @@ export async function callWriteTool(
       );
     case 'record_reimbursement':
       return recordReimbursement(db, userId, args);
+    case 'correct_reimbursement':
+      return correctReimbursement(db, userId, args);
     case 'create_transaction':
       return createTransaction(db, userId, args);
     case 'add_transaction_tags':
