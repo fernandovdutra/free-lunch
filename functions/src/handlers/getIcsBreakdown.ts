@@ -176,7 +176,7 @@ export const getIcsBreakdown = onCall(
       const txMonthKey = amsterdamMonthKey(doc.date.toDate());
       const entry = monthlyMap.get(txMonthKey);
       if (entry) {
-        entry.amount += Math.abs(doc.amount);
+        entry.amount -= doc.amount;
         entry.count += 1;
       }
     }
@@ -195,7 +195,7 @@ export const getIcsBreakdown = onCall(
     // ========================================================================
 
     const effectiveMonthKey = breakdownMonthKey ?? referenceMonthKey;
-    const currentTotal = allTransactions.reduce((sum, { doc }) => sum + Math.abs(doc.amount), 0);
+    const currentTotal = allTransactions.reduce((sum, { doc }) => sum - doc.amount, 0);
     const currentMonth = format(monthKeyToDisplayDate(effectiveMonthKey), 'MMMM yyyy');
 
     // ========================================================================
@@ -211,7 +211,7 @@ export const getIcsBreakdown = onCall(
       });
 
       return {
-        currentTotal: Math.round(filtered.reduce((sum, { doc }) => sum + Math.abs(doc.amount), 0) * 100) / 100,
+        currentTotal: Math.round(filtered.reduce((sum, { doc }) => sum - doc.amount, 0) * 100) / 100,
         currentMonth,
         monthlyTotals,
         transactions: filtered.map(({ id, doc }) => serializeTransaction(id, doc)),
@@ -226,7 +226,7 @@ export const getIcsBreakdown = onCall(
       });
 
       return {
-        currentTotal: Math.round(filtered.reduce((sum, { doc }) => sum + Math.abs(doc.amount), 0) * 100) / 100,
+        currentTotal: Math.round(filtered.reduce((sum, { doc }) => sum - doc.amount, 0) * 100) / 100,
         currentMonth,
         monthlyTotals,
         transactions: filtered.map(({ id, doc }) => serializeTransaction(id, doc)),
@@ -240,7 +240,7 @@ export const getIcsBreakdown = onCall(
       const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
       const current = spending.get(topLevel) ?? { amount: 0, count: 0 };
       spending.set(topLevel, {
-        amount: current.amount + Math.abs(doc.amount),
+        amount: current.amount - doc.amount,
         count: current.count + 1,
       });
     }
