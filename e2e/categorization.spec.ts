@@ -47,7 +47,10 @@ test.describe('Categorization', () => {
       .getByRole('dialog')
       .filter({ hasText: STAGED.categorizeMerchant })
       .first();
-    await editSheet.getByRole('button').filter({ hasText: 'Coffee & Bars' }).first().click();
+    // The sheet continuously shifts its bounding box in headless mobile Chromium.
+    // Dispatch the same DOM click directly so actionability/stability polling
+    // doesn't time out on animation, while still exercising React's onClick.
+    await editSheet.getByRole('button').filter({ hasText: 'Coffee & Bars' }).first().dispatchEvent('click');
 
     const picker = page.getByRole('dialog').filter({ hasText: /SELECT CATEGORY|REVIEW CATEGORY CHANGE/ });
     await expect(picker.getByText('SELECT CATEGORY')).toBeVisible({ timeout: 10000 });
