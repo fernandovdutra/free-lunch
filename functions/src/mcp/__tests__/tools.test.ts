@@ -19,12 +19,17 @@ interface SeedTxn {
   categoryId?: string | null;
   categorySource?: string;
   isSplit?: boolean;
+  splits?: Array<{ amount: number; categoryId: string; note: string | null }> | null;
+  source?: 'bank_sync' | 'ics_import' | 'manual';
+  excludeFromTotals?: boolean;
+  reimbursement?: { type: string; status: string; amount?: number; linkedTransactionId?: string | null } | null;
   tags?: string[];
 }
 
 interface SeedCategory {
   id: string;
   name: string;
+  parentId?: string | null;
 }
 
 interface Constraint {
@@ -49,6 +54,10 @@ function createQueryDb(transactions: SeedTxn[], categories: SeedCategory[] = [])
       categoryId: t.categoryId ?? null,
       categorySource: t.categorySource ?? 'auto',
       isSplit: t.isSplit ?? false,
+      splits: t.splits ?? null,
+      source: t.source ?? 'bank_sync',
+      excludeFromTotals: t.excludeFromTotals ?? false,
+      reimbursement: t.reimbursement ?? null,
       tags: t.tags,
     };
   }
@@ -112,7 +121,7 @@ function createQueryDb(transactions: SeedTxn[], categories: SeedCategory[] = [])
             if (sub === 'categories') {
               return {
                 get: async () => ({
-                  docs: categories.map((c) => ({ id: c.id, data: () => ({ name: c.name }) })),
+                  docs: categories.map((c) => ({ id: c.id, data: () => ({ name: c.name, parentId: c.parentId ?? null }) })),
                 }),
               };
             }
@@ -156,6 +165,7 @@ describe('get_fixed_schedule', () => {
       if (name === 'budgets') return { get: async () => ({ docs: [
         { data: () => ({ monthlyLimit: 300, isActive: true }) },
       ] }) };
+      if (name === 'categories') return { get: async () => ({ docs: [] }) };
       throw new Error(name);
     } }) }) } as unknown as Firestore;
     const result = await callTool(db, UID, 'get_fixed_schedule', { month }) as {
@@ -312,6 +322,44 @@ describe('aggregate_transactions', () => {
       direction: 'expense',
     })) as { groups: { key: string }[] };
     expect(result.groups.map((g) => g.key).sort()).toEqual(['2026-03', '2026-04']);
+  });
+});
+
+
+describe('get_spending_summary — canonical accounting', () => {
+  it('excludes debt principal, own-account transfers and shared Tikkies; nets card refunds', async () => {
+    const date = new Date(2026, 9, 16, 12);
+    const txns: SeedTxn[] = [
+      { id: 'loan', date, amount: -22396, description: 'Tesla payoff', categoryId: 'loan' },
+      { id: 'savings', date, amount: 5200, description: 'Own account', categoryId: 'savings' },
+      { id: 'cc', date, amount: -2469.06, description: 'ICS settlement', categoryId: 'cc' },
+      { id: 'friends', date, amount: 52, description: 'Tikkie', categoryId: 'friends' },
+      { id: 'meal', date, amount: -100, description: 'Dinner', categoryId: 'food' },
+      { id: 'card-refund', date, amount: 22.5, description: 'Merchant refund', categoryId: 'food', source: 'ics_import' },
+      { id: 'salary', date, amount: 1000, description: 'Salary', categoryId: 'salary' },
+      { id: 'reimb-exp', date, amount: -80, description: 'Partially reimbursed meal', categoryId: 'food',
+        reimbursement: { type: 'personal', status: 'cleared', amount: 40, linkedTransactionId: 'reimb-income' } },
+      { id: 'reimb-income', date, amount: 40, description: 'Linked reimbursement', categoryId: 'food',
+        reimbursement: { type: 'personal', status: 'cleared', amount: 40, linkedTransactionId: 'reimb-exp' } },
+    ];
+    const cats: SeedCategory[] = [
+      { id: 'transfer', name: 'Transfer' },
+      { id: 'loan', name: 'Loan Principal Repayment', parentId: 'transfer' },
+      { id: 'savings', name: 'Savings Transfer', parentId: 'transfer' },
+      { id: 'cc', name: 'Credit Card Payment', parentId: 'transfer' },
+      { id: 'friends', name: 'Shared Expense Reimbursement', parentId: 'transfer' },
+      { id: 'food', name: 'Restaurants' },
+      { id: 'salary', name: 'Salary' },
+    ];
+    const result = (await callTool(createQueryDb(txns, cats), UID, 'get_spending_summary', {
+      startDate: '2026-10-01T00:00:00Z', endDate: '2026-10-31T23:59:59Z',
+    })) as { totalIncome: number; totalExpenses: number; netBalance: number;
+      categoryBreakdown: Array<{ categoryName: string; amount: number }> };
+
+    expect(result.totalIncome).toBe(1000);
+    expect(result.totalExpenses).toBe(117.5);
+    expect(result.netBalance).toBe(882.5);
+    expect(result.categoryBreakdown).toEqual([expect.objectContaining({ categoryName: 'Restaurants', amount: 117.5 })]);
   });
 });
 
