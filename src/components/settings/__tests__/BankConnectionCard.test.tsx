@@ -44,7 +44,8 @@ function connection(over: Partial<BankConnectionStatus> = {}): BankConnectionSta
       { uid: 'acc-1', iban: 'NL01ABNA0000005787', name: 'F VELHO DUTRA CJ', balance: null },
     ],
     lastSync: '2026-08-01T10:00:00Z',
-    consentExpiresAt: '2026-11-01T10:00:00Z',
+    // Keep the baseline healthy regardless of when CI runs.
+    consentExpiresAt: new Date(Date.now() + 90 * 86_400_000).toISOString(),
     lastAutoSyncAt: null,
     lastAutoSyncError: null,
     ...over,

@@ -107,6 +107,9 @@ export function IcsImportDialog({ open, onOpenChange, onImported }: IcsImportDia
   };
 
   const afTransactions = parseResult?.transactions.filter((t) => t.direction === 'Af') ?? [];
+  const refundTransactions = parseResult?.transactions.filter((t) => t.direction === 'Bij') ?? [];
+  const totalRefunds = refundTransactions.reduce((sum, tx) => sum + tx.amountEur, 0);
+  const netPayment = (parseResult?.header.totalNewExpenses ?? 0) - totalRefunds;
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
@@ -166,14 +169,22 @@ export function IcsImportDialog({ open, onOpenChange, onImported }: IcsImportDia
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Total expenses</span>
+                <span className="text-muted-foreground">Gross purchases</span>
                 <span className="font-medium">
                   {formatAmount(-parseResult.header.totalNewExpenses)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Refunds</span>
+                <span className="font-medium">{formatAmount(totalRefunds)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Expected card debit (net)</span>
+                <span className="font-medium">{formatAmount(-netPayment)}</span>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Transactions</span>
-                <span className="font-medium">{afTransactions.length}</span>
+                <span className="font-medium">{afTransactions.length} purchases, {refundTransactions.length} refunds</span>
               </div>
             </div>
 
@@ -203,7 +214,7 @@ export function IcsImportDialog({ open, onOpenChange, onImported }: IcsImportDia
                   </tr>
                 </thead>
                 <tbody>
-                  {afTransactions.map((tx, i) => (
+                  {parseResult.transactions.map((tx, i) => (
                     <tr key={i} className="border-t">
                       <td className="whitespace-nowrap px-3 py-1.5 text-muted-foreground">
                         {tx.transactionDate.toLocaleDateString('en-GB', {
@@ -223,7 +234,7 @@ export function IcsImportDialog({ open, onOpenChange, onImported }: IcsImportDia
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-3 py-1.5 text-right font-medium tabular-nums">
-                        {formatAmount(-tx.amountEur)}
+                        {formatAmount(tx.direction === 'Bij' ? tx.amountEur : -tx.amountEur)}
                       </td>
                     </tr>
                   ))}

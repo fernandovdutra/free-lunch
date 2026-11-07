@@ -68,7 +68,8 @@ jobs:
       - run: npx firebase emulators:exec --project demo-free-lunch-test --only firestore 'npm run test:emulator'
 
   categorization-mobile:
-    runs-on: ubuntu-latest
+    # Playwright Chromium does not yet support ubuntu-26.04 on GitHub's latest image.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

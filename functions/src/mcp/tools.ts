@@ -3,7 +3,16 @@ import { subMonths } from 'date-fns';
 import { WRITE_TOOL_DEFINITIONS, callWriteTool } from './writeTools.js';
 import { matchMerchant } from '../categorization/merchantDatabase.js';
 import { getCorrectionOperation, listCategorizationReview } from '../categorization/commandService.js';
-import { countedExpense, type TransactionDoc } from '../shared/aggregations.js';
+import {
+  countedExpense,
+  spendingContribution,
+  isIcsRefund,
+  calculateSummary,
+  calculateCategorySpending,
+  calculateSpendingByCategory,
+  type TransactionDoc,
+  type CategoryDoc,
+} from '../shared/aggregations.js';
 
 /**
  * Finance query tools exposed over MCP.
@@ -146,6 +155,35 @@ async function loadCategoryNames(db: Firestore, userId: string): Promise<Map<str
   return names;
 }
 
+/** Use the same category graph as the application's financial aggregation. */
+function toCategoryMap(docs: Array<{ id: string; data: () => FirebaseFirestore.DocumentData }>): Map<string, CategoryDoc> {
+  const categories = new Map<string, CategoryDoc>();
+  for (const doc of docs) {
+    const data = doc.data();
+    categories.set(doc.id, {
+      name: data.name ?? 'Uncategorized',
+      icon: data.icon ?? 'folder',
+      color: data.color ?? '#9CA3AF',
+      parentId: data.parentId ?? null,
+      order: data.order ?? 0,
+      isSystem: data.isSystem ?? false,
+    });
+  }
+  return categories;
+}
+
+/** Matches Transfer and every descendant, including Loan Principal / CC / reimbursements. */
+function isTransferCategory(categoryId: string | null | undefined, categories: Map<string, CategoryDoc>): boolean {
+  let id = categoryId;
+  const visited = new Set<string>();
+  while (id && !visited.has(id)) {
+    if (id === 'transfer') return true;
+    visited.add(id);
+    id = categories.get(id)?.parentId;
+  }
+  return false;
+}
+
 async function getCategories(db: Firestore, userId: string) {
   const snap = await db.collection('users').doc(userId).collection('categories').get();
   return snap.docs.map((doc) => ({ id: doc.id, name: doc.data().name,
@@ -162,13 +200,15 @@ async function getFixedSchedule(db: Firestore, userId: string, month: string) {
   const start = new Date(Date.UTC(year, monthNumber - 1, 1));
   const end = new Date(Date.UTC(year, monthNumber, 1));
   const user = db.collection('users').doc(userId);
-  const [scheduleSnap, matchesSnap, txnSnap, budgetSnap] = await Promise.all([
+  const [scheduleSnap, matchesSnap, txnSnap, budgetSnap, catSnap] = await Promise.all([
     user.collection('settings').doc('fixedSchedule').get(),
     user.collection('settings').doc('fixedMatches').get(),
     user.collection('transactions').where('date', '>=', Timestamp.fromDate(new Date(start.getTime() - 86400000)))
       .where('date', '<', Timestamp.fromDate(new Date(end.getTime() + 86400000))).get(),
     user.collection('budgets').get(),
+    user.collection('categories').get(),
   ]);
+  const categories = toCategoryMap(catSnap.docs);
   type FixedItem = { d: number; a: number; l: string };
   const items: FixedItem[] = Array.isArray(scheduleSnap.data()?.items) ? scheduleSnap.data()!.items : [];
   const overrides = new Set<string>(matchesSnap.data()?.months?.[month] ?? []);
@@ -178,6 +218,7 @@ async function getFixedSchedule(db: Firestore, userId: string, month: string) {
   const txns = txnSnap.docs.map((doc) => doc.data()).filter((data) =>
     data.date?.toDate && dayKey(data.date.toDate()).startsWith(month) &&
     !data.excludeFromTotals &&
+    !isTransferCategory(data.categoryId, categories) &&
     (data.amount >= 0 || countedExpense(data as TransactionDoc) > 0)
   );
   const claimed = new Set<number>();
@@ -201,8 +242,10 @@ async function getFixedSchedule(db: Firestore, userId: string, month: string) {
   const asOf = dayKey(new Date());
   const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
   const dayOfMonth = month === asOf.slice(0, 7) ? Number(asOf.slice(8)) : daysInMonth;
-  const spent = txns.filter((t) => t.amount < 0)
-    .reduce((sum, t) => sum + countedExpense(t as TransactionDoc), 0);
+  const spent = txns.reduce((sum, t) => {
+    if (t.amount > 0 && !isIcsRefund(t as TransactionDoc)) return sum;
+    return sum + spendingContribution(t as TransactionDoc);
+  }, 0);
   const budget = budgetSnap.docs.filter((d) => d.data().isActive !== false)
     .reduce((sum, d) => sum + (d.data().monthlyLimit ?? 0), 0);
   const fixedSum = items.reduce((sum, item) => sum + item.a, 0);
@@ -399,56 +442,25 @@ async function getSpendingSummary(
     db.collection('users').doc(userId).collection('categories').get(),
   ]);
 
-  const categories = new Map<string, { name: string; color: string; parentId: string | null }>();
-  catSnap.docs.forEach((doc) => {
-    const data = doc.data();
-    categories.set(doc.id, { name: data.name, color: data.color, parentId: data.parentId });
-  });
-
-  let totalIncome = 0;
-  let totalExpenses = 0;
-  const byCat = new Map<string, { name: string; amount: number; count: number }>();
-
-  for (const doc of txnSnap.docs) {
-    const data = doc.data();
-    if (data.excludeFromTotals) continue;
-    if (data.amount > 0 && ['pending', 'cleared'].includes(data.reimbursement?.status)) continue;
-
-    if (data.amount > 0) {
-      totalIncome += data.amount;
-    } else {
-      const netExpense = countedExpense(data as TransactionDoc);
-      if (netExpense === 0) continue;
-      totalExpenses += netExpense;
-      const catId = data.categoryId ?? 'uncategorized';
-      const cat = categories.get(catId);
-      const existing = byCat.get(catId) ?? {
-        name: cat?.name ?? 'Uncategorized',
-        amount: 0,
-        count: 0,
-      };
-      existing.amount += netExpense;
-      existing.count += 1;
-      byCat.set(catId, existing);
-    }
-  }
-
-  const categoryBreakdown = Array.from(byCat.entries())
-    .map(([id, data]) => ({
-      categoryId: id,
-      categoryName: data.name,
-      amount: Math.round(data.amount * 100) / 100,
-      transactionCount: data.count,
-      percentage:
-        totalExpenses > 0 ? Math.round((data.amount / totalExpenses) * 1000) / 10 : 0,
-    }))
-    .sort((a, b) => b.amount - a.amount);
+  const categories = toCategoryMap(catSnap.docs);
+  const rows = txnSnap.docs.map((doc) => ({ id: doc.id, doc: doc.data() as TransactionDoc }));
+  // Reuse the application's canonical accounting logic: transfer/loan principal
+  // is not spending, cleared repayments are not salary, and ICS refunds reduce
+  // spending rather than creating income.
+  const summary = calculateSummary(rows, categories);
+  const categoryBreakdown = calculateCategorySpending(rows, categories).map((category) => ({
+    categoryId: category.categoryId,
+    categoryName: category.categoryName,
+    amount: round2(category.amount),
+    transactionCount: category.transactionCount,
+    percentage: round2(category.percentage),
+  }));
 
   return {
     period: { startDate, endDate },
-    totalIncome: Math.round(totalIncome * 100) / 100,
-    totalExpenses: Math.round(totalExpenses * 100) / 100,
-    netBalance: Math.round((totalIncome - totalExpenses) * 100) / 100,
+    totalIncome: round2(summary.totalIncome),
+    totalExpenses: round2(summary.totalExpenses),
+    netBalance: round2(summary.netBalance),
     transactionCount: txnSnap.size,
     categoryBreakdown,
   };
@@ -480,10 +492,12 @@ async function getCategoryTrends(
     let count = 0;
     for (const doc of snapshot.docs) {
       const data = doc.data();
-      if (data.amount < 0 && !data.excludeFromTotals) {
-        total += countedExpense(data as TransactionDoc);
-        count++;
-      }
+      if (data.excludeFromTotals) continue;
+      if (data.amount >= 0 && !isIcsRefund(data as TransactionDoc)) continue;
+      const net = spendingContribution(data as TransactionDoc);
+      if (net === 0) continue;
+      total += net;
+      count++;
     }
 
     results.push({
@@ -513,25 +527,9 @@ async function getBudgetProgress(db: Firestore, userId: string) {
     db.collection('users').doc(userId).collection('categories').get(),
   ]);
 
-  const categories = new Map<string, { name: string; parentId: string | null }>();
-  catSnap.docs.forEach((doc) => {
-    const data = doc.data();
-    categories.set(doc.id, { name: data.name, parentId: data.parentId });
-  });
-
-  const spending = new Map<string, number>();
-  for (const doc of txnSnap.docs) {
-    const data = doc.data();
-    if (data.amount >= 0 || data.excludeFromTotals) continue;
-    const catId = data.categoryId;
-    if (!catId) continue;
-    const net = countedExpense(data as TransactionDoc);
-    spending.set(catId, (spending.get(catId) ?? 0) + net);
-    const cat = categories.get(catId);
-    if (cat?.parentId) {
-      spending.set(cat.parentId, (spending.get(cat.parentId) ?? 0) + net);
-    }
-  }
+  const categories = toCategoryMap(catSnap.docs);
+  const rows = txnSnap.docs.map((doc) => ({ id: doc.id, doc: doc.data() as TransactionDoc }));
+  const spending = calculateSpendingByCategory(rows, categories);
 
   return budgetSnap.docs
     .filter((doc) => doc.data().isActive !== false)
@@ -832,7 +830,7 @@ const READ_TOOL_DEFINITIONS = [
   {
     name: 'aggregate_transactions',
     description:
-      'Get spending totals and counts for a filtered set of transactions without returning the individual records. Optionally group the totals by category, tag, counterparty, or month. Accepts the same filters as get_transactions.',
+      'Get RAW signed bank movements (including transfers) over filtered transactions, grouped by category, tag, counterparty, or month. For household spending and income excluding transfers and reimbursements, use get_spending_summary.',
     inputSchema: {
       type: 'object' as const,
       properties: {

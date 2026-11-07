@@ -205,6 +205,16 @@ function getTopLevelCategoryId(
   return categoryId;
 }
 
+/** ICS credits refund card purchases. They are not new household income. */
+export function isIcsRefund(doc: TransactionDoc): boolean {
+  return doc.source === 'ics_import' && doc.amount > 0;
+}
+
+/** Signed contribution to spending: positive expense, negative ICS refund. */
+export function spendingContribution(doc: TransactionDoc): number {
+  return isIcsRefund(doc) ? -doc.amount : countedExpense(doc);
+}
+
 /** Household cost left after the reimbursable part is removed. */
 export function countedExpense(doc: TransactionDoc): number {
   const gross = Math.abs(doc.amount);
@@ -244,6 +254,8 @@ export function calculateSummary(
       // Incoming reimbursement is not income; keep any unreimbursed
       // portion of the original purchase as household spending.
       if (doc.amount < 0) totalExpenses += countedExpense(doc);
+    } else if (isIcsRefund(doc)) {
+      totalExpenses -= doc.amount;
     } else if (doc.amount > 0) {
       totalIncome += doc.amount;
     } else {
@@ -271,8 +283,8 @@ export function calculateCategorySpending(
 ): CategorySpendingResult[] {
   // Only count household portions of expenses, excluding transfers.
   const expenses = transactions.filter(({ doc }) => {
-    if (doc.amount >= 0) return false;
-    if (countedExpense(doc) === 0) return false;
+    if (doc.amount >= 0 && !isIcsRefund(doc)) return false;
+    if (doc.amount < 0 && countedExpense(doc) === 0) return false;
     if (doc.excludeFromTotals) return false;
     const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
     if (topLevel === 'transfer') return false;
@@ -283,7 +295,7 @@ export function calculateCategorySpending(
   const spending = new Map<string, { amount: number; count: number }>();
 
   for (const { doc } of expenses) {
-    const net = countedExpense(doc);
+    const net = spendingContribution(doc);
     const ratio = net / Math.abs(doc.amount);
     if (doc.isSplit && doc.splits) {
       // Handle split transactions: each split counted toward its own category
@@ -373,7 +385,9 @@ export function calculateTimelineData(
     const dateKey = amsterdamDayKey(toDate(doc.date));
     const current = dailyData.get(dateKey) ?? { income: 0, expenses: 0 };
 
-    if (doc.amount > 0) {
+    if (isIcsRefund(doc)) {
+      current.expenses -= doc.amount;
+    } else if (doc.amount > 0) {
       current.income += doc.amount;
     } else {
       current.expenses += countedExpense(doc);
@@ -406,12 +420,12 @@ export function calculateSpendingByCategory(
   for (const { doc } of transactions) {
     // Keep the household portion of partially reimbursed expenses.
     if (doc.excludeFromTotals) continue;
-    if (doc.amount >= 0) continue;
-    if (countedExpense(doc) === 0) continue;
+    if (doc.amount >= 0 && !isIcsRefund(doc)) continue;
+    if (doc.amount < 0 && countedExpense(doc) === 0) continue;
     const topLevelId = getTopLevelCategoryId(doc.categoryId, categories);
     if (topLevelId === 'transfer') continue;
 
-    const absAmount = countedExpense(doc);
+    const absAmount = spendingContribution(doc);
     const ratio = absAmount / Math.abs(doc.amount);
 
     if (doc.isSplit && doc.splits) {

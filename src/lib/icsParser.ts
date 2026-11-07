@@ -130,7 +130,6 @@ const COUNTRY_CODES = new Set([
 const SKIP_PATTERNS = [
   /^GEINCASSEERD VORIG SALDO/i,
   /^Uw Card met als laatste/i,
-  /^Wisselkoers\s/i,
   /^Nu beschikbaar/i,
   /^Uw betalingen aan/i,
   /^Het totale saldo/i,

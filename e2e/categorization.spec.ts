@@ -34,12 +34,10 @@ test.describe('Categorization', () => {
   });
 
   test('recategorizes a transaction via the category picker', async ({ page }) => {
-    // The list is virtualized — search to bring the staged row into view.
-    await page.getByPlaceholder(/search description or payee/i).fill(STAGED.categorizeMerchant);
-    // Staged txn starts as Coffee & Bars.
-    const row = page.getByRole('button').filter({ hasText: STAGED.categorizeMerchant }).first();
-    await expect(row).toContainText('COFFEE & BARS');
-    await row.click();
+    // Open the supported transaction deep-link: the row is present in the
+    // first month's loaded page but may be outside the virtualized viewport.
+    // Activating search while the sheet is open triggers infinite-scroll churn.
+    await page.goto(`/transactions?id=${STAGED.categorizeId}`);
 
     // Scope to the edit sheet — hasText is case-insensitive, so unscoped
     // locators would also match the list row behind the sheet overlay.
@@ -73,9 +71,11 @@ test.describe('Categorization', () => {
       editSheet.getByRole('button').filter({ hasText: 'Restaurants' }).first()
     ).toBeVisible({ timeout: 10000 });
 
-    // And so does the list row after closing the sheet.
+    // After the sheet closes, search to reveal the row if virtualized and
+    // verify the category propagated back to the list.
     await editSheet.getByRole('button', { name: 'Close' }).click();
     await expect(editSheet).toBeHidden();
+    await page.getByPlaceholder(/search description or payee/i).fill(STAGED.categorizeMerchant);
     await expect(
       page
         .getByRole('button')

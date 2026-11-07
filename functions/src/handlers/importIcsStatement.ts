@@ -3,6 +3,7 @@ import { getFirestore, FieldValue, Timestamp, WriteBatch } from 'firebase-admin/
 import { Categorizer } from '../categorization/index.js';
 import { importIcsStatementSchema } from '../validation/schemas.js';
 import { resolveDataOwner, requireRole } from '../shared/dataOwner.js';
+import { calculateIcsStatementTotals } from '../shared/icsAccounting.js';
 
 // ============================================================================
 // Request/Response types
@@ -80,8 +81,16 @@ export const importIcsStatement = onCall(
       );
     }
 
-    // 2. Filter to only "Af" (expense) transactions
-    const expenseTransactions = data.transactions.filter((t) => t.direction === 'Af');
+    // 2. Include BOTH purchases and refunds. ICS prints gross purchases in
+    // "Totaal nieuwe uitgaven", but collects the NET after "Bij" refunds.
+    const totals = calculateIcsStatementTotals(data.transactions);
+    if (Math.abs(totals.grossPurchases - data.totalNewExpenses) > 0.02) {
+      throw new HttpsError(
+        'invalid-argument',
+        `Parsed ICS purchases (€${totals.grossPurchases.toFixed(2)}) do not reconcile with the statement gross (€${data.totalNewExpenses.toFixed(2)}). Import aborted.`
+      );
+    }
+    const statementTransactions = data.transactions;
 
     // 3. Initialize categorizer
     const categorizer = new Categorizer(userId);
@@ -119,8 +128,10 @@ export const importIcsStatement = onCall(
         searchFields.includes('INTERNATIONAL CARD SERVICES') ||
         searchFields.includes('ICS');
 
-      if (containsICS && amount < 0) {
-        const diff = Math.abs(Math.abs(amount) - data.totalNewExpenses);
+      if (containsICS && amount !== 0) {
+        // Bank debits are negative; credits are positive. Match SIGNED net,
+        // not gross purchases, because refunded amounts reduce the settlement.
+        const diff = Math.abs(amount + totals.netPayment);
         if (diff <= 0.05) {
           lumpSumTransactionId = doc.id;
           break;
@@ -128,11 +139,11 @@ export const importIcsStatement = onCall(
       }
     }
 
-    // 5. Batch create ICS transactions
+    // 5. Batch create ICS purchases AND refunds
     let transactionsCreated = 0;
 
-    for (let i = 0; i < expenseTransactions.length; i += BATCH_SIZE) {
-      const batchItems = expenseTransactions.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < statementTransactions.length; i += BATCH_SIZE) {
+      const batchItems = statementTransactions.slice(i, i + BATCH_SIZE);
       const batch: WriteBatch = db.batch();
 
       for (let j = 0; j < batchItems.length; j++) {
@@ -153,7 +164,7 @@ export const importIcsStatement = onCall(
           bookingDate: Timestamp.fromDate(new Date(tx.bookingDate)),
           transactionDate: Timestamp.fromDate(new Date(tx.transactionDate)),
           description: fullDescription,
-          amount: -tx.amountEur, // Expenses are negative
+          amount: tx.direction === 'Af' ? -tx.amountEur : tx.amountEur, // Refunds are positive
           currency: 'EUR',
           counterparty,
           categoryId: catResult.categoryId,
@@ -220,6 +231,8 @@ export const importIcsStatement = onCall(
       statementDate: Timestamp.fromDate(new Date(data.statementDate)),
       customerNumber: data.customerNumber,
       totalNewExpenses: data.totalNewExpenses,
+      refunds: totals.refunds,
+      netPayment: totals.netPayment,
       transactionsCreated,
       lumpSumTransactionId,
       importedAt: FieldValue.serverTimestamp(),

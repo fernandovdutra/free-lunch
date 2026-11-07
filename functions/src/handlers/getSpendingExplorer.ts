@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import {
   serializeTransaction,
   countedExpense,
+  isIcsRefund,
   type TransactionDoc,
   type CategoryDoc,
 } from '../shared/aggregations.js';
@@ -70,7 +71,7 @@ function filterByDirection(
       const topLevel = getTopLevelCategoryId(doc.categoryId, categories);
       if (topLevel === 'transfer') return false;
     }
-    return direction === 'expenses' ? doc.amount < 0 : doc.amount > 0;
+    return direction === 'expenses' ? doc.amount < 0 || isIcsRefund(doc) : doc.amount > 0 && !isIcsRefund(doc);
   });
 }
 
@@ -79,7 +80,7 @@ function filterByDirection(
 // ============================================================================
 
 function effectiveAmount(doc: TransactionDoc): number {
-  return doc.amount < 0 ? countedExpense(doc) : doc.amount;
+  return isIcsRefund(doc) ? -doc.amount : doc.amount < 0 ? countedExpense(doc) : doc.amount;
 }
 
 function effectiveSplitAmount(splitAmount: number, doc: TransactionDoc): number {
