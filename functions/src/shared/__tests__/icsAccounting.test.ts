@@ -20,7 +20,7 @@ const octoberStatement = [
   { amountEur: 22.50, direction: 'Bij' as const },
 ];
 
-function tx(amount: number, categoryId: string, source: TransactionDoc['source'] = 'ics_import', date = '2026-10-16') {
+function tx(amount: number, categoryId: string, source: TransactionDoc['source'] = 'ics_import', date = '2026-10-16'): { id: string; doc: TransactionDoc } {
   const stamp = Timestamp.fromDate(new Date(date + 'T12:00:00Z'));
   return {
     id: `test-${amount}-${categoryId}`,
@@ -41,7 +41,7 @@ function tx(amount: number, categoryId: string, source: TransactionDoc['source']
       bankAccountId: null,
       importedAt: stamp,
       updatedAt: stamp,
-    } satisfies TransactionDoc,
+    },
   };
 }
 
