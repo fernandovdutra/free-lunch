@@ -34,8 +34,8 @@ test.describe('Categorization', () => {
   });
 
   test('recategorizes a transaction via the category picker', async ({ page }) => {
-    // The list is virtualized — search to bring the staged row into view.
-    await page.getByPlaceholder(/search description or payee/i).fill(STAGED.categorizeMerchant);
+    // The seeded transaction is in the current month and visible without search.
+    // Avoid activating client-side search pagination during this sheet interaction.
     // Staged txn starts as Coffee & Bars.
     const row = page.getByRole('button').filter({ hasText: STAGED.categorizeMerchant }).first();
     await expect(row).toContainText('COFFEE & BARS');
@@ -47,10 +47,7 @@ test.describe('Categorization', () => {
       .getByRole('dialog')
       .filter({ hasText: STAGED.categorizeMerchant })
       .first();
-    // The sheet continuously shifts its bounding box in headless mobile Chromium.
-    // Dispatch the same DOM click directly so actionability/stability polling
-    // doesn't time out on animation, while still exercising React's onClick.
-    await editSheet.getByRole('button').filter({ hasText: 'Coffee & Bars' }).first().dispatchEvent('click');
+    await editSheet.getByRole('button').filter({ hasText: 'Coffee & Bars' }).first().click();
 
     const picker = page.getByRole('dialog').filter({ hasText: /SELECT CATEGORY|REVIEW CATEGORY CHANGE/ });
     await expect(picker.getByText('SELECT CATEGORY')).toBeVisible({ timeout: 10000 });
