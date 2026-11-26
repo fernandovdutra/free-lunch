@@ -125,6 +125,8 @@ export interface SerializedTransaction {
     amount?: number;
     note: string | null;
     linkedTransactionId: string | null;
+    allocations?: Array<{ expenseTransactionId: string; amount: number }>;
+    unallocatedAmount?: number;
     clearedAt: string | null;
   } | null;
   bankAccountId: string | null;
@@ -156,6 +158,8 @@ export function deserializeTransaction(t: SerializedTransaction): Transaction {
           status: t.reimbursement.status as 'pending' | 'cleared',
           ...(t.reimbursement.amount !== undefined ? { amount: t.reimbursement.amount } : {}),
           linkedTransactionId: t.reimbursement.linkedTransactionId,
+          ...(t.reimbursement.allocations ? { allocations: t.reimbursement.allocations } : {}),
+          ...(t.reimbursement.unallocatedAmount !== undefined ? { unallocatedAmount: t.reimbursement.unallocatedAmount } : {}),
           clearedAt: t.reimbursement.clearedAt ? new Date(t.reimbursement.clearedAt) : null,
         }
       : null,
