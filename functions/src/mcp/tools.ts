@@ -293,6 +293,8 @@ function enrichTransaction(row: RawTxn, categoryNames: Map<string, string>) {
       status: row.data.reimbursement.status,
       amount: row.data.reimbursement.amount ?? null,
       linkedTransactionId: row.data.reimbursement.linkedTransactionId ?? null,
+      ...(Array.isArray(row.data.reimbursement.allocations) ? { allocations: row.data.reimbursement.allocations } : {}),
+      ...(typeof row.data.reimbursement.unallocatedAmount === 'number' ? { unallocatedAmount: row.data.reimbursement.unallocatedAmount } : {}),
     } : null,
     tags: Array.isArray(row.data.tags) ? (row.data.tags as string[]) : [],
   };
