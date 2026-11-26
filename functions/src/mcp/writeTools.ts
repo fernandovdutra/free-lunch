@@ -275,6 +275,108 @@ async function recordReimbursement(db: Firestore, userId: string, args: Record<s
   });
 }
 
+/** Allocate an incoming reimbursement across distinct expenses, including late imports.
+ * Keep the entire confirmed credit out of household income; expose the unallocated
+ * balance separately. Never infer allocations or silently reuse a legacy match.
+ */
+async function recordBundledReimbursement(db: Firestore, userId: string, args: Record<string, unknown>) {
+  const incomeId = requireString(args, 'incomeTransactionId');
+  const type = requireEnum(args, 'type', ['work', 'personal'] as const);
+  const raw = args.allocations;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 100) {
+    throw new Error('Provide 1–100 expense allocations');
+  }
+  const centsOf = (amount: unknown): number => {
+    if (typeof amount !== 'number' || amount <= 0 ||
+        !Number.isSafeInteger(Math.round(amount * 100)) ||
+        Math.abs(Math.round(amount * 100) - amount * 100) > 0.000001) {
+      throw new Error('Provide positive amounts in cents');
+    }
+    return Math.round(amount * 100);
+  };
+  const allocations = raw.map((item: unknown) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error('Invalid allocation');
+    const entry = item as Record<string, unknown>;
+    const id = requireString(entry, 'expenseTransactionId');
+    return { expenseTransactionId: id, amount: centsOf(entry.amount) / 100 };
+  });
+  const ids = allocations.map(a => a.expenseTransactionId);
+  if ([incomeId, ...ids].some(id => id.includes('/')) ||
+      new Set(ids).size !== ids.length || ids.includes(incomeId)) {
+    throw new Error('Select distinct expense and income transactions');
+  }
+  const col = userCollection(db, userId, 'transactions');
+  const incomeRef = col.doc(incomeId);
+  const expenseRefs = ids.map(id => col.doc(id));
+  return db.runTransaction(async tx => {
+    const [incomeSnap, ...expenseSnaps] = await Promise.all([
+      tx.get(incomeRef), ...expenseRefs.map(ref => tx.get(ref)),
+    ]);
+    const income = incomeSnap.data();
+    if (!incomeSnap.exists || !income || income.amount <= 0 ||
+        income.isSplit || income.excludeFromTotals) throw new Error('Income is not eligible');
+    const creditCents = centsOf(income.amount);
+    const existing = income.reimbursement;
+    if (existing && (existing.status !== 'cleared' || existing.type !== type ||
+        !Array.isArray(existing.allocations))) throw new Error('Income has an incompatible existing match');
+    const previous: Array<{expenseTransactionId: string; amount: number}> = existing?.allocations ?? [];
+    const previousIds = new Set(previous.map(a => a.expenseTransactionId));
+    if (previousIds.size !== previous.length || previousIds.has(incomeId)) throw new Error('Invalid existing allocations');
+    // Repeated identical allocations are safe to retry; changes to existing
+    // allocations require an explicit correction workflow.
+    const fresh = allocations.filter(a => {
+      const prior = previous.find(p => p.expenseTransactionId === a.expenseTransactionId);
+      if (!prior) return true;
+      if (centsOf(prior.amount) !== centsOf(a.amount)) throw new Error('Expense already allocated with a different amount');
+      return false;
+    });
+    for (let i = 0; i < allocations.length; i++) {
+      const a = allocations[i];
+      const snap = expenseSnaps[i];
+      const expense = snap.data();
+      const amount = centsOf(a.amount);
+      if (!snap.exists || !expense || expense.amount >= 0 || expense.isSplit ||
+          expense.excludeFromTotals || centsOf(-expense.amount) < amount) {
+        throw new Error('Expense is not eligible');
+      }
+      const r = expense.reimbursement;
+      if (previousIds.has(a.expenseTransactionId)) {
+        if (r?.status !== 'cleared' || r.linkedTransactionId !== incomeId ||
+            r.type !== type || centsOf(r.amount) !== amount) throw new Error('Existing allocation is not reciprocal');
+      } else if (r && (r.status !== 'pending' || r.linkedTransactionId ||
+          (r.amount !== undefined && centsOf(r.amount) !== amount))) {
+        throw new Error('Expense has an incompatible existing reimbursement');
+      }
+    }
+    const combined = [...previous, ...fresh];
+    const allocatedCents = combined.reduce((sum, a) => sum + centsOf(a.amount), 0);
+    if (!Number.isSafeInteger(allocatedCents) || allocatedCents > creditCents) {
+      throw new Error('Allocations exceed reimbursement payment');
+    }
+    const clearedAt = existing?.clearedAt ?? Timestamp.now();
+    for (const a of fresh) {
+      const i = ids.indexOf(a.expenseTransactionId);
+      tx.update(expenseRefs[i], {
+        reimbursement: { type, amount: a.amount, status: 'cleared',
+          note: expenseSnaps[i].data()?.reimbursement?.note ?? null,
+          linkedTransactionId: incomeId, clearedAt },
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    if (fresh.length) tx.update(incomeRef, {
+      reimbursement: { type, amount: creditCents / 100, status: 'cleared',
+        note: existing?.note ?? 'Bundled reimbursement',
+        linkedTransactionId: null, allocations: combined,
+        unallocatedAmount: (creditCents - allocatedCents) / 100, clearedAt },
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { incomeTransactionId: incomeId, allocations: combined,
+      allocatedAmount: allocatedCents / 100,
+      unallocatedAmount: (creditCents - allocatedCents) / 100,
+      status: 'cleared' };
+  });
+}
+
 /** Correct the portion and type of an existing reciprocal reimbursement match. */
 async function correctReimbursement(db: Firestore, userId: string, args: Record<string, unknown>) {
   const expenseId = requireString(args, 'expenseTransactionId');
@@ -712,6 +814,30 @@ export const WRITE_TOOL_DEFINITIONS = [
     annotations: WRITE_ANNOTATIONS,
   },
   {
+    name: 'record_bundled_reimbursement',
+    description: 'Allocate a confirmed reimbursement credit to multiple expenses. Supports partial allocation when expenses are missing and later additions; unallocated balance is returned. Identical allocations may be retried safely.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        incomeTransactionId: { type: 'string' },
+        type: { type: 'string', enum: ['personal', 'work'] },
+        allocations: {
+          type: 'array', minItems: 1, maxItems: 100,
+          items: {
+            type: 'object',
+            properties: {
+              expenseTransactionId: { type: 'string' },
+              amount: { type: 'number', description: 'Reimbursed portion in EUR' },
+            },
+            required: ['expenseTransactionId', 'amount'],
+          },
+        },
+      },
+      required: ['incomeTransactionId', 'type', 'allocations'],
+    },
+    annotations: WRITE_ANNOTATIONS,
+  },
+  {
     name: 'correct_reimbursement',
     description: 'Correct the reimbursed portion and type of an existing reciprocal cleared match. Updates both transactions atomically; the amount must equal the linked income and cannot exceed the expense.',
     inputSchema: {
@@ -945,6 +1071,8 @@ export async function callWriteTool(
       );
     case 'record_reimbursement':
       return recordReimbursement(db, userId, args);
+    case 'record_bundled_reimbursement':
+      return recordBundledReimbursement(db, userId, args);
     case 'correct_reimbursement':
       return correctReimbursement(db, userId, args);
     case 'create_transaction':
