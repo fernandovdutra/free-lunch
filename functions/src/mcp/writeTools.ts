@@ -287,7 +287,7 @@ async function recordBundledReimbursement(db: Firestore, userId: string, args: R
     throw new Error('Provide 1–100 expense allocations');
   }
   const centsOf = (amount: unknown): number => {
-    if (typeof amount !== 'number' || amount <= 0 ||
+    if (typeof amount !== 'number' || Math.round(amount * 100) < 1 ||
         !Number.isSafeInteger(Math.round(amount * 100)) ||
         Math.abs(Math.round(amount * 100) - amount * 100) > 0.000001) {
       throw new Error('Provide positive amounts in cents');
@@ -307,21 +307,20 @@ async function recordBundledReimbursement(db: Firestore, userId: string, args: R
   }
   const col = userCollection(db, userId, 'transactions');
   const incomeRef = col.doc(incomeId);
-  const expenseRefs = ids.map(id => col.doc(id));
   return db.runTransaction(async tx => {
-    const [incomeSnap, ...expenseSnaps] = await Promise.all([
-      tx.get(incomeRef), ...expenseRefs.map(ref => tx.get(ref)),
-    ]);
+    const incomeSnap = await tx.get(incomeRef);
     const income = incomeSnap.data();
     if (!incomeSnap.exists || !income || income.amount <= 0 ||
         income.isSplit || income.excludeFromTotals) throw new Error('Income is not eligible');
     const creditCents = centsOf(income.amount);
     const existing = income.reimbursement;
     if (existing && (existing.status !== 'cleared' || existing.type !== type ||
+        existing.linkedTransactionId != null || existing.amount !== creditCents / 100 ||
         !Array.isArray(existing.allocations))) throw new Error('Income has an incompatible existing match');
     const previous: Array<{expenseTransactionId: string; amount: number}> = existing?.allocations ?? [];
     const previousIds = new Set(previous.map(a => a.expenseTransactionId));
-    if (previousIds.size !== previous.length || previousIds.has(incomeId)) throw new Error('Invalid existing allocations');
+    if (previousIds.size !== previous.length || previousIds.has(incomeId) ||
+        previous.some(a => typeof a.expenseTransactionId !== 'string' || !a.expenseTransactionId.trim() || a.expenseTransactionId.includes('/'))) throw new Error('Invalid existing allocations');
     // Repeated identical allocations are safe to retry; changes to existing
     // allocations require an explicit correction workflow.
     const fresh = allocations.filter(a => {
@@ -330,8 +329,10 @@ async function recordBundledReimbursement(db: Firestore, userId: string, args: R
       if (centsOf(prior.amount) !== centsOf(a.amount)) throw new Error('Expense already allocated with a different amount');
       return false;
     });
-    for (let i = 0; i < allocations.length; i++) {
-      const a = allocations[i];
+    const combined = [...previous, ...fresh];
+    const expenseRefs = combined.map(a => col.doc(a.expenseTransactionId));
+    const expenseSnaps = await Promise.all(expenseRefs.map(ref => tx.get(ref)));
+    for (const [i, a] of combined.entries()) {
       const snap = expenseSnaps[i];
       const expense = snap.data();
       const amount = centsOf(a.amount);
@@ -348,14 +349,13 @@ async function recordBundledReimbursement(db: Firestore, userId: string, args: R
         throw new Error('Expense has an incompatible existing reimbursement');
       }
     }
-    const combined = [...previous, ...fresh];
     const allocatedCents = combined.reduce((sum, a) => sum + centsOf(a.amount), 0);
     if (!Number.isSafeInteger(allocatedCents) || allocatedCents > creditCents) {
       throw new Error('Allocations exceed reimbursement payment');
     }
     const clearedAt = existing?.clearedAt ?? Timestamp.now();
-    for (const a of fresh) {
-      const i = ids.indexOf(a.expenseTransactionId);
+    for (let i = previous.length; i < combined.length; i++) {
+      const a = combined[i];
       tx.update(expenseRefs[i], {
         reimbursement: { type, amount: a.amount, status: 'cleared',
           note: expenseSnaps[i].data()?.reimbursement?.note ?? null,

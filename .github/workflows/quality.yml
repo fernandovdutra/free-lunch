@@ -89,11 +89,12 @@ jobs:
       - run: npm run build
         working-directory: functions
       - run: npx playwright install --with-deps chromium
-      - name: Mobile categorization flow
+      - name: Mobile categorization and bundled reimbursement flows
         run: |
           cp .env.test.example .env.local
           sed -i 's/your-project-id/demo-free-lunch-test/g' .env.local
-          npx firebase emulators:exec --project demo-free-lunch-test --only auth,firestore,functions 'node scripts/seed-emulator.mjs && npx playwright test e2e/categorization.spec.ts'
+          printf '%s\n' 'SINGLE_USER_ID=test-user-emulator' 'MCP_SECRET_TOKEN=demo-bundle-test' > functions/.secret.local
+          npx firebase emulators:exec --project demo-free-lunch-test --only auth,firestore,functions 'node scripts/seed-emulator.mjs && npx playwright test e2e/categorization.spec.ts e2e/bundled-reimbursement.spec.ts'
         env:
           FIREBASE_PROJECT_ID: demo-free-lunch-test
           VITE_FIREBASE_PROJECT_ID: demo-free-lunch-test

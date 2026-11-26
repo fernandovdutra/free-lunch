@@ -101,3 +101,8 @@ or updating a PR, so that reviewing the PR is the only human step:
 New user-visible flows should land together with an E2E spec covering
 them, and fixes to data semantics (e.g. what counts as "spent") with a
 unit test pinning the new behavior.
+
+The bundled reimbursement E2E calls the local MCP endpoint. Before starting
+the emulators, set `SINGLE_USER_ID=test-user-emulator` and
+`MCP_SECRET_TOKEN=demo-bundle-test` in the ignored `functions/.secret.local`.
+These values are fixtures for the demo project.

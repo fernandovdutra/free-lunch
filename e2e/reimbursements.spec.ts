@@ -93,7 +93,7 @@ test.describe('Reimbursements', () => {
 
     // Manual resolve → picker with the SUGGESTED section on top.
     await page.getByText('Mark as reimbursed').click();
-    await expect(page.getByText(/Suggested · Same amount/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Suggested · Amount owed/i)).toBeVisible({ timeout: 15000 });
 
     const suggestion = page.locator('button.border-l-accent').first();
     await expect(suggestion).toContainText(STAGED.matchMerchant);

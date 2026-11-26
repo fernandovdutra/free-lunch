@@ -43,9 +43,9 @@ interface TransactionFormProps {
 
 /** The callable has committed the current row; project that decision into
  * both regular and paginated transaction caches while Firestore catches up. */
-function projectSavedCategory(cached: unknown, transactionId: string, categoryId: string | null): unknown {
+function projectSavedTransaction(cached: unknown, transactionId: string, changes: Partial<Transaction>): unknown {
   const row = (item: unknown): unknown => item && typeof item === 'object' && 'id' in item && item.id === transactionId
-    ? { ...item, categoryId, categorySource: 'manual', categoryConfidence: categoryId ? 1 : 0 } : item;
+    ? { ...item, ...changes } : item;
   if (Array.isArray(cached)) return cached.map(row);
   if (cached && typeof cached === 'object' && 'pages' in cached && Array.isArray(cached.pages)) {
     return { ...cached, pages: cached.pages.map((page: unknown) =>
@@ -222,7 +222,7 @@ export function TransactionForm({
       // the staged choice. Otherwise both can briefly show the old category.
       await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
       queryClient.setQueriesData({ queryKey: queryKeys.transactions.root }, (cached: unknown) =>
-        projectSavedCategory(cached, transaction.id, selectedCategoryId));
+        projectSavedTransaction(cached, transaction.id, { categoryId: selectedCategoryId, categorySource: 'manual', categoryConfidence: selectedCategoryId ? 1 : 0 }));
       setPendingCategoryId(undefined);
       setPickerOpen(false);
       setPreview(null);
@@ -355,10 +355,14 @@ export function TransactionForm({
   const handleResolvePicked = async (incomeTransactionId: string) => {
     setResolveOpen(false);
     try {
-      await clearReimbursementMutation.mutateAsync({
+      const { clearedExpenses, dataOwnerId } = await clearReimbursementMutation.mutateAsync({
         incomeTransactionId,
         expenseTransactionIds: [transaction.id],
       });
+      for (const { id, reimbursement } of clearedExpenses) {
+        queryClient.setQueriesData({ queryKey: queryKeys.transactions.all(dataOwnerId) }, (cached: unknown) =>
+          projectSavedTransaction(cached, id, { reimbursement }));
+      }
       toast({ title: 'Reimbursement resolved' });
       onOpenChange(false);
     } catch {

@@ -252,7 +252,7 @@ export function useClearReimbursement() {
           expenseTransactionIds.includes(incomeTransactionId)) {
         throw new Error('Select distinct expenses and income');
       }
-      await runTransaction(db, async (tx) => {
+      const clearedExpenses = await runTransaction(db, async (tx) => {
         const [income, ...expenses] = await Promise.all([
           tx.get(incomeRef), ...expenseRefs.map((ref) => tx.get(ref)),
         ]);
@@ -262,14 +262,16 @@ export function useClearReimbursement() {
         }
         let reimbursable = 0;
         let type: 'work' | 'personal' = 'personal';
-        for (const expense of expenses) {
+        const matched = expenses.map(expense => {
           const data = expense.data() as { amount: number; reimbursement?: ReimbursementInfo | null } | undefined;
           if (!data || data.amount >= 0 || data.reimbursement?.status !== 'pending') {
             throw new Error('Expense is not pending reimbursement');
           }
           reimbursable += data.reimbursement.amount ?? Math.abs(data.amount);
           type = data.reimbursement.type === 'work' ? 'work' : 'personal';
-        }
+          return { id: expense.id, reimbursement: { ...data.reimbursement, type,
+            status: 'cleared' as const, linkedTransactionId: incomeTransactionId, clearedAt } };
+        });
         if (Math.round(reimbursable * 100) !== Math.round(incomeData.amount * 100)) {
           throw new Error('Income must equal the reimbursable amount');
         }
@@ -292,12 +294,14 @@ export function useClearReimbursement() {
           },
           updatedAt: serverTimestamp(),
         });
+        return matched;
       });
 
-      return { incomeTransactionId, expenseTransactionIds };
+      return { incomeTransactionId, expenseTransactionIds, clearedExpenses, dataOwnerId };
     },
-    onSuccess: () => {
-      invalidateFinancialData(queryClient);
+    onSuccess: async ({ dataOwnerId: ownerId }) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all(ownerId) });
+      invalidateFinancialData(queryClient, { skipTransactions: true });
     },
   });
 }

@@ -129,7 +129,7 @@ describe('callWriteTool — dispatch', () => {
   });
 
   it('advertises every write tool as a write action', () => {
-    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(18);
+    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(19);
     for (const tool of WRITE_TOOL_DEFINITIONS) {
       expect(tool.annotations.readOnlyHint).toBe(false);
     }
@@ -219,6 +219,15 @@ describe('record_bundled_reimbursement', () => {
     await expect(callWriteTool(db, UID, 'record_bundled_reimbursement', {
       ...initial, allocations: [{ expenseTransactionId: 'a', amount: 100 }],
     })).rejects.toThrow('different amount');
+    expect(writes).toHaveLength(3);
+  });
+  it('rejects a late allocation when an earlier expense lost its link', async () => {
+    const { db, store, writes } = withSeed(base);
+    await callWriteTool(db, UID, 'record_bundled_reimbursement', initial);
+    store.set('users/u1/transactions/a', { amount: -120.50, reimbursement: null });
+    await expect(callWriteTool(db, UID, 'record_bundled_reimbursement', {
+      ...initial, allocations: [{ expenseTransactionId: 'c', amount: 61.63 }],
+    })).rejects.toThrow('not reciprocal');
     expect(writes).toHaveLength(3);
   });
   it('rejects credits already used by a legacy one-to-one match', async () => {
