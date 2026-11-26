@@ -130,7 +130,7 @@ function dayOfThisMonth(day: number): Date {
   return new Date(now.getFullYear(), now.getMonth(), day, 12, 0, 0);
 }
 
-function txnFields(overrides: {
+export function txnFields(overrides: {
   date: Date;
   description: string;
   counterparty: string;

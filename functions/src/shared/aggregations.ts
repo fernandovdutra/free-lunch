@@ -19,6 +19,8 @@ export interface TransactionDoc {
     amount?: number;
     note: string | null;
     linkedTransactionId: string | null;
+    allocations?: Array<{ expenseTransactionId: string; amount: number }>;
+    unallocatedAmount?: number;
     clearedAt: Timestamp | null;
   } | null;
   description: string;
@@ -123,6 +125,8 @@ export interface TransactionResult {
     amount?: number;
     note: string | null;
     linkedTransactionId: string | null;
+    allocations?: Array<{ expenseTransactionId: string; amount: number }>;
+    unallocatedAmount?: number;
     clearedAt: string | null;
   } | null;
   bankAccountId: string | null;
@@ -176,6 +180,8 @@ export function serializeTransaction(id: string, doc: TransactionDoc): Transacti
           amount: doc.reimbursement.amount,
           note: doc.reimbursement.note ?? null,
           linkedTransactionId: doc.reimbursement.linkedTransactionId ?? null,
+          ...(doc.reimbursement.allocations ? { allocations: doc.reimbursement.allocations } : {}),
+          ...(doc.reimbursement.unallocatedAmount !== undefined ? { unallocatedAmount: doc.reimbursement.unallocatedAmount } : {}),
           clearedAt: doc.reimbursement.clearedAt
             ? toISOString(doc.reimbursement.clearedAt)
             : null,

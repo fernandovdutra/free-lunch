@@ -129,7 +129,7 @@ describe('callWriteTool — dispatch', () => {
   });
 
   it('advertises every write tool as a write action', () => {
-    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(18);
+    expect(WRITE_TOOL_DEFINITIONS).toHaveLength(19);
     for (const tool of WRITE_TOOL_DEFINITIONS) {
       expect(tool.annotations.readOnlyHint).toBe(false);
     }
@@ -157,6 +157,86 @@ describe('record_reimbursement', () => {
     await expect(callWriteTool(db, UID, 'record_reimbursement', {
       expenseTransactionId: 'purchase', incomeTransactionId: 'credit', amount: 60, type: 'personal',
     })).rejects.toThrow('not eligible');
+    expect(writes).toHaveLength(0);
+  });
+});
+
+describe('record_bundled_reimbursement', () => {
+  const base = {
+    'users/u1/transactions/credit': { amount: 235.16, reimbursement: null },
+    'users/u1/transactions/a': { amount: -120.50, reimbursement: { type: 'personal', status: 'pending', amount: 120.50 } },
+    'users/u1/transactions/b': { amount: -53.03, reimbursement: null },
+    'users/u1/transactions/c': { amount: -61.63, reimbursement: null },
+  };
+  const initial = { incomeTransactionId: 'credit', type: 'work', allocations: [
+    { expenseTransactionId: 'a', amount: 120.50 },
+    { expenseTransactionId: 'b', amount: 53.03 },
+  ] };
+  it('allocates multiple expenses, corrects pending type and supports late imports', async () => {
+    const { db, store, writes } = withSeed(base);
+    const first = await callWriteTool(db, UID, 'record_bundled_reimbursement', initial);
+    expect(first).toMatchObject({ allocatedAmount: 173.53, unallocatedAmount: 61.63 });
+    expect(store.get('users/u1/transactions/a')?.reimbursement).toMatchObject({
+      type: 'work', status: 'cleared', amount: 120.50, linkedTransactionId: 'credit',
+    });
+    expect(store.get('users/u1/transactions/credit')?.reimbursement).toMatchObject({
+      status: 'cleared', amount: 235.16, unallocatedAmount: 61.63, allocations: initial.allocations,
+    });
+    expect(writes).toHaveLength(3);
+    await callWriteTool(db, UID, 'record_bundled_reimbursement', initial);
+    expect(writes).toHaveLength(3);
+    const final = await callWriteTool(db, UID, 'record_bundled_reimbursement', {
+      ...initial, allocations: [{ expenseTransactionId: 'c', amount: 61.63 }],
+    });
+    expect(final).toMatchObject({ allocatedAmount: 235.16, unallocatedAmount: 0 });
+    expect(writes).toHaveLength(5);
+  });
+  it('supports exact bundles and preserves the personal portion of a partially reimbursed expense', async () => {
+    const { db, store } = withSeed({
+      'users/u1/transactions/credit': { amount: 100 },
+      'users/u1/transactions/a': { amount: -120 },
+      'users/u1/transactions/b': { amount: -40 },
+    });
+    await expect(callWriteTool(db, UID, 'record_bundled_reimbursement', {
+      incomeTransactionId: 'credit', type: 'personal', allocations: [
+        { expenseTransactionId: 'a', amount: 60 }, { expenseTransactionId: 'b', amount: 40 },
+      ],
+    })).resolves.toMatchObject({ allocatedAmount: 100, unallocatedAmount: 0 });
+    expect(store.get('users/u1/transactions/a')?.reimbursement).toMatchObject({ amount: 60 });
+  });
+  it('rejects duplicate IDs, over-allocation, missing expenses and changed retries without writes', async () => {
+    const { db, writes } = withSeed(base);
+    for (const allocations of [
+      [initial.allocations[0], initial.allocations[0]],
+      [...initial.allocations, { expenseTransactionId: 'c', amount: 61.64 }],
+      [{ expenseTransactionId: 'missing', amount: 1 }],
+      [{ expenseTransactionId: 'b', amount: 0.001 }],
+    ]) {
+      await expect(callWriteTool(db, UID, 'record_bundled_reimbursement', { ...initial, allocations })).rejects.toThrow();
+    }
+    expect(writes).toHaveLength(0);
+    await callWriteTool(db, UID, 'record_bundled_reimbursement', initial);
+    await expect(callWriteTool(db, UID, 'record_bundled_reimbursement', {
+      ...initial, allocations: [{ expenseTransactionId: 'a', amount: 100 }],
+    })).rejects.toThrow('different amount');
+    expect(writes).toHaveLength(3);
+  });
+  it('rejects a late allocation when an earlier expense lost its link', async () => {
+    const { db, store, writes } = withSeed(base);
+    await callWriteTool(db, UID, 'record_bundled_reimbursement', initial);
+    store.set('users/u1/transactions/a', { amount: -120.50, reimbursement: null });
+    await expect(callWriteTool(db, UID, 'record_bundled_reimbursement', {
+      ...initial, allocations: [{ expenseTransactionId: 'c', amount: 61.63 }],
+    })).rejects.toThrow('not reciprocal');
+    expect(writes).toHaveLength(3);
+  });
+  it('rejects credits already used by a legacy one-to-one match', async () => {
+    const { db, writes } = withSeed({ ...base,
+      'users/u1/transactions/credit': { amount: 235.16, reimbursement: {
+        status: 'cleared', type: 'work', linkedTransactionId: 'other',
+      } },
+    });
+    await expect(callWriteTool(db, UID, 'record_bundled_reimbursement', initial)).rejects.toThrow('incompatible');
     expect(writes).toHaveLength(0);
   });
 });

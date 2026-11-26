@@ -138,6 +138,8 @@ export interface ReimbursementInfo {
   note: string | null;
   status: 'pending' | 'cleared';
   linkedTransactionId: string | null;
+  allocations?: Array<{ expenseTransactionId: string; amount: number }>;
+  unallocatedAmount?: number;
   clearedAt: Date | null;
 }
 
